@@ -7,6 +7,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const password = document.getElementById('password');
 
     const showAlert = (type, title, text) => {
+        const toneMap = {
+            info: {
+                glow: '#4db7ff',
+                accent: '#79d6ff'
+            },
+            warning: {
+                glow: '#ffcc4d',
+                accent: '#ffd76a'
+            },
+            error: {
+                glow: '#ff4d6d',
+                accent: '#ff7a90'
+            },
+            success: {
+                glow: '#34d399',
+                accent: '#7ef0b1'
+            }
+        };
+
+        const tone = toneMap[type] || toneMap.info;
+
         Swal.fire({
             icon: type,
             title,
@@ -14,10 +35,12 @@ document.addEventListener('DOMContentLoaded', () => {
             confirmButtonText: 'Continue',
             customClass: {
                 popup: 'tech-swal',
-                confirmButton: 'tech-swal-button'
+                confirmButton: 'tech-swal-button',
+                title: 'tech-swal-title',
+                htmlContainer: 'tech-swal-text'
             },
             buttonsStyling: false,
-            backdrop: 'rgba(10, 17, 22, 0.5)',
+            backdrop: 'rgba(10, 17, 22, 0.6)',
             showClass: {
                 popup: 'swal2-show animate__animated animate__fadeInUp'
             },
@@ -27,6 +50,9 @@ document.addEventListener('DOMContentLoaded', () => {
             didOpen: () => {
                 const popup = document.querySelector('.tech-swal');
                 if (popup) {
+                    popup.dataset.tone = type;
+                    popup.style.setProperty('--tone-glow', tone.glow);
+                    popup.style.setProperty('--tone-accent', tone.accent);
                     popup.style.transform = 'scale(0.96)';
                     requestAnimationFrame(() => {
                         popup.style.transition = 'transform 0.25s ease';
@@ -50,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             showAlert(
                 'warning',
-                'Empty field detected',
+                'Missing required fields',
                 `Please fill in: ${emptyFields.join(', ')}.`
             );
 

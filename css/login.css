@@ -223,20 +223,54 @@ form {
 .tech-swal {
     border-radius: 18px !important;
     border: 1px solid rgba(212, 175, 102, 0.35) !important;
-    background: rgba(16, 23, 29, 0.88) !important;
+    background-image: linear-gradient(rgba(10, 17, 22, 0.68), rgba(10, 17, 22, 0.72)), url('../assets/admin-repair-illustration.jpg') !important;
+    background-size: cover !important;
+    background-position: center !important;
     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.28) !important;
     backdrop-filter: blur(16px) saturate(1.2) !important;
     color: #f5f5f5 !important;
 }
 
+.tech-swal[data-tone="info"] .tech-swal-title,
+.tech-swal[data-tone="info"] .tech-swal-text,
+.tech-swal[data-tone="info"] .swal2-html-container,
+.tech-swal[data-tone="info"] .swal2-title {
+    color: #7ad1ff !important;
+    text-shadow: 0 0 10px rgba(90, 180, 255, 0.8), 0 0 18px rgba(90, 180, 255, 0.45) !important;
+}
+
+.tech-swal[data-tone="warning"] .tech-swal-title,
+.tech-swal[data-tone="warning"] .tech-swal-text,
+.tech-swal[data-tone="warning"] .swal2-html-container,
+.tech-swal[data-tone="warning"] .swal2-title {
+    color: #ffd45d !important;
+    text-shadow: 0 0 10px rgba(255, 212, 93, 0.8), 0 0 18px rgba(255, 212, 93, 0.45) !important;
+}
+
+.tech-swal[data-tone="error"] .tech-swal-title,
+.tech-swal[data-tone="error"] .tech-swal-text,
+.tech-swal[data-tone="error"] .swal2-html-container,
+.tech-swal[data-tone="error"] .swal2-title {
+    color: #ff728a !important;
+    text-shadow: 0 0 10px rgba(255, 114, 138, 0.8), 0 0 18px rgba(255, 114, 138, 0.45) !important;
+}
+
+.tech-swal[data-tone="success"] .tech-swal-title,
+.tech-swal[data-tone="success"] .tech-swal-text,
+.tech-swal[data-tone="success"] .swal2-html-container,
+.tech-swal[data-tone="success"] .swal2-title {
+    color: #7af0b2 !important;
+    text-shadow: 0 0 10px rgba(122, 240, 178, 0.8), 0 0 18px rgba(122, 240, 178, 0.45) !important;
+}
+
 .tech-swal .swal2-title {
-    color: #f7f5f0 !important;
     font-size: 1.35rem !important;
     letter-spacing: 0.03em !important;
+    font-weight: 700 !important;
 }
 
 .tech-swal .swal2-html-container {
-    color: rgba(247, 245, 240, 0.8) !important;
+    color: rgba(247, 245, 240, 0.9) !important;
     font-size: 0.96rem !important;
 }
 
@@ -292,10 +326,29 @@ form {
     box-shadow: 0 0 0 3px rgba(212, 175, 102, 0.2) !important;
 }
 
-.register-text {
-    margin: 18px 0 0;
-    text-align: center;
+.reset-panel {
+    width: min(100%, 500px);
+}
+
+.reset-copy {
+    margin: 0 0 18px;
     color: rgba(247, 245, 240, 0.8);
+    text-align: center;
+    line-height: 1.6;
+}
+
+.reset-box {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 14px;
+    padding: 18px 16px;
+    margin-bottom: 18px;
+    color: var(--soft-white);
+    line-height: 1.8;
+}
+
+.reset-box p {
+    margin: 0;
 }
 
 .error-box {

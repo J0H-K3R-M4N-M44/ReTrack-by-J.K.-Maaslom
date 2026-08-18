@@ -41,13 +41,13 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
                         <label class="field-label" for="username">Username</label>
                         <div class="input-wrap">
                             <i class="fa-regular fa-user"></i>
-                            <input type="text" id="username" name="username" placeholder="Username" required>
+                            <input type="text" id="username" name="username" placeholder="Username">
                         </div>
 
                         <label class="field-label" for="password">Password</label>
                         <div class="input-wrap">
                             <i class="fa-solid fa-lock"></i>
-                            <input type="password" id="password" name="password" placeholder="Password" required>
+                            <input type="password" id="password" name="password" placeholder="Password">
                         </div>
 
                         <div class="meta-row">
@@ -55,13 +55,11 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
                                 <input type="checkbox" name="remember" value="1">
                                 <span>Remember me</span>
                             </label>
-                            <a href="#">Forgot Password?</a>
+                            <a href="forgot_password.php">Forgot Password?</a>
                         </div>
 
                         <button type="submit" class="login-btn">Login</button>
                     </form>
-
-                    <p class="register-text">Don't have an account? <a href="#">Register</a></p>
                 </div>
             </div>
         </div>
