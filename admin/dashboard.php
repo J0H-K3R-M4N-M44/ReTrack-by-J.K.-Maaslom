@@ -1,0 +1,33 @@
+<?php
+session_start();
+
+if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
+    header('Location: login.php');
+    exit;
+}
+
+if (isset($_SESSION['last_active']) && (time() - $_SESSION['last_active'] > 1800)) {
+    session_unset();
+    session_destroy();
+    header('Location: login.php?error=1');
+    exit;
+}
+
+$_SESSION['last_active'] = time();
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="../css/login.css">
+</head>
+<body class="dashboard-body">
+    <div class="dashboard-container">
+        <h1>Welcome, <?php echo htmlspecialchars($_SESSION['admin_username']); ?></h1>
+        <p>You are logged in as the admin.</p>
+        <a href="logout.php" class="logout-btn">Logout</a>
+    </div>
+</body>
+</html>
