@@ -22,6 +22,16 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
     </video>
     <div class="video-overlay"></div>
 
+    <div class="loader-overlay" aria-live="polite">
+        <div class="loader-shell">
+            <div class="loader-ring"></div>
+            <div class="loader-matrix">
+                <div class="transfer-metric"></div>
+            </div>
+            <div class="transfer-status">Establishing secure link</div>
+        </div>
+    </div>
+
     <div class="login-scene">
         <div class="login-shell">
             <div class="brand-wrap">
@@ -66,5 +76,6 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
     </div>
     <script src="https://kit.fontawesome.com/19c0f829b8.js" crossorigin="anonymous"></script>
     <script src="../js/login.js"></script>
+    <script src="../js/login-transition.js"></script>
 </body>
 </html>
