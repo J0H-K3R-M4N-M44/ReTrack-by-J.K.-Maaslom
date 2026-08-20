@@ -4,6 +4,7 @@
 // ========================================
 
 session_start();
+$_SESSION['csrf_token'] = $_SESSION['csrf_token'] ?? bin2hex(random_bytes(32));
 
 if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
     header('Location: dashboard.php');
@@ -22,7 +23,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 </head>
-<body>
+<body class="page-fade">
     <!-- ========================================
          BACKGROUND & OVERLAYS
          ======================================== -->
@@ -58,7 +59,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
 
             <!-- Form Container -->
             <div class="login-content">
-                <div class="login-panel">
+                <div class="login-panel auth-view" id="login-view">
                     <h2>Login</h2>
 
                     <?php if (isset($_GET['error'])): ?>
@@ -66,7 +67,8 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
                     <?php endif; ?>
 
                     <form id="admin-login-form" action="process_login.php" method="POST" autocomplete="off">
-                        
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
+
                         <!-- Username Field -->
                         <label class="field-label" for="username">Username</label>
                         <div class="input-wrap">
@@ -81,18 +83,30 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
                             <input type="password" id="password" name="password" placeholder="Password">
                         </div>
 
-                        <!-- Remember & Forgot -->
+                        <!-- Password recovery -->
                         <div class="meta-row">
-                            <label class="remember-me">
-                                <input type="checkbox" name="remember" value="1">
-                                <span>Remember me</span>
-                            </label>
-                            <a href="forgot_password.php">Forgot Password?</a>
+                            <a href="forgot_password.php" data-auth-view="recovery">Forgot Password?</a>
                         </div>
 
                         <!-- Submit Button -->
                         <button type="submit" class="login-btn">Login</button>
                     </form>
+                </div>
+
+                <div class="login-panel reset-panel auth-view" id="recovery-view" hidden>
+                    <h2>Reset Password</h2>
+                    <p class="reset-copy">
+                        This is a demo admin account. Use the default credentials below to login.
+                    </p>
+
+                    <div class="reset-box">
+                        <p><strong>Username:</strong> admin</p>
+                        <p><strong>Password:</strong> 123</p>
+                    </div>
+
+                    <a href="login.php" class="login-btn" data-auth-view="login">
+                        Back to Login
+                    </a>
                 </div>
             </div>
         </div>
@@ -102,7 +116,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
          ======================================== -->
     
     <script src="https://kit.fontawesome.com/19c0f829b8.js" crossorigin="anonymous"></script>
+    <script type="module" src="../js/page-transition.js"></script>
     <script src="../js/login.js"></script>
-    <script src="../js/login-transition.js"></script>
 </body>
 </html>

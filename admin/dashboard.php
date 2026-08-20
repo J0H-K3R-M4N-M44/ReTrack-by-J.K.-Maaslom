@@ -39,15 +39,27 @@ $_SESSION['last_active'] = time();
     <title>Admin Dashboard</title>
     <link rel="stylesheet" href="../css/login.css">
 </head>
-<body class="dashboard-body">
+<body class="dashboard-body page-fade">
     <!-- ========================================
          ADMIN DASHBOARD
          ======================================== -->
-    
+
+    <div class="loader-overlay" aria-live="polite">
+        <div class="loader-shell">
+            <div class="loader-ring"></div>
+            <div class="loader-matrix">
+                <div class="transfer-metric"></div>
+            </div>
+            <div class="transfer-status">Ending session</div>
+        </div>
+    </div>
+
     <div class="dashboard-container">
         <h1>Welcome, <?php echo htmlspecialchars($_SESSION['admin_username']); ?></h1>
         <p>You are logged in as the admin.</p>
-        <a href="logout.php" class="logout-btn">Logout</a>
+        <a href="logout.php" class="logout-btn" id="logout-link">Logout</a>
     </div>
+
+    <script type="module" src="../js/page-transition.js"></script>
 </body>
 </html>

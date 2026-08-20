@@ -11,6 +11,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+// Verify the login form came from this session.
+$submitted_token = $_POST['csrf_token'] ?? '';
+$session_token = $_SESSION['csrf_token'] ?? '';
+
+if (
+    $session_token === '' ||
+    $submitted_token === '' ||
+    !hash_equals($session_token, $submitted_token)
+) {
+    header('Location: login.php?error=1');
+    exit;
+}
+
 // ========================================
 // Get & Parse Input
 // ========================================

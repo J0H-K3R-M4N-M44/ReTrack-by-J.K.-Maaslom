@@ -16,10 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const showAlert = (type, title, text) => {
         const toneMap = {
-            info: {
-                glow: '#4db7ff',
-                accent: '#79d6ff'
-            },
             warning: {
                 glow: '#ffcc4d',
                 accent: '#ffd76a'
@@ -27,14 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
             error: {
                 glow: '#ff4d6d',
                 accent: '#ff7a90'
-            },
-            success: {
-                glow: '#34d399',
-                accent: '#7ef0b1'
             }
         };
 
-        const tone = toneMap[type] || toneMap.info;
+        const tone = toneMap[type] || toneMap.error;
 
         Swal.fire({
             // Alert appearance
@@ -81,10 +73,47 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // ========================================
-    // FORM SUBMISSION VALIDATION
-    // ========================================
-    
+    const submitButton = form.querySelector('button[type="submit"]');
+    const originalButtonText = submitButton?.textContent || 'Login';
+    let isSubmitting = false;
+
+    const startTransfer = () => {
+        if (isSubmitting) return;
+
+        isSubmitting = true;
+        document.body.classList.add('transitioning');
+
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = 'Securing access...';
+        }
+
+        const metric = document.querySelector('.transfer-metric');
+        const status = document.querySelector('.transfer-status');
+        const startedAt = performance.now();
+        const duration = 650;
+
+        if (metric) metric.style.width = '0%';
+        if (status) status.textContent = 'Establishing secure link';
+
+        const updateProgress = (currentTime) => {
+            const progress = Math.min((currentTime - startedAt) / duration * 100, 100);
+
+            if (metric) metric.style.width = `${progress}%`;
+
+            if (progress < 100) {
+                requestAnimationFrame(updateProgress);
+                return;
+            }
+
+            if (status) status.textContent = 'Redirecting to dashboard';
+            setTimeout(() => form.submit(), 200);
+        };
+
+        requestAnimationFrame(updateProgress);
+    };
+
+    // Validate fields and start the login transition.
     form.addEventListener('submit', (event) => {
         const usernameValue = username.value.trim();
         const passwordValue = password.value.trim();
@@ -110,10 +139,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Disable button during submission
-        const submitButton = form.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        submitButton.textContent = 'Checking...';
+        event.preventDefault();
+        startTransfer();
+    });
+
+    window.addEventListener('pageshow', () => {
+        isSubmitting = false;
+
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.textContent = originalButtonText;
+        }
     });
 
     // ========================================
@@ -129,14 +165,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================
     
     [username, password].forEach((input) => {
-        input.addEventListener('focus', () => {
-            input.parentElement.style.borderColor = 'rgba(212, 175, 102, 0.7)';
-            input.parentElement.style.boxShadow = '0 0 0 3px rgba(212, 175, 102, 0.12)';
-        });
-
-        input.addEventListener('blur', () => {
-            input.parentElement.style.borderColor = 'rgba(255,255,255,0.15)';
-            input.parentElement.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.1)';
+        // Focus the field when the mouse enters its input area.
+        input.parentElement.addEventListener('pointerenter', (event) => {
+            if (event.pointerType === 'mouse') {
+                input.focus();
+            }
         });
     });
 });
