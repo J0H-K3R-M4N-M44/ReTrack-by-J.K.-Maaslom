@@ -1,10 +1,22 @@
 <?php
+// ========================================
+// ADMIN DASHBOARD - PROTECTED PAGE
+// ========================================
+
 session_start();
+
+// ========================================
+// Authentication Check
+// ========================================
 
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: login.php');
     exit;
 }
+
+// ========================================
+// Inactivity Timeout (30 minutes)
+// ========================================
 
 if (isset($_SESSION['last_active']) && (time() - $_SESSION['last_active'] > 1800)) {
     session_unset();
@@ -12,6 +24,10 @@ if (isset($_SESSION['last_active']) && (time() - $_SESSION['last_active'] > 1800
     header('Location: login.php?error=1');
     exit;
 }
+
+// ========================================
+// Update Activity Timestamp
+// ========================================
 
 $_SESSION['last_active'] = time();
 ?>
@@ -24,6 +40,10 @@ $_SESSION['last_active'] = time();
     <link rel="stylesheet" href="../css/login.css">
 </head>
 <body class="dashboard-body">
+    <!-- ========================================
+         ADMIN DASHBOARD
+         ======================================== -->
+    
     <div class="dashboard-container">
         <h1>Welcome, <?php echo htmlspecialchars($_SESSION['admin_username']); ?></h1>
         <p>You are logged in as the admin.</p>
