@@ -21,7 +21,7 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 if (isset($_SESSION['last_active']) && (time() - $_SESSION['last_active'] > 1800)) {
     session_unset();
     session_destroy();
-    header('Location: login.php?error=1');
+    header('Location: login.php');
     exit;
 }
 

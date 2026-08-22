@@ -21,6 +21,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
     <!-- Styles -->
     <link rel="stylesheet" href="../css/base.css">
     <link rel="stylesheet" href="../css/login.css">
+    <link rel="stylesheet" href="../css/alerts.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 </head>
@@ -63,9 +64,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
                 <div class="login-panel auth-view" id="login-view">
                     <h2>Login</h2>
 
-                    <?php if (isset($_GET['error'])): ?>
-                        <div class="error-box">Invalid username or password.</div>
-                    <?php endif; ?>
+                    <div class="error-box" id="message-area" data-tone="<?php echo isset($_GET['error']) ? 'error' : 'info'; ?>"<?php echo isset($_GET['error']) ? '' : ' hidden'; ?>><?php echo isset($_GET['error']) ? 'Invalid username or password.' : ''; ?></div>
 
                     <form id="admin-login-form" action="process_login.php" method="POST" autocomplete="off">
                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
@@ -74,14 +73,14 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
                         <label class="field-label" for="username">Username</label>
                         <div class="input-wrap">
                             <i class="fa-regular fa-user"></i>
-                            <input type="text" id="username" name="username" placeholder="Username">
+                            <input type="text" id="username" name="username" placeholder="Username" autocomplete="off" readonly>
                         </div>
 
                         <!-- Password Field -->
                         <label class="field-label" for="password">Password</label>
                         <div class="input-wrap">
                             <i class="fa-solid fa-lock"></i>
-                            <input type="password" id="password" name="password" placeholder="Password">
+                            <input type="password" id="password" name="password" placeholder="Password" autocomplete="new-password" readonly>
                         </div>
 
                         <!-- Password recovery -->
@@ -117,6 +116,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
          ======================================== -->
     
     <script src="https://kit.fontawesome.com/19c0f829b8.js" crossorigin="anonymous"></script>
+    <script src="../js/repair-alert.js"></script>
     <script type="module" src="../js/page-transition.js"></script>
     <script src="../js/login.js"></script>
 </body>

@@ -21,3 +21,20 @@
     padding: 12px 18px;
     border-radius: 10px;
 }
+
+.dashboard-container {
+    opacity: 0;
+    transform: scale(0.97);
+}
+
+body.page-fade-in .dashboard-container {
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 0.5s ease 0.1s, transform 0.5s ease 0.1s;
+}
+
+body.logging-out .dashboard-container {
+    transform: scale(0.96);
+    filter: blur(2px);
+    transition: all 0.35s ease;
+}
