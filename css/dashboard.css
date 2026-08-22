@@ -1,0 +1,23 @@
+.dashboard-body {
+    background: linear-gradient(135deg, #dfeaf0, #b8c9d0);
+    color: #1e2d34;
+}
+
+.dashboard-container {
+    background: rgba(255,255,255,0.38);
+    border: 1px solid rgba(28,41,49,0.08);
+    border-radius: 18px;
+    padding: 40px 28px;
+    box-shadow: 0 20px 36px rgba(0,0,0,0.08);
+    text-align: center;
+}
+
+.logout-btn {
+    display: inline-block;
+    margin-top: 18px;
+    text-decoration: none;
+    background: linear-gradient(135deg, var(--steel-700), var(--steel-900));
+    color: white;
+    padding: 12px 18px;
+    border-radius: 10px;
+}

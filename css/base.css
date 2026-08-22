@@ -1,0 +1,109 @@
+:root {
+    --steel-900: #111b22;
+    --steel-800: #1b2c34;
+    --steel-700: #2d4048;
+    --steel-600: #405963;
+    --copper-500: #b7703a;
+    --copper-400: #c8844d;
+    --gold-400: #d4af66;
+    --gold-300: #e7cd8b;
+    --mist: #dfe7ea;
+    --soft-white: #f7f5f0;
+    --shadow: rgba(14, 23, 28, 0.42);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    min-height: 100%;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+    position: relative;
+    min-height: 100vh;
+    color: var(--soft-white);
+}
+
+body.page-fade {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+.loader-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(7, 12, 15, 0.78);
+    z-index: 30;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+body.transitioning .loader-overlay {
+    display: flex;
+}
+
+.loader-shell {
+    width: min(260px, 80vw);
+    text-align: center;
+    color: var(--soft-white);
+}
+
+.loader-ring {
+    width: 94px;
+    height: 94px;
+    margin: 0 auto 18px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.12);
+    border-top-color: #7ad1ff;
+    border-right-color: #d4af66;
+    border-bottom-color: #7af0b2;
+    animation: spinLoader 1s linear infinite;
+    box-shadow: 0 0 18px rgba(122, 209, 255, 0.5);
+}
+
+.loader-matrix {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.transfer-metric {
+    width: 0%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #5db6ff, #d4af66, #7af0b2);
+    box-shadow: 0 0 16px rgba(122, 209, 255, 0.55);
+    transition: width 0.12s linear;
+}
+
+.transfer-status {
+    font-size: 0.8rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(247, 245, 240, 0.8);
+}
+
+body.transitioning .login-scene,
+body.transitioning .brand-wrap {
+    transform: scale(0.96);
+    filter: blur(2px);
+    transition: all 0.35s ease;
+}
+
+@keyframes spinLoader {
+    to {
+        transform: rotate(360deg);
+    }
+}
+

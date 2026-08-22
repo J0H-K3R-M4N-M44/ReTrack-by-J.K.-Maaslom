@@ -19,6 +19,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
     <title>Login</title>
     
     <!-- Styles -->
+    <link rel="stylesheet" href="../css/base.css">
     <link rel="stylesheet" href="../css/login.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">

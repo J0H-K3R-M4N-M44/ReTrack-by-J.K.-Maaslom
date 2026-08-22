@@ -37,7 +37,8 @@ $_SESSION['last_active'] = time();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="../css/login.css">
+    <link rel="stylesheet" href="../css/base.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
 </head>
 <body class="dashboard-body page-fade">
     <!-- ========================================
