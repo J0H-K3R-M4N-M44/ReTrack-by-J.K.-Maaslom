@@ -8,7 +8,7 @@ const repairAlert = {
 
     open(type, title, text) {
         const tone = this.tones[type] || this.tones.error;
-
+ 
         return Swal.fire({
             icon: type,
             title,

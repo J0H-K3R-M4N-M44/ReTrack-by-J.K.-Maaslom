@@ -3,7 +3,7 @@ const fadeInPage = () => {
         document.body.classList.add('page-fade-in');
     });
 };
-
+ 
 const setupLogout = () => {
     const logoutLink = document.getElementById('logout-link');
     if (!logoutLink) return;

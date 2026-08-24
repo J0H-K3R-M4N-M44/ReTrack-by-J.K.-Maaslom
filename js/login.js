@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('admin-login-form');
 
     if (!form) return;
-
+ 
     const username = document.getElementById('username');
     const password = document.getElementById('password');
     const messageArea = document.getElementById('message-area');
@@ -26,7 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ========================================
-    // STEP 6: OBSERVER / NOTIFICATION CENTER
     // Handlers publish what happened; they don't touch the UI
     // directly. Anything can subscribe without the handler knowing.
     // ========================================
