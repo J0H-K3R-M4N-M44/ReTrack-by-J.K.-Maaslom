@@ -36,17 +36,6 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
     
     <div class="video-overlay"></div>
 
-    <!-- Loading/Transfer Animation -->
-    <div class="loader-overlay" aria-live="polite">
-        <div class="loader-shell">
-            <div class="loader-ring"></div>
-            <div class="loader-matrix">
-                <div class="transfer-metric"></div>
-            </div>
-            <div class="transfer-status">Establishing secure link</div>
-        </div>
-    </div>
-
     <!-- ========================================
          MAIN LOGIN CONTENT
          ======================================== -->
@@ -73,14 +62,14 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
                         <label class="field-label" for="username">Username</label>
                         <div class="input-wrap">
                             <i class="fa-regular fa-user"></i>
-                            <input type="text" id="username" name="username" placeholder="Username" autocomplete="off" readonly>
+                            <input type="text" id="username" name="username" placeholder="Username" autocomplete="off">
                         </div>
 
                         <!-- Password Field -->
                         <label class="field-label" for="password">Password</label>
                         <div class="input-wrap">
                             <i class="fa-solid fa-lock"></i>
-                            <input type="password" id="password" name="password" placeholder="Password" autocomplete="new-password" readonly>
+                            <input type="password" id="password" name="password" placeholder="Password" autocomplete="new-password">
                         </div>
 
                         <!-- Password recovery -->
@@ -116,8 +105,8 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
          ======================================== -->
     
     <script src="https://kit.fontawesome.com/19c0f829b8.js" crossorigin="anonymous"></script>
-    <script src="../js/repair-alert.js"></script>
-    <script type="module" src="../js/page-transition.js"></script>
+    <script src="../js/notif.js"></script>
+    <script src="../js/trans.js"></script>
     <script src="../js/login.js"></script>
 </body>
 </html>

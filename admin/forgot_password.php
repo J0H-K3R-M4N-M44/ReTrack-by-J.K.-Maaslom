@@ -66,7 +66,7 @@ session_start();
          SCRIPTS
          ======================================== -->
 
-    <script type="module" src="../js/page-transition.js"></script>
+    <script src="../js/trans.js"></script>
 </body>
 
 </html>
