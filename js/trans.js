@@ -1,9 +1,6 @@
-// Page and loading transitions
 const startLoginTransition = (form, submitButton) => {
     if (submitButton) submitButton.textContent = 'Securing access...';
 
-    // Event flow: login.js calls this after validation succeeds. The timer callback
-    // submits the form only after the five-second loading notification closes.
     repairAlert.loading(
         'Validating credentials',
         'Please wait while your login is processed.',
@@ -24,11 +21,14 @@ const setupLogout = () => {
 
     let isLoggingOut = false;
 
-    // Event source: the user clicks the logout link.
     logoutLink.addEventListener('click', (event) => {
         event.preventDefault();
         if (isLoggingOut) return;
         isLoggingOut = true;
+
+        console.log('Dashboard logout requested.', {
+            destination: logoutLink.href
+        });
 
         repairAlert.loading(
             'Ending session',
@@ -92,8 +92,6 @@ const setupAuthViews = () => {
         }
     };
 
-    // Capture phase (also called tunneling): this runs while the click travels
-    // down toward the link and blocks a second view change during a transition.
     container.addEventListener('click', (event) => {
         const link = event.target.closest('[data-auth-view]');
 
@@ -103,8 +101,6 @@ const setupAuthViews = () => {
         }
     }, true);
 
-    // Bubble phase: the click travels back up to the container. One delegated
-    // handler can therefore manage both auth-view links.
     container.addEventListener('click', (event) => {
         const link = event.target.closest('[data-auth-view]');
 
@@ -114,7 +110,6 @@ const setupAuthViews = () => {
         showView(link.dataset.authView);
     });
 
-    // Event source: browser back/forward navigation fires popstate on window.
     window.addEventListener('popstate', () => {
         const viewName = location.pathname.endsWith('forgot_password.php') ? 'recovery' : 'login';
         showView(viewName, false);
@@ -125,8 +120,11 @@ const setupAuthViews = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Event source: initialize transitions after the page markup is available.
     fadeInPage();
     setupLogout();
     setupAuthViews();
+
+    if (document.body.classList.contains('dashboard-body')) {
+        console.info('Dashboard interactions initialized.');
+    }
 });

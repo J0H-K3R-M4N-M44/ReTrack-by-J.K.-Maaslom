@@ -1,8 +1,4 @@
 <?php
-// ========================================
-// SESSION & AUTH CHECK
-// ========================================
-
 session_start();
 $_SESSION['csrf_token'] = $_SESSION['csrf_token'] ?? bin2hex(random_bytes(32));
  
@@ -18,7 +14,6 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
     
-    <!-- Styles -->
     <link rel="stylesheet" href="../css/base.css">
     <link rel="stylesheet" href="../css/login.css">
     <link rel="stylesheet" href="../css/alerts.css">
@@ -26,58 +21,44 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 </head>
 <body class="page-fade">
-    <!-- ========================================
-         BACKGROUND & OVERLAYS
-         ======================================== -->
-    
     <video class="bg-video" autoplay muted loop playsinline>
         <source src="../assets/login-bg.mp4" type="video/mp4">
     </video>
     
     <div class="video-overlay"></div>
 
-    <!-- ========================================
-         MAIN LOGIN CONTENT
-         ======================================== -->
-    
     <div class="login-scene">
         <div class="login-shell">
-            <!-- Brand Header -->
             <div class="brand-wrap">
                 <div class="brand-tag">Computer Repair Admin</div>
                 <h1 class="brand-title">RepairTrack</h1>
             </div>
 
-            <!-- Form Container -->
             <div class="login-content">
                 <div class="login-panel auth-view" id="login-view">
                     <h2>Login</h2>
 
                     <div class="error-box" id="message-area" data-tone="<?php echo isset($_GET['error']) ? 'error' : 'info'; ?>"<?php echo isset($_GET['error']) ? '' : ' hidden'; ?>><?php echo isset($_GET['error']) ? 'Invalid username or password.' : ''; ?></div>
 
-                    <form id="admin-login-form" action="process_login.php" method="POST" autocomplete="off">
+                    <form id="admin-login-form" action="dashboard.php" method="POST" autocomplete="off">
                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
 
-                        <!-- Username Field -->
                         <label class="field-label" for="username">Username</label>
                         <div class="input-wrap">
                             <i class="fa-regular fa-user"></i>
                             <input type="text" id="username" name="username" placeholder="Username" autocomplete="off">
                         </div>
 
-                        <!-- Password Field -->
                         <label class="field-label" for="password">Password</label>
                         <div class="input-wrap">
                             <i class="fa-solid fa-lock"></i>
                             <input type="password" id="password" name="password" placeholder="Password" autocomplete="new-password">
                         </div>
 
-                        <!-- Password recovery -->
                         <div class="meta-row">
                             <a href="forgot_password.php" data-auth-view="recovery">Forgot Password?</a>
                         </div>
 
-                        <!-- Submit Button -->
                         <button type="submit" class="login-btn">Login</button>
                     </form>
                 </div>
@@ -100,10 +81,6 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
             </div>
         </div>
     </div>
-    <!-- ========================================
-         SCRIPTS
-         ======================================== -->
-    
     <script src="https://kit.fontawesome.com/19c0f829b8.js" crossorigin="anonymous"></script>
     <script src="../js/notif.js"></script>
     <script src="../js/trans.js"></script>

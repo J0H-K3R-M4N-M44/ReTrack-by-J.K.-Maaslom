@@ -1,5 +1,3 @@
-// SweetAlert notifications. repairAlert.open() is called by login.js
-// when validation or server authentication fails.
 const repairAlert = {
     tones: {
         warning:    { glow: '#ffcc4d', accent: '#ffd76a' },
@@ -8,8 +6,32 @@ const repairAlert = {
         info:       { glow: '#4da6ff', accent: '#7ab8ff' }
     },
 
+    blurPageFocus() {
+        const activeElement = document.activeElement;
+
+        if (activeElement instanceof HTMLElement && activeElement !== document.body) {
+            activeElement.blur();
+        }
+    },
+
     open(type, title, text, onClose) {
         const tone = this.tones[type] || this.tones.error;
+
+        console.log('SweetAlert popup requested.', {
+            popupType: 'message',
+            alertType: type,
+            title,
+            text
+        });
+
+        handleLoginNotification({
+            alertType: type,
+            title,
+            text,
+            mode: 'message'
+        });
+
+        this.blurPageFocus();
 
         return Swal.fire({
             icon: type,
@@ -24,6 +46,7 @@ const repairAlert = {
             },
             buttonsStyling: false,
             backdrop: 'rgba(10, 17, 22, 0.6)',
+            returnFocus: false,
             timer: 3000,
             timerProgressBar: true,
             showClass: {
@@ -52,8 +75,24 @@ const repairAlert = {
         });
     },
 
-    // The timer is asynchronous: SweetAlert calls onComplete after it expires.
     loading(title, text, duration = 5000, onComplete) {
+        console.log('SweetAlert popup requested.', {
+            popupType: 'loading',
+            alertType: 'info',
+            title,
+            text,
+            duration
+        });
+
+        handleLoginNotification({
+            alertType: 'info',
+            title,
+            text,
+            mode: 'loading'
+        });
+
+        this.blurPageFocus();
+
         return Swal.fire({
             title,
             text,
@@ -63,6 +102,8 @@ const repairAlert = {
                 htmlContainer: 'tech-swal-text'
             },
             buttonsStyling: false,
+            backdrop: 'rgba(10, 17, 22, 0.6)',
+            returnFocus: false,
             allowOutsideClick: false,
             allowEscapeKey: false,
             showConfirmButton: false,
@@ -85,7 +126,53 @@ const repairAlert = {
     }
 };
 
-// Custom event system: login.js publishes events and these subscribers react.
+let loginAttemptCount = 0;
+
+const handleLoginValidation = (eventData) => {
+    const missingFields = [];
+
+    if (eventData.username === '(empty)') missingFields.push('Username');
+    if (!eventData.passwordProvided) missingFields.push('Password');
+
+    const isValid = missingFields.length === 0;
+    const status = isValid ? 'succeeded' : 'failed';
+    const message = isValid
+        ? ''
+        : `Please fill in: ${missingFields.join(', ')}.`;
+
+    console.log('Handler 1: Login validation.', {
+        valid: isValid,
+        status,
+        username: eventData.username,
+        message
+    });
+
+};
+
+const handleLoginSubmissionAudit = (eventData) => {
+    loginAttemptCount += 1;
+
+    const status = eventData.passwordProvided ? 'credentials provided' : 'password missing';
+
+    console.log('Handler 2: Login submission and audit.', {
+        attemptNumber: loginAttemptCount,
+        username: eventData.username,
+        formId: eventData.formId,
+        submittedAt: eventData.submittedAt,
+        status
+    });
+};
+
+const handleLoginNotification = ({ alertType, title, text, mode }) => {
+    console.log('Handler 3: SweetAlert notification handled.', {
+        source: 'SweetAlert',
+        alertType,
+        mode,
+        title,
+        text
+    });
+};
+
 const NotificationCenter = (() => {
     const subscribers = {};
 
@@ -102,27 +189,37 @@ const NotificationCenter = (() => {
     return { subscribe, publish };
 })();
 
+NotificationCenter.subscribe('login:submitted', handleLoginValidation);
+NotificationCenter.subscribe('login:submitted', handleLoginSubmissionAudit);
+
+const renderLoginMessage = (messageArea, text, tone = 'info') => {
+    const message = String(text ?? '').trim();
+    messageArea.textContent = message;
+    messageArea.hidden = !message;
+    messageArea.dataset.tone = tone;
+};
+
+const handleLoginStatusMessage = (messageArea, { status, message = '' }) => {
+    if (status === 'attempted') {
+        renderLoginMessage(messageArea, 'Processing login attempt...', 'info');
+        return;
+    }
+
+    if (status === 'failed') {
+        renderLoginMessage(messageArea, message, 'error');
+        return;
+    }
+
+    if (status === 'succeeded') {
+        renderLoginMessage(messageArea, 'Validating credentials...', 'info');
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
-    // This listener connects the notification handlers after the message area exists.
     const messageArea = document.getElementById('message-area');
     if (!messageArea) return;
 
-    const setMessage = (text, tone = 'info') => {
-        const message = text.trim();
-        messageArea.textContent = message;
-        messageArea.hidden = !message;
-        messageArea.dataset.tone = tone;
-    };
-
-    NotificationCenter.subscribe('login:attempt', () => {
-        setMessage('Processing login attempt...', 'info');
-    });
-
-    NotificationCenter.subscribe('login:success', () => {
-        setMessage('Validating credentials...', 'info');
-    });
-
-    NotificationCenter.subscribe('login:failed', ({ message }) => {
-        setMessage(message, 'error');
+    NotificationCenter.subscribe('login:status', (detail) => {
+        handleLoginStatusMessage(messageArea, detail);
     });
 });

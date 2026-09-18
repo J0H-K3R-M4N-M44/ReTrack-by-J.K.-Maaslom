@@ -1,118 +1,174 @@
 <?php
-// ========================================
-// ADMIN DASHBOARD - PROTECTED PAGE
-// ========================================
-
 session_start();
 
-// ========================================
-// Authentication Check
-// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $submitted_token = $_POST['csrf_token'] ?? '';
+    $session_token = $_SESSION['csrf_token'] ?? '';
 
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
+    if (
+        $session_token === '' ||
+        $submitted_token === '' ||
+        !hash_equals($session_token, $submitted_token)
+    ) {
+        header('Location: login.php?error=1');
+        exit;
+    }
+
+    $username = trim($_POST['username'] ?? '');
+    $password = $_POST['password'] ?? '';
+
+    if ($username !== 'admin' || $password !== '123') {
+        header('Location: login.php?error=1');
+        exit;
+    }
+
+    session_regenerate_id(true);
+    $_SESSION['admin_logged_in'] = true;
+    $_SESSION['admin_username'] = $username;
+    $_SESSION['last_active'] = time();
+}
+
+if (($_SESSION['admin_logged_in'] ?? false) !== true) {
     header('Location: login.php');
     exit;
 }
 
-// ========================================
-// Inactivity Timeout (30 minutes)
-// ========================================
-
-if (isset($_SESSION['last_active']) && (time() - $_SESSION['last_active'] > 1800)) {
-    session_unset();
-    session_destroy();
-    header('Location: login.php');
-    exit;
-}
-
-// ========================================
-// Update Activity Timestamp
-// ========================================
-
-$_SESSION['last_active'] = time();
+$admin_username = htmlspecialchars($_SESSION['admin_username'] ?? 'Admin', ENT_QUOTES, 'UTF-8');
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard | RepairTrack Admin</title>
+    <title>RepairTrack Admin Dashboard</title>
     <link rel="stylesheet" href="../css/base.css">
     <link rel="stylesheet" href="../css/dashboard.css">
-    <link rel="stylesheet" href="../css/alerts.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <body class="dashboard-body page-fade">
     <div class="dashboard-shell">
-        <aside class="dashboard-sidebar">
-            <div class="sidebar-brand">
-                <span class="brand-mark">RT</span>
-                <span><strong>Repair</strong>Track<small>ADMIN CONSOLE</small></span>
+        <aside class="dashboard-sidebar" aria-label="Admin navigation">
+            <div>
+                <div class="dashboard-brand">
+                    <span class="brand-mark"><i class="fa-solid fa-microchip" aria-hidden="true"></i></span>
+                    <span>RepairTrack <strong>Admin</strong></span>
+                </div>
+
+                <nav class="dashboard-nav">
+                    <button class="nav-item is-active" type="button" data-dashboard-tab="overview" aria-current="page">
+                        <i class="nav-icon fa-solid fa-chart-line" aria-hidden="true"></i>
+                        <span>Operations overview</span>
+                    </button>
+                    <button class="nav-item" type="button" data-dashboard-tab="workbench" aria-current="false">
+                        <i class="nav-icon fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>
+                        <span>Repair workbench</span>
+                    </button>
+                    <button class="nav-item" type="button" data-dashboard-tab="customers" aria-current="false">
+                        <i class="nav-icon fa-solid fa-users" aria-hidden="true"></i>
+                        <span>Customer roster</span>
+                    </button>
+                    <button class="nav-item" type="button" data-dashboard-tab="reports" aria-current="false">
+                        <i class="nav-icon fa-solid fa-file-invoice" aria-hidden="true"></i>
+                        <span>Reports and records</span>
+                    </button>
+                </nav>
             </div>
 
-            <nav class="dashboard-nav" aria-label="Dashboard navigation">
-                <a href="#overview" class="is-active"><span class="nav-symbol">01</span> Overview</a>
-                <a href="#queue"><span class="nav-symbol">02</span> Repair queue</a>
-                <a href="#activity"><span class="nav-symbol">03</span> Recent activity</a>
-            </nav>
-
-            <div class="sidebar-status">
-                <span class="status-light"></span>
-                <div><strong>System online</strong><small>All services operational</small></div>
+            <div class="sidebar-footer">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span>System interface ready</span>
             </div>
-            <a href="logout.php" class="logout-btn" id="logout-link"><span>↪</span> Log out</a>
         </aside>
 
-        <div class="dashboard-main">
-            <header class="dashboard-header">
+        <main class="dashboard-main">
+            <header class="dashboard-topbar">
                 <div>
-                    <p class="eyebrow">Operations / Overview</p>
-                    <h1>Good to see you, <?php echo htmlspecialchars($_SESSION['admin_username']); ?>.</h1>
+                    <div class="eyebrow">Computer repair operations</div>
+                    <h1>Admin dashboard</h1>
                 </div>
-                <div class="header-date"><span class="status-light"></span><?php echo date('l, F j, Y'); ?></div>
+                <div class="dashboard-user">
+                    <span class="system-status"><span class="status-dot" aria-hidden="true"></span>Workspace ready</span>
+                    <span class="welcome-seal" aria-hidden="true"><i class="fa-solid fa-user-shield"></i></span>
+                    <span>
+                        <strong><?php echo $admin_username; ?></strong>
+                        <small>Administrator</small>
+                    </span>
+                    <a class="logout-btn" id="logout-link" href="logout.php">Log out</a>
+                </div>
             </header>
 
-            <main class="dashboard-content">
-                <section class="welcome-panel" id="overview">
+            <div class="dashboard-content">
+                <section class="welcome-panel" data-dashboard-panel="overview">
                     <div class="welcome-copy">
-                        <p class="eyebrow">The workbench at a glance</p>
-                        <h2>Keep every repair moving.</h2>
-                        <p>Monitor today’s workload, follow active jobs, and keep your service desk in step.</p>
-                        <a href="#queue" class="primary-action">View repair queue <span>→</span></a>
+                        <div class="eyebrow">Workspace status</div>
+                        <h2>Good day, <?php echo $admin_username; ?>.</h2>
+                        <p>The operational workspace is ready. Live repair, customer, and reporting data will appear here as those modules are connected.</p>
                     </div>
-                    <div class="welcome-art" aria-hidden="true"><img src="../assets/admin-repair-illustration.jpg" alt=""></div>
+                    <div class="construction-mark" aria-label="Data modules under construction">
+                        <i class="fa-solid fa-hammer" aria-hidden="true"></i>
+                        <span>Under construction</span>
+                    </div>
                 </section>
 
-                <section class="metric-grid" aria-label="Repair summary">
-                    <article class="metric-card metric-featured"><span class="metric-label">Open repairs</span><strong>24</strong><span class="metric-note"><b>+8.4%</b> from last week</span></article>
-                    <article class="metric-card"><span class="metric-label">Ready for pickup</span><strong>08</strong><span class="metric-note">Awaiting customer collection</span></article>
-                    <article class="metric-card"><span class="metric-label">Completed today</span><strong>12</strong><span class="metric-note">Across all workstations</span></article>
-                    <article class="metric-card"><span class="metric-label">Avg. turnaround</span><strong>2.4<span class="metric-unit"> days</span></strong><span class="metric-note">Within your 3-day target</span></article>
+                <section class="analytics-grid" aria-label="Analytics summary">
+                    <article class="dashboard-card metric-card">
+                        <div class="card-heading"><span>Active repairs</span><i class="fa-solid fa-laptop-medical" aria-hidden="true"></i></div>
+                        <strong class="metric-value" data-analytics-value="activeRepairs">--</strong>
+                        <small data-analytics-note="activeRepairs">Awaiting repair data</small>
+                    </article>
+                    <article class="dashboard-card metric-card">
+                        <div class="card-heading"><span>Technicians on duty</span><i class="fa-solid fa-user-check" aria-hidden="true"></i></div>
+                        <strong class="metric-value" data-analytics-value="technicians">--</strong>
+                        <small data-analytics-note="technicians">Awaiting staff data</small>
+                    </article>
+                    <article class="dashboard-card metric-card">
+                        <div class="card-heading"><span>Pending intake</span><i class="fa-solid fa-clipboard-question" aria-hidden="true"></i></div>
+                        <strong class="metric-value" data-analytics-value="pendingIntake">--</strong>
+                        <small data-analytics-note="pendingIntake">Awaiting queue data</small>
+                    </article>
+                    <article class="dashboard-card metric-card">
+                        <div class="card-heading"><span>Handovers today</span><i class="fa-solid fa-circle-check" aria-hidden="true"></i></div>
+                        <strong class="metric-value" data-analytics-value="handovers">--</strong>
+                        <small data-analytics-note="handovers">Awaiting receipt data</small>
+                    </article>
                 </section>
 
-                <section class="dashboard-columns" id="queue">
-                    <div class="dashboard-panel queue-panel">
-                        <div class="panel-heading"><div><p class="eyebrow">Live workload</p><h2>Repair queue</h2></div><span class="panel-count">24 active</span></div>
-                        <div class="queue-list">
-                            <div class="queue-row"><span class="device-icon">MB</span><div class="queue-detail"><strong>MacBook Pro 14-inch</strong><span>Screen replacement - RT-1048</span></div><span class="queue-stage stage-progress">In repair</span></div>
-                            <div class="queue-row"><span class="device-icon">IP</span><div class="queue-detail"><strong>iPhone 13</strong><span>Battery service · RT-1046</span></div><span class="queue-stage stage-waiting">Diagnosing</span></div>
-                            <div class="queue-row"><span class="device-icon">PS</span><div class="queue-detail"><strong>PlayStation 5</strong><span>HDMI port repair · RT-1041</span></div><span class="queue-stage stage-ready">Ready</span></div>
+                <section class="dashboard-grid" data-dashboard-panel="overview">
+                    <article class="dashboard-card construction-card">
+                        <div class="card-heading">
+                            <div><div class="eyebrow">Repair flow</div><h2>Workbench analytics</h2></div>
+                            <i class="fa-solid fa-chart-area" aria-hidden="true"></i>
                         </div>
-                        <a href="#activity" class="panel-link">See all active repairs <span>→</span></a>
-                    </div>
-
-                    <div class="dashboard-panel activity-panel" id="activity">
-                        <div class="panel-heading"><div><p class="eyebrow">Latest updates</p><h2>Recent activity</h2></div></div>
-                        <ul class="activity-list">
-                            <li><span class="activity-dot dot-copper"></span><div><strong>Repair RT-1048 assigned</strong><span>2 minutes ago · Workshop A</span></div></li>
-                            <li><span class="activity-dot dot-gold"></span><div><strong>Customer notified</strong><span>18 minutes ago · RT-1041 ready</span></div></li>
-                            <li><span class="activity-dot dot-teal"></span><div><strong>Repair completed</strong><span>42 minutes ago · RT-1039</span></div></li>
-                            <li><span class="activity-dot dot-muted"></span><div><strong>New ticket created</strong><span>1 hour ago · RT-1048</span></div></li>
-                        </ul>
-                    </div>
+                        <div class="empty-state"><i class="fa-solid fa-database" aria-hidden="true"></i><strong>Analytics module under construction</strong><span>Charts will appear when repair records are connected.</span></div>
+                    </article>
+                    <article class="dashboard-card construction-card">
+                        <div class="card-heading">
+                            <div><div class="eyebrow">Activity feed</div><h2>Recent operations</h2></div>
+                            <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+                        </div>
+                        <div class="empty-state"><i class="fa-solid fa-list-check" aria-hidden="true"></i><strong>Activity feed under construction</strong><span>Recent handovers and status changes will appear here.</span></div>
+                    </article>
                 </section>
-            </main>
-        </div>
+
+                <section class="dashboard-panel dashboard-card" data-dashboard-panel="workbench" hidden>
+                    <div class="eyebrow">Operational hub</div>
+                    <h2>Repair workbench</h2>
+                    <div class="empty-state"><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i><strong>Workbench under construction</strong><span>Repair tickets and status columns will be connected here.</span></div>
+                </section>
+
+                <section class="dashboard-panel dashboard-card" data-dashboard-panel="customers" hidden>
+                    <div class="eyebrow">Records and contacts</div>
+                    <h2>Customer roster</h2>
+                    <div class="empty-state"><i class="fa-solid fa-users" aria-hidden="true"></i><strong>Customer module under construction</strong><span>Customer records will appear here when the data source is connected.</span></div>
+                </section>
+
+                <section class="dashboard-panel dashboard-card" data-dashboard-panel="reports" hidden>
+                    <div class="eyebrow">Records and assets</div>
+                    <h2>Reports and service records</h2>
+                    <div class="empty-state"><i class="fa-solid fa-file-invoice" aria-hidden="true"></i><strong>Reports module under construction</strong><span>Service receipts and export tools will appear here later.</span></div>
+                </section>
+            </div>
+        </main>
     </div>
 
     <script src="../js/notif.js"></script>
