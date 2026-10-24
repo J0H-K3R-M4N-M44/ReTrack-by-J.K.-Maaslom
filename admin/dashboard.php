@@ -33,7 +33,7 @@ $metrics = [
     'activeRepairs' => 0,
     'technicians' => 0,
     'pendingIntake' => 0,
-    'handovers' => 0,
+    'ticketsIssuedToday' => 0,
 ];
 $metricsAvailable = true;
 
@@ -68,7 +68,7 @@ try {
          WHERE record_stage = 'ISSUED' AND issued_at >= ? AND issued_at < ?"
     );
     $issuedToday->execute([$fromUtc, $toUtc]);
-    $metrics['handovers'] = (int) $issuedToday->fetchColumn();
+    $metrics['ticketsIssuedToday'] = (int) $issuedToday->fetchColumn();
 } catch (Throwable $error) {
     error_log('RepairTrack dashboard metrics error: ' . $error->getMessage());
     $metricsAvailable = false;
@@ -167,7 +167,7 @@ try {
                     </article>
                     <article class="dashboard-card metric-card">
                         <div class="card-heading"><span>Tickets issued today</span><i class="fa-solid fa-circle-check" aria-hidden="true"></i></div>
-                        <strong class="metric-value"><?php echo $metricsAvailable ? number_format($metrics['handovers']) : '—'; ?></strong>
+                        <strong class="metric-value"><?php echo $metricsAvailable ? number_format($metrics['ticketsIssuedToday']) : '—'; ?></strong>
                         <small><?php echo $metricsAvailable ? 'Issued today, Asia/Manila time' : 'Database query unavailable'; ?></small>
                     </article>
                 </section>
@@ -185,7 +185,7 @@ try {
                             <div><div class="eyebrow">Activity feed</div><h2>Recent operations</h2></div>
                             <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
                         </div>
-                        <div class="empty-state"><i class="fa-solid fa-list-check" aria-hidden="true"></i><strong>Activity feed under construction</strong><span>Recent handovers and status changes will appear here.</span></div>
+                        <div class="empty-state"><i class="fa-solid fa-list-check" aria-hidden="true"></i><strong>Activity feed under construction</strong><span>Recent ticketsIssuedToday and status changes will appear here.</span></div>
                     </article>
                 </section>
 
