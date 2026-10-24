@@ -1,39 +1,78 @@
 <?php
-session_start();
+require_once __DIR__ . '/../app/auth.php';
+startAppSession();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $submitted_token = $_POST['csrf_token'] ?? '';
-    $session_token = $_SESSION['csrf_token'] ?? '';
-
-    if (
-        $session_token === '' ||
-        $submitted_token === '' ||
-        !hash_equals($session_token, $submitted_token)
-    ) {
-        header('Location: login.php?error=1');
+    if (!csrfIsValid(is_string($_POST['csrf_token'] ?? null) ? $_POST['csrf_token'] : '')) {
+        header('Location: login.php?error=csrf');
         exit;
     }
 
-    $username = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
+    $email = is_string($_POST['email'] ?? null) ? trim($_POST['email']) : '';
+    $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
 
-    if ($username !== 'admin' || $password !== '123') {
+    try {
+        if (loginAdmin($email, $password)) {
+            header('Location: dashboard.php');
+            exit;
+        }
+
         header('Location: login.php?error=1');
         exit;
+    } catch (Throwable $error) {
+        error_log('RepairTrack login error: ' . $error->getMessage());
+        header('Location: login.php?error=db');
+        exit;
     }
-
-    session_regenerate_id(true);
-    $_SESSION['admin_logged_in'] = true;
-    $_SESSION['admin_username'] = $username;
-    $_SESSION['last_active'] = time();
 }
 
-if (($_SESSION['admin_logged_in'] ?? false) !== true) {
-    header('Location: login.php');
-    exit;
-}
+$admin = requireAdmin();
+$admin_username = htmlspecialchars($admin['full_name'], ENT_QUOTES, 'UTF-8');
 
-$admin_username = htmlspecialchars($_SESSION['admin_username'] ?? 'Admin', ENT_QUOTES, 'UTF-8');
+$metrics = [
+    'activeRepairs' => 0,
+    'technicians' => 0,
+    'pendingIntake' => 0,
+    'handovers' => 0,
+];
+$metricsAvailable = true;
+
+try {
+    $pdo = getPDO();
+
+    $metrics['activeRepairs'] = (int) $pdo->query(
+        "SELECT COUNT(*) FROM ticket_devices
+         WHERE repair_status IN (
+             'RECEIVED', 'DIAGNOSING', 'AWAITING_CUSTOMER_APPROVAL',
+             'AWAITING_PARTS', 'IN_PROGRESS', 'TESTING', 'READY_FOR_PICKUP'
+         )"
+    )->fetchColumn();
+
+    $metrics['technicians'] = (int) $pdo->query(
+        "SELECT COUNT(*) FROM users
+         WHERE role = 'TECHNICIAN' AND is_active = 1"
+    )->fetchColumn();
+
+    $metrics['pendingIntake'] = (int) $pdo->query(
+        "SELECT COUNT(*) FROM repair_tickets WHERE record_stage = 'DRAFT'"
+    )->fetchColumn();
+
+    $manila = new DateTimeZone('Asia/Manila');
+    $utc = new DateTimeZone('UTC');
+    $today = (new DateTimeImmutable('now', $manila))->setTime(0, 0);
+    $fromUtc = $today->setTimezone($utc)->format('Y-m-d H:i:s');
+    $toUtc = $today->modify('+1 day')->setTimezone($utc)->format('Y-m-d H:i:s');
+
+    $issuedToday = $pdo->prepare(
+        "SELECT COUNT(*) FROM repair_tickets
+         WHERE record_stage = 'ISSUED' AND issued_at >= ? AND issued_at < ?"
+    );
+    $issuedToday->execute([$fromUtc, $toUtc]);
+    $metrics['handovers'] = (int) $issuedToday->fetchColumn();
+} catch (Throwable $error) {
+    error_log('RepairTrack dashboard metrics error: ' . $error->getMessage());
+    $metricsAvailable = false;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -87,7 +126,7 @@ $admin_username = htmlspecialchars($_SESSION['admin_username'] ?? 'Admin', ENT_Q
                     <h1>Admin dashboard</h1>
                 </div>
                 <div class="dashboard-user">
-                    <span class="system-status"><span class="status-dot" aria-hidden="true"></span>Workspace ready</span>
+                    <span class="system-status"><span class="status-dot" aria-hidden="true"></span>Database connected</span>
                     <span class="welcome-seal" aria-hidden="true"><i class="fa-solid fa-user-shield"></i></span>
                     <span>
                         <strong><?php echo $admin_username; ?></strong>
@@ -102,7 +141,7 @@ $admin_username = htmlspecialchars($_SESSION['admin_username'] ?? 'Admin', ENT_Q
                     <div class="welcome-copy">
                         <div class="eyebrow">Workspace status</div>
                         <h2>Good day, <?php echo $admin_username; ?>.</h2>
-                        <p>The operational workspace is ready. Live repair, customer, and reporting data will appear here as those modules are connected.</p>
+                        <p>Your RepairTrack database is connected. Use the consoles to review the current service data.</p>
                     </div>
                     <div class="construction-mark" aria-label="Data modules under construction">
                         <i class="fa-solid fa-hammer" aria-hidden="true"></i>
@@ -110,26 +149,26 @@ $admin_username = htmlspecialchars($_SESSION['admin_username'] ?? 'Admin', ENT_Q
                     </div>
                 </section>
 
-                <section class="analytics-grid" aria-label="Analytics summary">
+                <section class="analytics-grid" aria-label="Analytics summary" data-dashboard-panel="overview">
                     <article class="dashboard-card metric-card">
                         <div class="card-heading"><span>Active repairs</span><i class="fa-solid fa-laptop-medical" aria-hidden="true"></i></div>
-                        <strong class="metric-value" data-analytics-value="activeRepairs">--</strong>
-                        <small data-analytics-note="activeRepairs">Awaiting repair data</small>
+                        <strong class="metric-value"><?php echo $metricsAvailable ? number_format($metrics['activeRepairs']) : '—'; ?></strong>
+                        <small><?php echo $metricsAvailable ? 'Not completed or cancelled' : 'Database query unavailable'; ?></small>
                     </article>
                     <article class="dashboard-card metric-card">
-                        <div class="card-heading"><span>Technicians on duty</span><i class="fa-solid fa-user-check" aria-hidden="true"></i></div>
-                        <strong class="metric-value" data-analytics-value="technicians">--</strong>
-                        <small data-analytics-note="technicians">Awaiting staff data</small>
+                        <div class="card-heading"><span>Active technicians</span><i class="fa-solid fa-user-check" aria-hidden="true"></i></div>
+                        <strong class="metric-value"><?php echo $metricsAvailable ? number_format($metrics['technicians']) : '—'; ?></strong>
+                        <small><?php echo $metricsAvailable ? 'Enabled technician accounts' : 'Database query unavailable'; ?></small>
                     </article>
                     <article class="dashboard-card metric-card">
                         <div class="card-heading"><span>Pending intake</span><i class="fa-solid fa-clipboard-question" aria-hidden="true"></i></div>
-                        <strong class="metric-value" data-analytics-value="pendingIntake">--</strong>
-                        <small data-analytics-note="pendingIntake">Awaiting queue data</small>
+                        <strong class="metric-value"><?php echo $metricsAvailable ? number_format($metrics['pendingIntake']) : '—'; ?></strong>
+                        <small><?php echo $metricsAvailable ? 'Draft tickets not yet issued' : 'Database query unavailable'; ?></small>
                     </article>
                     <article class="dashboard-card metric-card">
-                        <div class="card-heading"><span>Handovers today</span><i class="fa-solid fa-circle-check" aria-hidden="true"></i></div>
-                        <strong class="metric-value" data-analytics-value="handovers">--</strong>
-                        <small data-analytics-note="handovers">Awaiting receipt data</small>
+                        <div class="card-heading"><span>Tickets issued today</span><i class="fa-solid fa-circle-check" aria-hidden="true"></i></div>
+                        <strong class="metric-value"><?php echo $metricsAvailable ? number_format($metrics['handovers']) : '—'; ?></strong>
+                        <small><?php echo $metricsAvailable ? 'Issued today, Asia/Manila time' : 'Database query unavailable'; ?></small>
                     </article>
                 </section>
 
@@ -173,5 +212,6 @@ $admin_username = htmlspecialchars($_SESSION['admin_username'] ?? 'Admin', ENT_Q
 
     <script src="../js/notif.js"></script>
     <script src="../js/trans.js"></script>
+    <script src="../js/dashboard.js"></script>
 </body>
 </html>
