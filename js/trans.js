@@ -22,6 +22,11 @@ const setupLogout = () => {
     let isLoggingOut = false;
 
     logoutLink.addEventListener('click', (event) => {
+        // Keep the normal link navigation if SweetAlert did not load.
+        if (typeof Swal === 'undefined') {
+            return;
+        }
+
         event.preventDefault();
         if (isLoggingOut) return;
         isLoggingOut = true;
