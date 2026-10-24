@@ -60,6 +60,17 @@ function loadDashboardData(PDO $pdo): array
          LIMIT 12"
     )->fetchAll();
 
+    $drafts = $pdo->query(
+        "SELECT t.ticket_id, t.arrival_method, t.created_at,
+                c.full_name AS customer_name, b.branch_code
+         FROM repair_tickets t
+         JOIN branches b ON b.branch_id = t.intake_branch_id
+         LEFT JOIN customers c ON c.customer_id = t.customer_id
+         WHERE t.record_stage = 'DRAFT'
+         ORDER BY t.created_at DESC
+         LIMIT 12"
+    )->fetchAll();
+
     $statusCounts = $pdo->query(
         "SELECT d.repair_status, COUNT(*) AS total
          FROM ticket_devices d
@@ -73,6 +84,7 @@ function loadDashboardData(PDO $pdo): array
         'metrics' => $metrics,
         'queue' => $queue,
         'customers' => $customers,
+        'drafts' => $drafts,
         'status_counts' => $statusCounts,
     ];
 }
