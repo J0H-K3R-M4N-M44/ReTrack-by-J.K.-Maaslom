@@ -37,6 +37,10 @@ $values = [
     'condition_notes' => '',
 ];
 
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && is_string($_GET['customer_search'] ?? null)) {
+    $values['customer_search'] = trim($_GET['customer_search']);
+}
+
 $customerResults = [];
 if (mb_strlen($values['customer_search']) >= 2) {
     $searchTerm = '%' . mb_strtolower($values['customer_search'], 'UTF-8') . '%';
