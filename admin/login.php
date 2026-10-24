@@ -1,10 +1,20 @@
 <?php
-session_start();
-$_SESSION['csrf_token'] = $_SESSION['csrf_token'] ?? bin2hex(random_bytes(32));
- 
-if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
+require_once __DIR__ . '/../app/auth.php';
+startAppSession();
+
+if (!empty($_SESSION['admin_user_id'])) {
     header('Location: dashboard.php');
     exit;
+}
+
+$csrf = csrfToken();
+$errorCode = is_string($_GET['error'] ?? null) ? $_GET['error'] : '';
+$errorMessage = 'Invalid email or password.';
+
+if ($errorCode === 'db') {
+    $errorMessage = 'Database connection failed. Check config/config.php and confirm MySQL is running.';
+} elseif ($errorCode === 'csrf') {
+    $errorMessage = 'The login form expired. Reload the page and try again.';
 }
 ?>
 <!DOCTYPE html>
@@ -38,21 +48,21 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
                 <div class="login-panel auth-view" id="login-view">
                     <h2>Login</h2>
 
-                    <div class="error-box" id="message-area" data-tone="<?php echo isset($_GET['error']) ? 'error' : 'info'; ?>"<?php echo isset($_GET['error']) ? '' : ' hidden'; ?>><?php echo isset($_GET['error']) ? 'Invalid username or password.' : ''; ?></div>
+                    <div class="error-box" id="message-area" data-tone="<?php echo isset($_GET['error']) ? 'error' : 'info'; ?>"<?php echo isset($_GET['error']) ? '' : ' hidden'; ?>><?php echo isset($_GET['error']) ? htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') : ''; ?></div>
 
                     <form id="admin-login-form" action="dashboard.php" method="POST" autocomplete="off">
-                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8'); ?>">
 
-                        <label class="field-label" for="username">Username</label>
+                        <label class="field-label" for="email">Email</label>
                         <div class="input-wrap">
                             <i class="fa-regular fa-user"></i>
-                            <input type="text" id="username" name="username" placeholder="Username" autocomplete="off">
+                            <input type="email" id="email" name="email" placeholder="Email" autocomplete="username" required>
                         </div>
 
                         <label class="field-label" for="password">Password</label>
                         <div class="input-wrap">
                             <i class="fa-solid fa-lock"></i>
-                            <input type="password" id="password" name="password" placeholder="Password" autocomplete="new-password">
+                            <input type="password" id="password" name="password" placeholder="Password" autocomplete="current-password" required>
                         </div>
 
                         <div class="meta-row">
@@ -66,12 +76,11 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
                 <div class="login-panel reset-panel auth-view" id="recovery-view" hidden>
                     <h2>Reset Password</h2>
                     <p class="reset-copy">
-                        This is a demo admin account. Use the default credentials below to login.
+                        Password reset is not automated in this local demo. Contact the administrator to reset your account.
                     </p>
 
                     <div class="reset-box">
-                        <p><strong>Username:</strong> admin</p>
-                        <p><strong>Password:</strong> 123</p>
+                        <p>For account safety, password resets are handled by the administrator.</p>
                     </div>
 
                     <a href="login.php" class="login-btn" data-auth-view="login">
