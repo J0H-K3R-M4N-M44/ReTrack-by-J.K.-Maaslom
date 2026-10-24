@@ -1,5 +1,5 @@
-const createLoginEventData = (form, usernameValue, passwordValue) => ({
-    username: usernameValue || '(empty)',
+const createLoginEventData = (form, emailValue, passwordValue) => ({
+    email: emailValue || '(empty)',
     passwordProvided: passwordValue.length > 0,
     submittedAt: new Date().toISOString(),
     formId: form.id
@@ -17,7 +17,7 @@ const hideMessageLater = () => {
     }, 1000);
 };
 
-const handleLoginSubmit = (event, form, username, password, submitButton, state) => {
+const handleLoginSubmit = (event, form, email, password, submitButton, state) => {
     event.preventDefault();
 
     if (state.isSubmitting) {
@@ -34,27 +34,27 @@ const handleLoginSubmit = (event, form, username, password, submitButton, state)
 
     NotificationCenter.publish('login:status', { status: 'attempted' });
 
-    const usernameValue = username.value.trim();
+    const emailValue = email.value.trim();
     const passwordValue = password.value.trim();
-    const loginEventData = createLoginEventData(form, usernameValue, passwordValue);
+    const loginEventData = createLoginEventData(form, emailValue, passwordValue);
 
     console.log('Event published: login:submitted.', loginEventData);
     NotificationCenter.publish('login:submitted', loginEventData);
 
-    const validation = validateLoginInput(usernameValue, passwordValue);
+    const validation = validateLoginInput(emailValue, passwordValue);
 
     if (!validation.valid) {
-        handleInvalidLogin(validation.message, usernameValue, username, password);
+        handleInvalidLogin(validation.message, emailValue, email, password);
         return;
     }
 
     handleValidLogin(form, submitButton, state);
 };
 
-const validateLoginInput = (usernameValue, passwordValue) => {
+const validateLoginInput = (emailValue, passwordValue) => {
     const missingFields = [];
 
-    if (!usernameValue) missingFields.push('Username');
+    if (!emailValue) missingFields.push('Email');
     if (!passwordValue) missingFields.push('Password');
 
     const result = {
@@ -74,10 +74,10 @@ const validateLoginInput = (usernameValue, passwordValue) => {
     return result;
 };
 
-const handleInvalidLogin = (message, usernameValue, username, password) => {
+const handleInvalidLogin = (message, emailValue, email, password) => {
     console.log('Invalid login handled: required fields are missing.', {
         message,
-        focusTarget: usernameValue ? 'password' : 'username'
+        focusTarget: emailValue ? 'password' : 'email'
     });
 
     NotificationCenter.publish('login:status', {
@@ -93,7 +93,7 @@ const handleInvalidLogin = (message, usernameValue, username, password) => {
             hideMessageLater();
 
             requestAnimationFrame(() => {
-                (usernameValue ? password : username).focus();
+                (emailValue ? password : email).focus();
             });
         }
     );
@@ -128,7 +128,7 @@ const handleServerLoginError = () => {
     repairAlert.open(
         'error',
         'Access denied',
-        'The username or password is incorrect.',
+        'The email or password is incorrect.',
         hideMessageLater
     );
 
@@ -145,7 +145,7 @@ const initializeLoginPage = () => {
         return;
     }
 
-    const username = document.getElementById('username');
+    const email = document.getElementById('email');
     const password = document.getElementById('password');
     const submitButton = form.querySelector('button[type="submit"]');
     const originalButtonText = submitButton?.textContent || 'Login';
@@ -153,7 +153,7 @@ const initializeLoginPage = () => {
 
     // Listener wiring delegates behavior to named handlers.
     form.addEventListener('submit', (event) => {
-        handleLoginSubmit(event, form, username, password, submitButton, state);
+        handleLoginSubmit(event, form, email, password, submitButton, state);
     });
 
     // Restore the form after browser back-forward cache navigation.
