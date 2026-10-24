@@ -219,8 +219,7 @@
     content: "";
 }
 
-.metric-card:hover,
-.construction-card:hover {
+.dashboard-card:hover {
     transform: translateY(-3px);
     border-color: rgba(212, 175, 102, 0.32);
     background: rgba(255, 255, 255, 0.09);
