@@ -24,6 +24,8 @@ $branches = $branchQuery->fetchAll();
 $values = [
     'intake_branch_id' => '',
     'arrival_method' => 'WALK_IN',
+    'customer_id' => '',
+    'customer_search' => '',
     'customer_name' => '',
     'contact_type' => 'PHONE',
     'contact_value' => '',
@@ -34,6 +36,26 @@ $values = [
     'reported_symptoms' => '',
     'condition_notes' => '',
 ];
+
+$customerResults = [];
+if (mb_strlen($values['customer_search']) >= 2) {
+    $searchTerm = '%' . mb_strtolower($values['customer_search'], 'UTF-8') . '%';
+    $customerQuery = $pdo->prepare(
+        "SELECT c.customer_id, c.full_name,
+                MAX(CASE WHEN cc.is_primary = 1 THEN cc.contact_value END) AS primary_contact
+         FROM customers c
+         LEFT JOIN customer_contacts cc ON cc.customer_id = c.customer_id
+         WHERE c.normalized_name LIKE ?
+            OR LOWER(cc.contact_value) LIKE ?
+            OR LOWER(cc.normalized_value) LIKE ?
+         GROUP BY c.customer_id, c.full_name, c.updated_at
+         ORDER BY c.updated_at DESC
+         LIMIT 20"
+    );
+    $customerQuery->execute([$searchTerm, $searchTerm, $searchTerm]);
+    $customerResults = $customerQuery->fetchAll();
+}
+
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -57,16 +79,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Choose walk-in or mail.';
     }
 
-    if ($values['customer_name'] === '' || mb_strlen($values['customer_name']) > 160) {
-        $errors[] = 'Enter the customer name (up to 160 characters).';
-    }
+    $existingCustomerId = ctype_digit($values['customer_id']) ? (int) $values['customer_id'] : 0;
+    if ($existingCustomerId > 0) {
+        $customerCheck = $pdo->prepare('SELECT customer_id FROM customers WHERE customer_id = ?');
+        $customerCheck->execute([$existingCustomerId]);
+        if (!$customerCheck->fetchColumn()) {
+            $errors[] = 'Choose a customer from the search results.';
+        }
+    } else {
+        if ($values['customer_name'] === '' || mb_strlen($values['customer_name']) > 160) {
+            $errors[] = 'Enter the customer name (up to 160 characters).';
+        }
 
-    if (!in_array($values['contact_type'], ['PHONE', 'EMAIL'], true) || $values['contact_value'] === '') {
-        $errors[] = 'Enter a customer phone number or email address.';
-    } elseif ($values['contact_type'] === 'EMAIL' && !filter_var($values['contact_value'], FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'Enter a valid email address.';
-    } elseif (mb_strlen($values['contact_value']) > 190) {
-        $errors[] = 'The contact value is too long.';
+        if (!in_array($values['contact_type'], ['PHONE', 'EMAIL'], true) || $values['contact_value'] === '') {
+            $errors[] = 'Enter a customer phone number or email address.';
+        } elseif ($values['contact_type'] === 'EMAIL' && !filter_var($values['contact_value'], FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'Enter a valid email address.';
+        } elseif (mb_strlen($values['contact_value']) > 190) {
+            $errors[] = 'The contact value is too long.';
+        }
     }
 
     if ($values['device_type'] === '' || mb_strlen($values['device_type']) > 80) {
@@ -89,31 +120,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $pdo->beginTransaction();
 
-            $name = preg_replace('/\s+/', ' ', $values['customer_name']);
-            $normalizedName = mb_strtolower((string) $name, 'UTF-8');
+            if ($existingCustomerId > 0) {
+                $customerId = $existingCustomerId;
+            } else {
+                $name = preg_replace('/\s+/', ' ', $values['customer_name']);
+                $normalizedName = mb_strtolower((string) $name, 'UTF-8');
 
-            $customerInsert = $pdo->prepare(
-                'INSERT INTO customers (full_name, normalized_name) VALUES (?, ?)'
-            );
-            $customerInsert->execute([$name, $normalizedName]);
-            $customerId = (int) $pdo->lastInsertId();
+                $customerInsert = $pdo->prepare(
+                    'INSERT INTO customers (full_name, normalized_name) VALUES (?, ?)'
+                );
+                $customerInsert->execute([$name, $normalizedName]);
+                $customerId = (int) $pdo->lastInsertId();
 
-            $contact = $values['contact_value'];
-            $normalizedContact = $values['contact_type'] === 'EMAIL'
-                ? strtolower($contact)
-                : preg_replace('/[^0-9+]/', '', $contact);
+                $contact = $values['contact_value'];
+                $normalizedContact = $values['contact_type'] === 'EMAIL'
+                    ? strtolower($contact)
+                    : preg_replace('/[^0-9+]/', '', $contact);
 
-            $contactInsert = $pdo->prepare(
-                'INSERT INTO customer_contacts
-                    (customer_id, contact_type, contact_value, normalized_value, is_primary, preferred_for_notifications)
-                 VALUES (?, ?, ?, ?, 1, 1)'
-            );
-            $contactInsert->execute([
-                $customerId,
-                $values['contact_type'],
-                $contact,
-                $normalizedContact,
-            ]);
+                $contactInsert = $pdo->prepare(
+                    'INSERT INTO customer_contacts
+                        (customer_id, contact_type, contact_value, normalized_value, is_primary, preferred_for_notifications)
+                     VALUES (?, ?, ?, ?, 1, 1)'
+                );
+                $contactInsert->execute([
+                    $customerId,
+                    $values['contact_type'],
+                    $contact,
+                    $normalizedContact,
+                ]);
+            }
 
             $ticketInsert = $pdo->prepare(
                 "INSERT INTO repair_tickets
@@ -242,8 +277,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <span>Ask an administrator to assign this account to a branch.</span>
                         </div>
                     <?php else: ?>
-                        <form class="intake-form" method="post" action="intake_create.php">
+                        <form class="intake-search" method="get" action="intake_create.php">
+                        <label>
+                            Search existing customer by name, phone, or email
+                            <input name="customer_search" value="<?php echo intakeH($values['customer_search']); ?>" placeholder="Enter at least two characters">
+                        </label>
+                        <button class="secondary-btn" type="submit">Search</button>
+                    </form>
+
+                    <form class="intake-form" method="post" action="intake_create.php">
                             <input type="hidden" name="csrf_token" value="<?php echo intakeH(csrfToken()); ?>">
+                            <input type="hidden" name="customer_search" value="<?php echo intakeH($values['customer_search']); ?>">
 
                             <label>
                                 Intake branch
@@ -265,14 +309,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </select>
                             </label>
 
+                            <label class="form-wide">
+                                Matching customer
+                                <select name="customer_id">
+                                    <option value="">Create a new customer</option>
+                                    <?php foreach ($customerResults as $customer): ?>
+                                        <option value="<?php echo (int) $customer['customer_id']; ?>" <?php echo $values['customer_id'] === (string) $customer['customer_id'] ? 'selected' : ''; ?>>
+                                            <?php echo intakeH($customer['full_name'] . ($customer['primary_contact'] ? ' — ' . $customer['primary_contact'] : '')); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <span class="form-help">Search first. If there is no match, leave this set to “Create a new customer”.</span>
+                            </label>
+
                             <label>
-                                Customer name
-                                <input name="customer_name" maxlength="160" required value="<?php echo intakeH($values['customer_name']); ?>">
+                                New customer name
+                                <input name="customer_name" maxlength="160" value="<?php echo intakeH($values['customer_name']); ?>">
                             </label>
 
                             <label>
                                 Contact type
-                                <select name="contact_type" required>
+                                <select name="contact_type">
                                     <option value="PHONE" <?php echo $values['contact_type'] === 'PHONE' ? 'selected' : ''; ?>>Phone</option>
                                     <option value="EMAIL" <?php echo $values['contact_type'] === 'EMAIL' ? 'selected' : ''; ?>>Email</option>
                                 </select>
@@ -280,7 +337,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                             <label>
                                 Phone or email
-                                <input name="contact_value" maxlength="190" required value="<?php echo intakeH($values['contact_value']); ?>">
+                                <input name="contact_value" maxlength="190" value="<?php echo intakeH($values['contact_value']); ?>">
                             </label>
 
                             <label>
