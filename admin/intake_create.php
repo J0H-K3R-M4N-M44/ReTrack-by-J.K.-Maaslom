@@ -28,6 +28,9 @@ foreach ($branches as $branch) {
         break;
     }
 }
+if ($defaultBranchId === '' && $branches !== []) {
+    $defaultBranchId = (string) $branches[0]['branch_id'];
+}
 
 $values = [
     'intake_branch_id' => $defaultBranchId,
