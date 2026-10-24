@@ -40,6 +40,7 @@ $dashboardData = [
     ],
     'queue' => [],
     'customers' => [],
+    'drafts' => [],
     'status_counts' => [],
 ];
 
@@ -53,6 +54,7 @@ try {
 $metrics = $dashboardData['metrics'];
 $repairQueue = $dashboardData['queue'];
 $customers = $dashboardData['customers'];
+$drafts = $dashboardData['drafts'];
 $statusCounts = $dashboardData['status_counts'];
 ?>
 <!DOCTYPE html>
@@ -184,8 +186,16 @@ $statusCounts = $dashboardData['status_counts'];
                 </section>
 
                 <section class="dashboard-panel dashboard-card" data-dashboard-panel="workbench" hidden>
-                    <div class="eyebrow">Operational hub</div>
-                    <h2>Repair workbench</h2>
+                    <div class="card-heading">
+                        <div>
+                            <div class="eyebrow">Operational hub</div>
+                            <h2>Repair workbench</h2>
+                        </div>
+                        <a class="secondary-btn" href="intake_create.php">Start intake</a>
+                    </div>
+                    <?php if (isset($_GET['created'])): ?>
+                        <p class="intake-success" role="status">Draft saved and added to pending intake.</p>
+                    <?php endif; ?>
                     <?php if (!$metricsAvailable): ?>
                         <div class="empty-state"><i class="fa-solid fa-database" aria-hidden="true"></i><strong>Dashboard data unavailable</strong><span>Check the database connection and try again.</span></div>
                     <?php elseif ($repairQueue === []): ?>
@@ -199,6 +209,22 @@ $statusCounts = $dashboardData['status_counts'];
                                         <br><small><?php echo htmlspecialchars(dashboardDeviceLabel($item), ENT_QUOTES, 'UTF-8'); ?> · <?php echo htmlspecialchars((string) ($item['customer_name'] ?? 'Customer not linked'), ENT_QUOTES, 'UTF-8'); ?></small>
                                     </dt>
                                     <dd><?php echo htmlspecialchars(dashboardStatusLabel((string) $item['repair_status']), ENT_QUOTES, 'UTF-8'); ?></dd>
+                                </div>
+                            <?php endforeach; ?>
+                        </dl>
+                    <?php endif; ?>
+
+                    <div class="eyebrow intake-subheading">Pending intake drafts</div>
+                    <?php if (!$metricsAvailable): ?>
+                        <div class="empty-state"><strong>Draft list unavailable</strong><span>Check the database connection and try again.</span></div>
+                    <?php elseif ($drafts === []): ?>
+                        <div class="empty-state"><strong>No pending intake drafts</strong><span>New drafts will appear here.</span></div>
+                    <?php else: ?>
+                        <dl class="status-list">
+                            <?php foreach ($drafts as $draft): ?>
+                                <div>
+                                    <dt>Draft #<?php echo (int) $draft['ticket_id']; ?><br><small><?php echo htmlspecialchars((string) ($draft['customer_name'] ?? 'Customer not linked'), ENT_QUOTES, 'UTF-8'); ?> · <?php echo htmlspecialchars((string) $draft['branch_code'], ENT_QUOTES, 'UTF-8'); ?></small></dt>
+                                    <dd><?php echo htmlspecialchars(ucwords(strtolower(str_replace('_', ' ', (string) $draft['arrival_method']))), ENT_QUOTES, 'UTF-8'); ?></dd>
                                 </div>
                             <?php endforeach; ?>
                         </dl>
