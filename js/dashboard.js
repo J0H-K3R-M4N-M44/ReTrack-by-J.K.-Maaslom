@@ -24,5 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    showPanel('overview');
+    const requestedPanel = new URLSearchParams(window.location.search).get('tab');
+    showPanel(['overview', 'workbench', 'customers', 'reports'].includes(requestedPanel) ? requestedPanel : 'overview');
 });
