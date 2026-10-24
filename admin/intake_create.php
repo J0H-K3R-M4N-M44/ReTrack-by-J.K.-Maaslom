@@ -296,17 +296,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php else: ?>
                         <ol class="intake-stepper" aria-label="Intake progress">
                             <li class="intake-step-marker is-current" data-step-marker><span>1</span><label>Customer</label></li>
-                            <i aria-hidden="true"></i>
+                            <li class="intake-step-connector" aria-hidden="true"></li>
                             <li class="intake-step-marker" data-step-marker><span>2</span><label>Device</label></li>
-                            <i aria-hidden="true"></i>
+                            <li class="intake-step-connector" aria-hidden="true"></li>
                             <li class="intake-step-marker" data-step-marker><span>3</span><label>Review</label></li>
                         </ol>
 
                         <section class="intake-search-panel" aria-labelledby="customer-search-title">
                             <p id="customer-search-title"><strong>Returning customer?</strong> Search first so you do not create a duplicate.</p>
                             <form class="intake-search" method="get" action="intake_create.php">
-                                <label for="customer-search">Name, phone, or email</label>
-                                <input id="customer-search" name="customer_search" value="<?php echo intakeH($values['customer_search']); ?>" autocomplete="off" placeholder="Enter at least 2 characters">
+                                <label for="customer-search">Name, phone, or email
+                                    <input id="customer-search" name="customer_search" value="<?php echo intakeH($values['customer_search']); ?>" autocomplete="off" placeholder="Enter at least 2 characters">
+                                </label>
                                 <button class="secondary-btn" type="submit"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Search</button>
                             </form>
                             <?php if ($values['customer_search'] !== ''): ?>
@@ -383,7 +384,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                             </fieldset>
 
-                            <fieldset class="intake-step" data-intake-step hidden>
+                            <fieldset class="intake-step" data-intake-step>
                                 <h2 tabindex="-1">What device needs service?</h2>
                                 <p>Enter what you can identify. The serial number is optional; never guess or make one up.</p>
                                 <label for="device-type">Device type
@@ -410,7 +411,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                             </fieldset>
 
-                            <fieldset class="intake-step" data-intake-step hidden>
+                            <fieldset class="intake-step" data-intake-step>
                                 <h2 tabindex="-1">What should the repair team know?</h2>
                                 <p>Record the customer's description and the device's visible condition. A technician will diagnose the cause later.</p>
                                 <label class="form-wide" for="reported-symptoms">Problem reported by customer
