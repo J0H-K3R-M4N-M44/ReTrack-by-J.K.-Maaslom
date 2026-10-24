@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../app/auth.php';
+require_once __DIR__ . '/../app/dashboard_data.php';
 startAppSession();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -29,50 +30,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $admin = requireAdmin();
 $admin_username = htmlspecialchars($admin['full_name'], ENT_QUOTES, 'UTF-8');
 
-$metrics = [
-    'activeRepairs' => 0,
-    'technicians' => 0,
-    'pendingIntake' => 0,
-    'ticketsIssuedToday' => 0,
-];
 $metricsAvailable = true;
+$dashboardData = [
+    'metrics' => [
+        'activeRepairs' => 0,
+        'technicians' => 0,
+        'pendingIntake' => 0,
+        'ticketsIssuedToday' => 0,
+    ],
+    'queue' => [],
+    'customers' => [],
+    'status_counts' => [],
+];
 
 try {
-    $pdo = getPDO();
-
-    $metrics['activeRepairs'] = (int) $pdo->query(
-        "SELECT COUNT(*) FROM ticket_devices
-         WHERE repair_status IN (
-             'RECEIVED', 'DIAGNOSING', 'AWAITING_CUSTOMER_APPROVAL',
-             'AWAITING_PARTS', 'IN_PROGRESS', 'TESTING', 'READY_FOR_PICKUP'
-         )"
-    )->fetchColumn();
-
-    $metrics['technicians'] = (int) $pdo->query(
-        "SELECT COUNT(*) FROM users
-         WHERE role = 'TECHNICIAN' AND is_active = 1"
-    )->fetchColumn();
-
-    $metrics['pendingIntake'] = (int) $pdo->query(
-        "SELECT COUNT(*) FROM repair_tickets WHERE record_stage = 'DRAFT'"
-    )->fetchColumn();
-
-    $manila = new DateTimeZone('Asia/Manila');
-    $utc = new DateTimeZone('UTC');
-    $today = (new DateTimeImmutable('now', $manila))->setTime(0, 0);
-    $fromUtc = $today->setTimezone($utc)->format('Y-m-d H:i:s');
-    $toUtc = $today->modify('+1 day')->setTimezone($utc)->format('Y-m-d H:i:s');
-
-    $issuedToday = $pdo->prepare(
-        "SELECT COUNT(*) FROM repair_tickets
-         WHERE record_stage = 'ISSUED' AND issued_at >= ? AND issued_at < ?"
-    );
-    $issuedToday->execute([$fromUtc, $toUtc]);
-    $metrics['ticketsIssuedToday'] = (int) $issuedToday->fetchColumn();
+    $dashboardData = loadDashboardData(getPDO());
 } catch (Throwable $error) {
-    error_log('RepairTrack dashboard metrics error: ' . $error->getMessage());
+    error_log('RepairTrack dashboard data error: ' . $error->getMessage());
     $metricsAvailable = false;
 }
+
+$metrics = $dashboardData['metrics'];
+$repairQueue = $dashboardData['queue'];
+$customers = $dashboardData['customers'];
+$statusCounts = $dashboardData['status_counts'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -185,26 +166,81 @@ try {
                             <div><div class="eyebrow">Activity feed</div><h2>Recent operations</h2></div>
                             <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
                         </div>
-                        <div class="empty-state"><i class="fa-solid fa-list-check" aria-hidden="true"></i><strong>Activity feed under construction</strong><span>Recent ticketsIssuedToday and status changes will appear here.</span></div>
+                        <?php if (!$metricsAvailable): ?>
+                            <div class="empty-state"><i class="fa-solid fa-database" aria-hidden="true"></i><strong>Dashboard data unavailable</strong><span>Check the database connection and try again.</span></div>
+                        <?php elseif ($repairQueue === []): ?>
+                            <div class="empty-state"><i class="fa-solid fa-list-check" aria-hidden="true"></i><strong>No issued repair tickets yet</strong><span>Issued tickets will appear here as the workbench is used.</span></div>
+                        <?php else: ?>
+                            <dl class="status-list">
+                                <?php foreach (array_slice($repairQueue, 0, 5) as $item): ?>
+                                    <div>
+                                        <dt><?php echo htmlspecialchars((string) $item['item_code'], ENT_QUOTES, 'UTF-8'); ?><br><small><?php echo htmlspecialchars(dashboardDeviceLabel($item), ENT_QUOTES, 'UTF-8'); ?></small></dt>
+                                        <dd><?php echo htmlspecialchars(dashboardStatusLabel((string) $item['repair_status']), ENT_QUOTES, 'UTF-8'); ?></dd>
+                                    </div>
+                                <?php endforeach; ?>
+                            </dl>
+                        <?php endif; ?>
                     </article>
                 </section>
 
                 <section class="dashboard-panel dashboard-card" data-dashboard-panel="workbench" hidden>
                     <div class="eyebrow">Operational hub</div>
                     <h2>Repair workbench</h2>
-                    <div class="empty-state"><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i><strong>Workbench under construction</strong><span>Repair tickets and status columns will be connected here.</span></div>
+                    <?php if (!$metricsAvailable): ?>
+                        <div class="empty-state"><i class="fa-solid fa-database" aria-hidden="true"></i><strong>Dashboard data unavailable</strong><span>Check the database connection and try again.</span></div>
+                    <?php elseif ($repairQueue === []): ?>
+                        <div class="empty-state"><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i><strong>No repair tickets yet</strong><span>Issued devices will appear here when intake records are created.</span></div>
+                    <?php else: ?>
+                        <dl class="status-list">
+                            <?php foreach ($repairQueue as $item): ?>
+                                <div>
+                                    <dt>
+                                        <?php echo htmlspecialchars((string) $item['item_code'], ENT_QUOTES, 'UTF-8'); ?>
+                                        <br><small><?php echo htmlspecialchars(dashboardDeviceLabel($item), ENT_QUOTES, 'UTF-8'); ?> · <?php echo htmlspecialchars((string) ($item['customer_name'] ?? 'Customer not linked'), ENT_QUOTES, 'UTF-8'); ?></small>
+                                    </dt>
+                                    <dd><?php echo htmlspecialchars(dashboardStatusLabel((string) $item['repair_status']), ENT_QUOTES, 'UTF-8'); ?></dd>
+                                </div>
+                            <?php endforeach; ?>
+                        </dl>
+                    <?php endif; ?>
                 </section>
 
                 <section class="dashboard-panel dashboard-card" data-dashboard-panel="customers" hidden>
                     <div class="eyebrow">Records and contacts</div>
                     <h2>Customer roster</h2>
-                    <div class="empty-state"><i class="fa-solid fa-users" aria-hidden="true"></i><strong>Customer module under construction</strong><span>Customer records will appear here when the data source is connected.</span></div>
+                    <?php if (!$metricsAvailable): ?>
+                        <div class="empty-state"><i class="fa-solid fa-database" aria-hidden="true"></i><strong>Customer data unavailable</strong><span>Check the database connection and try again.</span></div>
+                    <?php elseif ($customers === []): ?>
+                        <div class="empty-state"><i class="fa-solid fa-users" aria-hidden="true"></i><strong>No customers yet</strong><span>Customer records will appear here after the first intake.</span></div>
+                    <?php else: ?>
+                        <dl class="status-list">
+                            <?php foreach ($customers as $customer): ?>
+                                <div>
+                                    <dt><?php echo htmlspecialchars((string) $customer['full_name'], ENT_QUOTES, 'UTF-8'); ?></dt>
+                                    <dd><?php echo (int) $customer['ticket_count']; ?> ticket(s)</dd>
+                                </div>
+                            <?php endforeach; ?>
+                        </dl>
+                    <?php endif; ?>
                 </section>
 
                 <section class="dashboard-panel dashboard-card" data-dashboard-panel="reports" hidden>
                     <div class="eyebrow">Records and assets</div>
                     <h2>Reports and service records</h2>
-                    <div class="empty-state"><i class="fa-solid fa-file-invoice" aria-hidden="true"></i><strong>Reports module under construction</strong><span>Service receipts and export tools will appear here later.</span></div>
+                    <?php if (!$metricsAvailable): ?>
+                        <div class="empty-state"><i class="fa-solid fa-database" aria-hidden="true"></i><strong>Report data unavailable</strong><span>Check the database connection and try again.</span></div>
+                    <?php elseif ($statusCounts === []): ?>
+                        <div class="empty-state"><i class="fa-solid fa-file-invoice" aria-hidden="true"></i><strong>No status data yet</strong><span>Repair status totals will appear after the first ticket is issued.</span></div>
+                    <?php else: ?>
+                        <dl class="status-list">
+                            <?php foreach ($statusCounts as $statusCount): ?>
+                                <div>
+                                    <dt><?php echo htmlspecialchars(dashboardStatusLabel((string) $statusCount['repair_status']), ENT_QUOTES, 'UTF-8'); ?></dt>
+                                    <dd><?php echo (int) $statusCount['total']; ?></dd>
+                                </div>
+                            <?php endforeach; ?>
+                        </dl>
+                    <?php endif; ?>
                 </section>
             </div>
         </main>
