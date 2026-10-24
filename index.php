@@ -26,7 +26,7 @@ declare(strict_types=1);
         <nav class="site-nav" id="site-nav" aria-label="Main navigation">
             <a href="#how-it-works">How it works</a>
             <a href="#for-everyone">For customers and teams</a>
-            <a class="nav-cta" href="admin/login.php">Staff sign in <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+            <a class="nav-cta" href="admin/login.php">Administrator sign in <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
         </nav>
     </header>
 
@@ -44,7 +44,7 @@ declare(strict_types=1);
                 <p class="hero-lede">A calmer check-in for customers. A clearer work queue for the people who repair their devices.</p>
                 <div class="hero-actions">
                     <a class="button button-primary" href="#how-it-works">See how it works <i class="fa-solid fa-arrow-down" aria-hidden="true"></i></a>
-                    <a class="button button-quiet" href="admin/login.php">Open staff workspace</a>
+                    <a class="button button-quiet" href="admin/login.php">Open admin workspace</a>
                 </div>
                 <div class="hero-meta"><span class="live-dot"></span> Built for repair teams with one shop or many</div>
             </div>
@@ -109,7 +109,7 @@ declare(strict_types=1);
                         <li><i class="fa-solid fa-check" aria-hidden="true"></i> Technicians get a focused repair queue.</li>
                         <li><i class="fa-solid fa-check" aria-hidden="true"></i> Managers can see branch activity at a glance.</li>
                     </ul>
-                    <a class="text-link" href="admin/login.php">Go to staff sign in <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+                    <a class="text-link" href="admin/login.php">Go to admin workspace <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
                 </article>
             </div>
         </section>
