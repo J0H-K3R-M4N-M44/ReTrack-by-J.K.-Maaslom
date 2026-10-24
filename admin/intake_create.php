@@ -93,6 +93,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         if ($values['customer_name'] === '' || mb_strlen($values['customer_name']) > 160) {
             $errors[] = 'Enter the customer name (up to 160 characters).';
+        } else {
+            $cleanName = preg_replace('/\\s+/', ' ', $values['customer_name']);
+            $normalizedName = mb_strtolower((string) $cleanName, 'UTF-8');
+            $sameNameCheck = $pdo->prepare('SELECT customer_id FROM customers WHERE normalized_name = ? LIMIT 1');
+            $sameNameCheck->execute([$normalizedName]);
+
+            if ($sameNameCheck->fetchColumn() && !isset($_POST['confirm_different_person'])) {
+                $errors[] = 'A customer with this name already exists. Search and select that customer, or confirm this is a different person.';
+            }
         }
 
         if (!in_array($values['contact_type'], ['PHONE', 'EMAIL'], true) || $values['contact_value'] === '') {
@@ -342,6 +351,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label>
                                 Phone or email
                                 <input name="contact_value" maxlength="190" value="<?php echo intakeH($values['contact_value']); ?>">
+                            </label>
+
+                            <label class="form-wide checkbox-label">
+                                <input type="checkbox" name="confirm_different_person" value="1" <?php echo isset($_POST['confirm_different_person']) ? 'checked' : ''; ?>>
+                                I searched and confirm that a same-name customer is a different person.
                             </label>
 
                             <label>
