@@ -697,3 +697,20 @@ body.page-fade-in .dashboard-shell {
     color: #b7edc8;
     font-size: 0.84rem;
 }
+
+
+.intake-form .checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: rgba(247, 245, 240, 0.72);
+    line-height: 1.5;
+}
+
+.intake-form input[type="checkbox"] {
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    accent-color: var(--gold-300);
+}
