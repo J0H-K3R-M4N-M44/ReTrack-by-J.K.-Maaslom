@@ -6,7 +6,7 @@
 .intake-step-marker > span { display: grid; width: 30px; height: 30px; flex: none; place-items: center; border: 1px solid rgba(247,245,240,.24); border-radius: 50%; font-size: .72rem; }
 .intake-step-marker.is-current { color: var(--soft-white); }
 .intake-step-marker.is-current > span, .intake-step-marker.is-complete > span { border-color: var(--gold-300); background: var(--gold-300); color: #1d1a16; }
-.intake-stepper > i { height: 1px; flex: 1; background: rgba(247,245,240,.16); }
+.intake-step-connector { height: 1px; flex: 1; background: rgba(247,245,240,.16); list-style: none; }
 .intake-step { min-width: 0; padding: 0; border: 0; }
 .intake-step h2 { margin: 0 0 7px; font-size: clamp(1.25rem,2.5vw,1.65rem); }
 .intake-step h2:focus { outline: none; }
