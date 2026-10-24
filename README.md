@@ -28,8 +28,9 @@ If PDO reports that the MySQL driver is missing, enable \`pdo_mysql\` in the PHP
 - Administrator login against the \`users\` table using \`password_verify()\`
 - Session ID renewal on login, CSRF protection for the login form, and idle-session expiry
 - A database-backed dashboard summary and working dashboard section navigation
-- A repair workbench showing the latest 12 issued device records and their current status
+- A repair workbench showing the latest 12 issued device records, pending intake drafts, and current status
+- A first-step intake form that searches existing customers before creating a new customer and saves a draft ticket
 - A customer roster with ticket totals, plus a report summary grouped by repair status
 - The existing dashboard layout and CSS remain in place
 
-Ticket intake and editing, quotes, parts, billing, and technician workflows are the next planned modules. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
+Draft editing and issue gates (photos, accessory checklist, signatures, and accountable branch), quotes, parts, billing, and technician workflows remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
