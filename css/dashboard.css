@@ -682,3 +682,18 @@ body.page-fade-in .dashboard-shell {
         width: 100%;
     }
 }
+
+
+.intake-subheading {
+    margin-top: 26px;
+}
+
+.intake-success {
+    margin: 16px 0 0;
+    padding: 12px 14px;
+    border: 1px solid rgba(112, 208, 154, 0.32);
+    border-radius: 10px;
+    background: rgba(112, 208, 154, 0.08);
+    color: #b7edc8;
+    font-size: 0.84rem;
+}
