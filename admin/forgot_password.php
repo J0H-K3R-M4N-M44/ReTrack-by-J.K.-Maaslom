@@ -27,12 +27,11 @@
                 <div class="login-panel reset-panel">
                     <h2>Reset Password</h2>
                     <p class="reset-copy">
-                        This is a demo admin account. Use the default credentials below to login.
+                        Password reset is not automated in this local demo. Contact the administrator to reset your account.
                     </p>
 
                     <div class="reset-box">
-                        <p><strong>Username:</strong> admin</p>
-                        <p><strong>Password:</strong> 123</p>
+                        <p>For account safety, password resets are handled by the administrator.</p>
                     </div>
 
                     <form action="login.php" method="GET">
