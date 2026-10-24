@@ -77,6 +77,22 @@ function loadDashboardData(PDO $pdo): array
     ];
 }
 
+function dashboardDeviceLabel(array $device): string
+{
+    $parts = array_filter([
+        $device['make_snapshot'] ?? '',
+        $device['model_snapshot'] ?? '',
+    ], static fn ($value) => is_string($value) && trim($value) !== '');
+
+    $label = trim(implode(' ', $parts));
+
+    if ($label === '') {
+        return (string) ($device['device_type_snapshot'] ?? 'Device');
+    }
+
+    return $label;
+}
+
 function dashboardStatusLabel(string $status): string
 {
     $labels = [
