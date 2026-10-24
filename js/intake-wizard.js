@@ -27,6 +27,8 @@
         const count = document.querySelector('[data-step-count]');
         if (count) count.textContent = 'Step ' + (currentStep + 1) + ' of ' + steps.length;
         if (focusHeading) steps[currentStep].querySelector('h2')?.focus();
+        const searchPanel = document.querySelector('.intake-search-panel');
+        if (searchPanel) searchPanel.hidden = currentStep !== 0;
         updateReview();
     };
 
@@ -58,12 +60,19 @@
         review.querySelector('[data-review-contact]').textContent = customerSelect?.value ? 'Existing customer' : value('contact_value');
         review.querySelector('[data-review-device]').textContent = deviceLine || 'Not entered';
         review.querySelector('[data-review-problem]').textContent = value('reported_symptoms');
+        review.querySelector('[data-review-condition]').textContent = value('condition_notes');
+        review.querySelector('[data-review-serial]').textContent = value('serial_number');
+        review.querySelector('[data-review-arrival]').textContent = form.querySelector('[name="arrival_method"]')?.selectedOptions[0]?.textContent?.trim() || 'Not selected';
         review.querySelector('[data-review-branch]').textContent = form.querySelector('[name="intake_branch_id"]')?.selectedOptions[0]?.textContent?.trim() || 'Not selected';
     };
 
+    // The server repeats all checks. This only helps staff correct mistakes sooner.
     const validateStep = (index) => {
+        const make = form.querySelector('[name="make"]');
+        const model = form.querySelector('[name="model"]');
+        if (make && model) make.setCustomValidity(make.value.trim() || model.value.trim() ? '' : 'Enter a brand or model.');
         const requiredFields = [...steps[index].querySelectorAll('input, select, textarea')]
-            .filter((field) => field.required && !field.disabled);
+            .filter((field) => !field.disabled && !field.closest('[hidden]'));
         const firstInvalid = requiredFields.find((field) => !field.checkValidity());
         if (!firstInvalid) return true;
         firstInvalid.reportValidity();
@@ -93,6 +102,8 @@
             showStep(index);
             if (!validateStep(index)) return;
         }
+        // Disable the action after validation to discourage accidental double clicks.
+        form.querySelector('[type=submit]').disabled = true;
         HTMLFormElement.prototype.submit.call(form);
     });
 

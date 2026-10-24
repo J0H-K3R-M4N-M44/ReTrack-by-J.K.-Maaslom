@@ -44,3 +44,12 @@
     .intake-step-marker:not(.is-current):not(.is-complete) > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
     .intake-step-actions .secondary-btn { padding-inline: 10px; }
 }
+
+/* Each step spans the parent grid; its fields use their own responsive grid. */
+.intake-step { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.intake-step > h2, .intake-step > p { grid-column: 1 / -1; }
+.intake-search-panel[hidden] { display: none; }
+@media (max-width: 600px) {
+    .intake-step { grid-template-columns: minmax(0, 1fr); }
+    .intake-step-actions { position: static; flex-wrap: wrap; }
+}
