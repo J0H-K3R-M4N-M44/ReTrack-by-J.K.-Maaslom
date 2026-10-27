@@ -45,7 +45,7 @@ if ($errorCode === 'db') {
             </div>
 
             <div class="login-content">
-                <div class="login-panel auth-view" id="login-view">
+                <div class="login-panel" id="login-view">
                     <h2>Login</h2>
 
                     <div class="error-box" id="message-area" data-tone="<?php echo isset($_GET['error']) ? 'error' : 'info'; ?>"<?php echo isset($_GET['error']) ? '' : ' hidden'; ?>><?php echo isset($_GET['error']) ? htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') : ''; ?></div>
@@ -66,26 +66,11 @@ if ($errorCode === 'db') {
                         </div>
 
                         <div class="meta-row">
-                            <a href="forgot_password.php" data-auth-view="recovery">Forgot Password?</a>
+                            <a href="forgot_password.php">Forgot Password?</a>
                         </div>
 
                         <button type="submit" class="login-btn">Login</button>
                     </form>
-                </div>
-
-                <div class="login-panel reset-panel auth-view" id="recovery-view" hidden>
-                    <h2>Reset Password</h2>
-                    <p class="reset-copy">
-                        Password reset is not automated in this local demo. Contact the administrator to reset your account.
-                    </p>
-
-                    <div class="reset-box">
-                        <p>For account safety, password resets are handled by the administrator.</p>
-                    </div>
-
-                    <a href="login.php" class="login-btn" data-auth-view="login">
-                        Back to Login
-                    </a>
                 </div>
             </div>
         </div>
