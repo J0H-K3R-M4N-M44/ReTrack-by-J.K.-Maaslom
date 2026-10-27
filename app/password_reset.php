@@ -58,6 +58,7 @@ function requestAdminPasswordReset(string $email): void
 
     $token = bin2hex(random_bytes(32));
     $tokenHash = hash('sha256', $token);
+    $now = gmdate('Y-m-d H:i:s');
     $expiresAt = gmdate('Y-m-d H:i:s', time() + 1800);
 
     $pdo->beginTransaction();
@@ -68,10 +69,10 @@ function requestAdminPasswordReset(string $email): void
         $deleteOldTokens->execute([$userId]);
 
         $insertToken = $pdo->prepare(
-            'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
-             VALUES (?, ?, ?)'
+            'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, created_at)
+             VALUES (?, ?, ?, ?)'
         );
-        $insertToken->execute([$userId, $tokenHash, $expiresAt]);
+        $insertToken->execute([$userId, $tokenHash, $expiresAt, $now]);
         $pdo->commit();
     } catch (Throwable $error) {
         if ($pdo->inTransaction()) {
