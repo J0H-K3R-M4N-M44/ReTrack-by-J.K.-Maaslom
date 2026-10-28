@@ -4,6 +4,7 @@ declare(strict_types=1);
 /**
  * Return one reusable PDO connection for this request.
  * Edit config/config.php with your local MySQL settings.
+ * PDO lets the app send SQL queries safely and read their results.
  */
 function getPDO(): PDO
 {
@@ -17,7 +18,7 @@ function getPDO(): PDO
 
     if (!is_file($configFile)) {
         throw new RuntimeException(
-            'Missing config/config.php. Copy config/config.example.php and add your MySQL settings.'
+            'Missing config/config.php. Copy config/config.example.php and add your MySQL settings.',
         );
     }
 

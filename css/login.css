@@ -5,7 +5,7 @@ body {
     overflow: hidden;
     background: #111b22;
 }
- 
+
 .bg-video {
     position: fixed;
     inset: 0;
@@ -94,7 +94,9 @@ body {
     border-radius: 24px;
     background: rgba(255, 255, 255, 0.09);
     border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), 0 24px 45px rgba(10, 16, 20, 0.34);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 24px 45px rgba(10, 16, 20, 0.34);
     backdrop-filter: blur(14px) saturate(1.35);
     -webkit-backdrop-filter: blur(14px) saturate(1.35);
     position: relative;
@@ -102,10 +104,10 @@ body {
 }
 
 .login-panel::before {
-    content: "";
+    content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02));
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02));
     pointer-events: none;
 }
 
@@ -135,14 +137,17 @@ form {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 12px;
     padding: 0 14px;
     margin-bottom: 18px;
     min-height: 52px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
-    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transition:
+        transform 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
     isolation: isolate;
 }
 
@@ -150,14 +155,18 @@ form {
 .input-wrap:focus-within {
     transform: scale(1.02);
     border-color: rgba(212, 175, 102, 0.72);
-    box-shadow: 0 0 18px rgba(101, 199, 255, 0.16), inset 0 1px 0 rgba(255,255,255,0.18);
+    box-shadow:
+        0 0 18px rgba(101, 199, 255, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .input-wrap i {
     position: relative;
     z-index: 1;
     color: var(--gold-300);
-    transition: color 0.25s ease, text-shadow 0.25s ease;
+    transition:
+        color 0.25s ease,
+        text-shadow 0.25s ease;
 }
 
 .input-wrap:hover i,
@@ -176,7 +185,9 @@ form {
     color: var(--soft-white);
     font-size: 1rem;
     padding: 12px 0;
-    transition: color 0.25s ease, font-size 0.25s ease;
+    transition:
+        color 0.25s ease,
+        font-size 0.25s ease;
 }
 
 .input-wrap:hover input,
@@ -222,7 +233,10 @@ form {
     font-weight: 700;
     cursor: pointer;
     margin-top: 8px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        filter 0.2s ease;
     box-shadow: 0 10px 20px rgba(183, 112, 58, 0.28);
     backdrop-filter: blur(6px);
 }
@@ -244,8 +258,8 @@ form {
 }
 
 .reset-box {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.14);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 14px;
     padding: 18px 16px;
     margin-bottom: 18px;
@@ -267,7 +281,6 @@ form {
         transform: translateY(0);
     }
 }
-
 
 @media (max-width: 760px) {
     .login-shell {

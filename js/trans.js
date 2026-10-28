@@ -5,7 +5,7 @@ const startLoginTransition = (form, submitButton) => {
         'Validating credentials',
         'Please wait while your login is processed.',
         5000,
-        () => form.submit()
+        () => form.submit(),
     );
 };
 
@@ -32,7 +32,7 @@ const setupLogout = () => {
         isLoggingOut = true;
 
         console.log('Dashboard logout requested.', {
-            destination: logoutLink.href
+            destination: logoutLink.href,
         });
 
         repairAlert.loading(
@@ -41,7 +41,7 @@ const setupLogout = () => {
             2000,
             () => {
                 window.location.href = logoutLink.href;
-            }
+            },
         );
     });
 };
@@ -97,14 +97,18 @@ const setupAuthViews = () => {
         }
     };
 
-    container.addEventListener('click', (event) => {
-        const link = event.target.closest('[data-auth-view]');
+    container.addEventListener(
+        'click',
+        (event) => {
+            const link = event.target.closest('[data-auth-view]');
 
-        if (link && isMorphing) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-    }, true);
+            if (link && isMorphing) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        },
+        true,
+    );
 
     container.addEventListener('click', (event) => {
         const link = event.target.closest('[data-auth-view]');

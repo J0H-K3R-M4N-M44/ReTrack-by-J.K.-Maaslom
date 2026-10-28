@@ -6,7 +6,8 @@ require_once __DIR__ . '/../app/intake/rules.php';
 require_once __DIR__ . '/../app/intake/repository.php';
 
 startAppSession();
-$admin = requireAdmin(); // Keep access checks before any customer queries.
+// Check staff access before loading branch or customer data.
+$admin = requireAdmin();
 $pdo = getPDO();
 $branches = intakeBranches($pdo, (int) $admin['user_id']);
 $values = intakeDefaults($branches);
@@ -18,6 +19,7 @@ function intakeH(string $value): string
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // A POST means the staff member submitted the form. Read only the fields we expect.
     $values = intakeReadValues($values, $_POST);
     $token = is_string($_POST['csrf_token'] ?? null) ? $_POST['csrf_token'] : '';
     if (!csrfIsValid($token)) {
@@ -27,9 +29,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($errors === []) {
         try {
+            // The repository saves the customer, ticket, device, and audit row together.
             intakeSaveDraft($pdo, $values, (int) $admin['user_id']);
             header('Location: dashboard.php?tab=workbench&created=1');
-            exit;
+            exit();
         } catch (Throwable $error) {
             error_log('RepairTrack draft intake error: ' . $error->getMessage());
             $errors[] = 'The draft could not be saved. Check the database and try again.';
@@ -41,7 +44,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Rebuild search results after POST too: keep an existing selection on errors.
 $customerResults = intakeSearchCustomers($pdo, $values['customer_search']);
-if (ctype_digit($values['customer_id']) && !in_array((int) $values['customer_id'], array_map('intval', array_column($customerResults, 'customer_id')), true)) {
+if (
+    ctype_digit($values['customer_id']) &&
+    !in_array(
+        (int) $values['customer_id'],
+        array_map('intval', array_column($customerResults, 'customer_id')),
+        true,
+    )
+) {
     $customer = intakeSelectedCustomer($pdo, (int) $values['customer_id']);
     if ($customer !== null) {
         $customerResults[] = $customer;

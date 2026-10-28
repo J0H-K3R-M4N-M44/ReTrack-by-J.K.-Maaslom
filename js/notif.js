@@ -1,9 +1,9 @@
 const repairAlert = {
     tones: {
-        warning:    { glow: '#ffcc4d', accent: '#ffd76a' },
-        error:      { glow: '#ff4d6d', accent: '#ff7a90' },
-        success:    { glow: '#4dff88', accent: '#7affb0' },
-        info:       { glow: '#4da6ff', accent: '#7ab8ff' }
+        warning: { glow: '#ffcc4d', accent: '#ffd76a' },
+        error: { glow: '#ff4d6d', accent: '#ff7a90' },
+        success: { glow: '#4dff88', accent: '#7affb0' },
+        info: { glow: '#4da6ff', accent: '#7ab8ff' },
     },
 
     blurPageFocus() {
@@ -21,14 +21,14 @@ const repairAlert = {
             popupType: 'message',
             alertType: type,
             title,
-            text
+            text,
         });
 
         handleLoginNotification({
             alertType: type,
             title,
             text,
-            mode: 'message'
+            mode: 'message',
         });
 
         this.blurPageFocus();
@@ -42,7 +42,7 @@ const repairAlert = {
                 popup: 'tech-swal',
                 confirmButton: 'tech-swal-button',
                 title: 'tech-swal-title',
-                htmlContainer: 'tech-swal-text'
+                htmlContainer: 'tech-swal-text',
             },
             buttonsStyling: false,
             backdrop: 'rgba(10, 17, 22, 0.6)',
@@ -50,10 +50,10 @@ const repairAlert = {
             timer: 3000,
             timerProgressBar: true,
             showClass: {
-                popup: 'swal2-show animate__animated animate__fadeInUp'
+                popup: 'swal2-show animate__animated animate__fadeInUp',
             },
             hideClass: {
-                popup: 'swal2-hide animate__animated animate__fadeOutDown'
+                popup: 'swal2-hide animate__animated animate__fadeOutDown',
             },
             didOpen: () => {
                 const popup = document.querySelector('.tech-swal');
@@ -71,7 +71,7 @@ const repairAlert = {
             },
             didClose: () => {
                 if (onClose) onClose();
-            }
+            },
         });
     },
 
@@ -81,14 +81,14 @@ const repairAlert = {
             alertType: 'info',
             title,
             text,
-            duration
+            duration,
         });
 
         handleLoginNotification({
             alertType: 'info',
             title,
             text,
-            mode: 'loading'
+            mode: 'loading',
         });
 
         this.blurPageFocus();
@@ -99,7 +99,7 @@ const repairAlert = {
             customClass: {
                 popup: 'tech-swal tech-swal-loading',
                 title: 'tech-swal-title',
-                htmlContainer: 'tech-swal-text'
+                htmlContainer: 'tech-swal-text',
             },
             buttonsStyling: false,
             backdrop: 'rgba(10, 17, 22, 0.6)',
@@ -121,9 +121,9 @@ const repairAlert = {
             },
             didClose: () => {
                 if (onComplete) onComplete();
-            }
+            },
         });
-    }
+    },
 };
 
 let loginAttemptCount = 0;
@@ -136,17 +136,14 @@ const handleLoginValidation = (eventData) => {
 
     const isValid = missingFields.length === 0;
     const status = isValid ? 'succeeded' : 'failed';
-    const message = isValid
-        ? ''
-        : `Please fill in: ${missingFields.join(', ')}.`;
+    const message = isValid ? '' : `Please fill in: ${missingFields.join(', ')}.`;
 
     console.log('Handler 1: Login validation.', {
         valid: isValid,
         status,
         username: eventData.username,
-        message
+        message,
     });
-
 };
 
 const handleLoginSubmissionAudit = (eventData) => {
@@ -159,7 +156,7 @@ const handleLoginSubmissionAudit = (eventData) => {
         username: eventData.username,
         formId: eventData.formId,
         submittedAt: eventData.submittedAt,
-        status
+        status,
     });
 };
 
@@ -169,7 +166,7 @@ const handleLoginNotification = ({ alertType, title, text, mode }) => {
         alertType,
         mode,
         title,
-        text
+        text,
     });
 };
 
