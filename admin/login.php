@@ -1,9 +1,20 @@
 <?php
-session_start();
+require_once __DIR__ . '/../app/auth.php';
+startAppSession();
 
-if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
+if (!empty($_SESSION['admin_user_id'])) {
     header('Location: dashboard.php');
     exit;
+}
+
+$csrf = csrfToken();
+$errorCode = is_string($_GET['error'] ?? null) ? $_GET['error'] : '';
+$errorMessage = 'Invalid email or password.';
+
+if ($errorCode === 'db') {
+    $errorMessage = 'Database connection failed. Check config/config.php and confirm MySQL is running.';
+} elseif ($errorCode === 'csrf') {
+    $errorMessage = 'The login form expired. Reload the page and try again.';
 }
 ?>
 <!DOCTYPE html>
@@ -12,25 +23,19 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
+    
+    <link rel="stylesheet" href="../css/base.css">
     <link rel="stylesheet" href="../css/login.css">
+    <link rel="stylesheet" href="../css/alerts.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 </head>
-<body>
+<body class="page-fade">
     <video class="bg-video" autoplay muted loop playsinline>
         <source src="../assets/login-bg.mp4" type="video/mp4">
     </video>
+    
     <div class="video-overlay"></div>
-
-    <div class="loader-overlay" aria-live="polite">
-        <div class="loader-shell">
-            <div class="loader-ring"></div>
-            <div class="loader-matrix">
-                <div class="transfer-metric"></div>
-            </div>
-            <div class="transfer-status">Establishing secure link</div>
-        </div>
-    </div>
 
     <div class="login-scene">
         <div class="login-shell">
@@ -40,42 +45,54 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
             </div>
 
             <div class="login-content">
-                <div class="login-panel">
+                <div class="login-panel auth-view" id="login-view">
                     <h2>Login</h2>
 
-                    <?php if (isset($_GET['error'])): ?>
-                        <div class="error-box">Invalid username or password.</div>
-                    <?php endif; ?>
+                    <div class="error-box" id="message-area" data-tone="<?php echo isset($_GET['error']) ? 'error' : 'info'; ?>"<?php echo isset($_GET['error']) ? '' : ' hidden'; ?>><?php echo isset($_GET['error']) ? htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') : ''; ?></div>
 
-                    <form id="admin-login-form" action="process_login.php" method="POST" autocomplete="off">
-                        <label class="field-label" for="username">Username</label>
+                    <form id="admin-login-form" action="dashboard.php" method="POST" autocomplete="off">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8'); ?>">
+
+                        <label class="field-label" for="email">Email</label>
                         <div class="input-wrap">
                             <i class="fa-regular fa-user"></i>
-                            <input type="text" id="username" name="username" placeholder="Username">
+                            <input type="email" id="email" name="email" placeholder="Email" autocomplete="username" required>
                         </div>
 
                         <label class="field-label" for="password">Password</label>
                         <div class="input-wrap">
                             <i class="fa-solid fa-lock"></i>
-                            <input type="password" id="password" name="password" placeholder="Password">
+                            <input type="password" id="password" name="password" placeholder="Password" autocomplete="current-password" required>
                         </div>
 
                         <div class="meta-row">
-                            <label class="remember-me">
-                                <input type="checkbox" name="remember" value="1">
-                                <span>Remember me</span>
-                            </label>
-                            <a href="forgot_password.php">Forgot Password?</a>
+                            <a href="forgot_password.php" data-auth-view="recovery">Forgot Password?</a>
                         </div>
 
                         <button type="submit" class="login-btn">Login</button>
                     </form>
                 </div>
+
+                <div class="login-panel reset-panel auth-view" id="recovery-view" hidden>
+                    <h2>Reset Password</h2>
+                    <p class="reset-copy">
+                        Password reset is not automated in this local demo. Contact the administrator to reset your account.
+                    </p>
+
+                    <div class="reset-box">
+                        <p>For account safety, password resets are handled by the administrator.</p>
+                    </div>
+
+                    <a href="login.php" class="login-btn" data-auth-view="login">
+                        Back to Login
+                    </a>
+                </div>
             </div>
         </div>
     </div>
     <script src="https://kit.fontawesome.com/19c0f829b8.js" crossorigin="anonymous"></script>
+    <script src="../js/notif.js"></script>
+    <script src="../js/trans.js"></script>
     <script src="../js/login.js"></script>
-    <script src="../js/login-transition.js"></script>
 </body>
 </html>
