@@ -1,5 +1,7 @@
 .dashboard-body {
-    background: radial-gradient(circle at 80% 10%, rgba(64, 89, 99, 0.5), transparent 34%), linear-gradient(135deg, #111b22, #273b44);
+    background:
+        radial-gradient(circle at 80% 10%, rgba(64, 89, 99, 0.5), transparent 34%),
+        linear-gradient(135deg, #111b22, #273b44);
     color: var(--soft-white);
     overflow-x: hidden;
 }
@@ -70,7 +72,11 @@
     font-family: inherit;
     text-align: left;
     cursor: pointer;
-    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    transition:
+        color 0.2s ease,
+        background 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.2s ease;
 }
 
 .nav-item:hover,
@@ -205,7 +211,10 @@
     position: relative;
     min-height: 148px;
     overflow: hidden;
-    transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+    transition:
+        transform 0.22s ease,
+        border-color 0.22s ease,
+        background 0.22s ease;
 }
 
 .metric-card::after {
@@ -216,7 +225,7 @@
     height: 96px;
     border: 1px solid rgba(212, 175, 102, 0.12);
     border-radius: 50%;
-    content: "";
+    content: '';
 }
 
 .dashboard-card:hover {
@@ -316,12 +325,17 @@
 .dashboard-card {
     border: 1px solid rgba(223, 231, 234, 0.15);
     background: rgba(255, 255, 255, 0.07);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 24px 45px rgba(10, 16, 20, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 24px 45px rgba(10, 16, 20, 0.22);
     backdrop-filter: blur(14px);
 }
 
 .dashboard-card {
-    transition: border-color 0.22s ease, background 0.22s ease, transform 0.22s ease;
+    transition:
+        border-color 0.22s ease,
+        background 0.22s ease,
+        transform 0.22s ease;
 }
 
 .welcome-panel {
@@ -355,7 +369,9 @@
     flex: none;
     border-radius: 50%;
     font-size: 2.2rem;
-    box-shadow: 0 0 0 10px rgba(212, 175, 102, 0.08), 0 0 32px rgba(212, 175, 102, 0.2);
+    box-shadow:
+        0 0 0 10px rgba(212, 175, 102, 0.08),
+        0 0 32px rgba(212, 175, 102, 0.2);
 }
 
 .dashboard-grid {
@@ -438,7 +454,9 @@
     text-decoration: none;
     font-size: 0.82rem;
     font-weight: 700;
-    transition: transform 0.2s ease, filter 0.2s ease;
+    transition:
+        transform 0.2s ease,
+        filter 0.2s ease;
 }
 
 .secondary-btn {
@@ -465,7 +483,9 @@
 body.page-fade-in .dashboard-shell {
     opacity: 1;
     transform: translateY(0);
-    transition: opacity 0.5s ease 0.1s, transform 0.5s ease 0.1s;
+    transition:
+        opacity 0.5s ease 0.1s,
+        transform 0.5s ease 0.1s;
 }
 
 @media (max-width: 720px) {
@@ -479,9 +499,9 @@ body.page-fade-in .dashboard-shell {
         padding: 0 0 24px;
     }
 
-    .dashboard-brand>span:last-child,
-    .nav-item>span:last-child,
-    .sidebar-footer>span:last-child {
+    .dashboard-brand > span:last-child,
+    .nav-item > span:last-child,
+    .sidebar-footer > span:last-child {
         display: none;
     }
 
@@ -601,7 +621,10 @@ body.page-fade-in .dashboard-shell {
     background: rgba(255, 255, 255, 0.06);
     color: var(--soft-white);
     font: inherit;
-    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    transition:
+        border-color 0.2s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease;
 }
 
 .intake-form select option {
@@ -683,7 +706,6 @@ body.page-fade-in .dashboard-shell {
     }
 }
 
-
 .intake-subheading {
     margin-top: 26px;
 }
@@ -698,7 +720,6 @@ body.page-fade-in .dashboard-shell {
     font-size: 0.84rem;
 }
 
-
 .intake-form .checkbox-label {
     display: flex;
     align-items: flex-start;
@@ -707,7 +728,7 @@ body.page-fade-in .dashboard-shell {
     line-height: 1.5;
 }
 
-.intake-form input[type="checkbox"] {
+.intake-form input[type='checkbox'] {
     width: 18px;
     min-width: 18px;
     height: 18px;

@@ -7,7 +7,7 @@ header('Cache-Control: no-store, private');
 header('Referrer-Policy: no-referrer');
 
 $csrf = csrfToken();
-$token = is_string($_POST['token'] ?? $_GET['token'] ?? null)
+$token = is_string($_POST['token'] ?? ($_GET['token'] ?? null))
     ? (string) ($_POST['token'] ?? $_GET['token'])
     : '';
 $tokenIsValid = preg_match('/^[a-f0-9]{64}$/', $token) === 1;
@@ -16,7 +16,9 @@ $success = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
-    $confirmPassword = is_string($_POST['confirm_password'] ?? null) ? $_POST['confirm_password'] : '';
+    $confirmPassword = is_string($_POST['confirm_password'] ?? null)
+        ? $_POST['confirm_password']
+        : '';
 
     if (!csrfIsValid(is_string($_POST['csrf_token'] ?? null) ? $_POST['csrf_token'] : '')) {
         $message = 'This form expired. Reload the page and try again.';
@@ -79,8 +81,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $tokenIsValid) {
 
                     <?php if (!$success): ?>
                         <form action="reset_password.php" method="POST" autocomplete="on">
-                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8'); ?>">
-                            <input type="hidden" name="token" value="<?php echo htmlspecialchars($token, ENT_QUOTES, 'UTF-8'); ?>">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(
+                                $csrf,
+                                ENT_QUOTES,
+                                'UTF-8',
+                            ); ?>">
+                            <input type="hidden" name="token" value="<?php echo htmlspecialchars(
+                                $token,
+                                ENT_QUOTES,
+                                'UTF-8',
+                            ); ?>">
 
                             <label class="field-label" for="password">New password</label>
                             <div class="input-wrap">

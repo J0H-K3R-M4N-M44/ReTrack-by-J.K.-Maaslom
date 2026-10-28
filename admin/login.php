@@ -4,7 +4,7 @@ startAppSession();
 
 if (!empty($_SESSION['admin_user_id'])) {
     header('Location: dashboard.php');
-    exit;
+    exit();
 }
 
 $csrf = csrfToken();
@@ -12,7 +12,8 @@ $errorCode = is_string($_GET['error'] ?? null) ? $_GET['error'] : '';
 $errorMessage = 'Invalid email or password.';
 
 if ($errorCode === 'db') {
-    $errorMessage = 'Database connection failed. Check config/config.php and confirm MySQL is running.';
+    $errorMessage =
+        'Database connection failed. Check config/config.php and confirm MySQL is running.';
 } elseif ($errorCode === 'csrf') {
     $errorMessage = 'The login form expired. Reload the page and try again.';
 }
@@ -48,10 +49,22 @@ if ($errorCode === 'db') {
                 <div class="login-panel" id="login-view">
                     <h2>Login</h2>
 
-                    <div class="error-box" id="message-area" data-tone="<?php echo isset($_GET['error']) ? 'error' : 'info'; ?>"<?php echo isset($_GET['error']) ? '' : ' hidden'; ?>><?php echo isset($_GET['error']) ? htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') : ''; ?></div>
+                    <div class="error-box" id="message-area" data-tone="<?php echo isset(
+                        $_GET['error'],
+                    )
+                        ? 'error'
+                        : 'info'; ?>"<?php echo isset($_GET['error'])
+    ? ''
+    : ' hidden'; ?>><?php echo isset($_GET['error'])
+    ? htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8')
+    : ''; ?></div>
 
                     <form id="admin-login-form" action="dashboard.php" method="POST" autocomplete="off">
-                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(
+                            $csrf,
+                            ENT_QUOTES,
+                            'UTF-8',
+                        ); ?>">
 
                         <label class="field-label" for="email">Email</label>
                         <div class="input-wrap">

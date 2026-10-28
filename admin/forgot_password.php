@@ -19,7 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             requestAdminPasswordReset($email);
             // Keep the message the same whether or not an account exists.
-            $status = 'If an active admin account matches that email, a reset link will arrive shortly.';
+            $status =
+                'If an active admin account matches that email, a reset link will arrive shortly.';
         } catch (Throwable $exception) {
             error_log('RepairTrack password reset request failed: ' . $exception->getMessage());
             $error = 'We could not process that request right now. Please try again later.';
@@ -55,13 +56,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p class="reset-copy">Enter the email address for your admin account. We’ll send a one-time link if it matches an active account.</p>
 
                     <?php if ($status !== ''): ?>
-                        <div class="reset-box" role="status"><?php echo htmlspecialchars($status, ENT_QUOTES, 'UTF-8'); ?></div>
+                        <div class="reset-box" role="status"><?php echo htmlspecialchars(
+                            $status,
+                            ENT_QUOTES,
+                            'UTF-8',
+                        ); ?></div>
                     <?php elseif ($error !== ''): ?>
-                        <div class="reset-box" role="alert"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div>
+                        <div class="reset-box" role="alert"><?php echo htmlspecialchars(
+                            $error,
+                            ENT_QUOTES,
+                            'UTF-8',
+                        ); ?></div>
                     <?php endif; ?>
 
                     <form action="forgot_password.php" method="POST" autocomplete="on">
-                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf, ENT_QUOTES, 'UTF-8'); ?>">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(
+                            $csrf,
+                            ENT_QUOTES,
+                            'UTF-8',
+                        ); ?>">
                         <label class="field-label" for="email">Admin email</label>
                         <div class="input-wrap">
                             <input type="email" id="email" name="email" autocomplete="email" required>

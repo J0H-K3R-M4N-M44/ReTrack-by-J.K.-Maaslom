@@ -2,14 +2,14 @@
 
 Read `workflow-blueprint.md` and open `wireframes/index.html` first.
 
-| Change requested | Edit |
-|---|---|
-| Form arrangement, labels, help text | `views/intake/create.php` |
-| Spacing, colors and responsive layout | `css/intake-wizard.css` |
-| Step movement and review text | `js/intake-wizard.js` |
-| Required fields, limits and choices | `app/intake/rules.php` |
+| Change requested                              | Edit                        |
+| --------------------------------------------- | --------------------------- |
+| Form arrangement, labels, help text           | `views/intake/create.php`   |
+| Spacing, colors and responsive layout         | `css/intake-wizard.css`     |
+| Step movement and review text                 | `js/intake-wizard.js`       |
+| Required fields, limits and choices           | `app/intake/rules.php`      |
 | Table/column mapping and transactional writes | `app/intake/repository.php` |
-| Request flow, redirects and error display | `admin/intake_create.php` |
+| Request flow, redirects and error display     | `admin/intake_create.php`   |
 
 The controller checks login and CSRF, reads known fields, validates them, saves a transaction, then loads the template. The repository uses ordinary PDO prepare/execute statements. There is no framework or dependency injection container.
 
@@ -18,6 +18,7 @@ Keep browser validation and server rules consistent. Changing an enum label does
 This feature still saves one-device drafts. It does not issue tickets or implement customer access, new roles, pickup, chat or billing.
 
 ## Local checks before merging
+
 1. Run PHP lint on the controller, both `app/intake/*.php` files and the view.
 2. With the existing database, create a draft for a new customer and then an existing customer.
 3. Submit invalid data after selecting an existing customer; its selection and all other values must remain.

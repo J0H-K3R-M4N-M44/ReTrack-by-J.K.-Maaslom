@@ -44,9 +44,9 @@ function csrfToken(): string
 
 function csrfIsValid(string $sentToken): bool
 {
-    return $sentToken !== ''
-        && isset($_SESSION['csrf_token'])
-        && hash_equals($_SESSION['csrf_token'], $sentToken);
+    return $sentToken !== '' &&
+        isset($_SESSION['csrf_token']) &&
+        hash_equals($_SESSION['csrf_token'], $sentToken);
 }
 
 function loginAdmin(string $email, string $password): bool
@@ -57,7 +57,7 @@ function loginAdmin(string $email, string $password): bool
         "SELECT user_id, full_name, password_hash
          FROM users
          WHERE email = ? AND role = 'ADMIN' AND is_active = 1
-         LIMIT 1"
+         LIMIT 1",
     );
     $statement->execute([$email]);
     $user = $statement->fetch();
@@ -74,7 +74,7 @@ function loginAdmin(string $email, string $password): bool
     $_SESSION['last_activity'] = time();
 
     $updateLogin = getPDO()->prepare(
-        'UPDATE users SET last_login_at = UTC_TIMESTAMP() WHERE user_id = ?'
+        'UPDATE users SET last_login_at = UTC_TIMESTAMP() WHERE user_id = ?',
     );
     $updateLogin->execute([$user['user_id']]);
 
@@ -91,7 +91,7 @@ function currentAdmin(): ?array
         "SELECT user_id, full_name, email, role
          FROM users
          WHERE user_id = ? AND role = 'ADMIN' AND is_active = 1
-         LIMIT 1"
+         LIMIT 1",
     );
     $statement->execute([(int) $_SESSION['admin_user_id']]);
     $user = $statement->fetch();
@@ -113,7 +113,7 @@ function requireAdmin(): array
 
     if ($user === null) {
         header('Location: login.php');
-        exit;
+        exit();
     }
 
     return $user;

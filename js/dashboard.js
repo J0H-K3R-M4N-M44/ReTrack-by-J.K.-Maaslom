@@ -25,5 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const requestedPanel = new URLSearchParams(window.location.search).get('tab');
-    showPanel(['overview', 'workbench', 'customers', 'reports'].includes(requestedPanel) ? requestedPanel : 'overview');
+    showPanel(
+        ['overview', 'workbench', 'customers', 'reports'].includes(requestedPanel)
+            ? requestedPanel
+            : 'overview',
+    );
 });

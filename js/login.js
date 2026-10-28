@@ -2,7 +2,7 @@ const createLoginEventData = (form, emailValue, passwordValue) => ({
     email: emailValue || '(empty)',
     passwordProvided: passwordValue.length > 0,
     submittedAt: new Date().toISOString(),
-    formId: form.id
+    formId: form.id,
 });
 
 const hideMessageLater = () => {
@@ -22,14 +22,14 @@ const handleLoginSubmit = (event, form, email, password, submitButton, state) =>
 
     if (state.isSubmitting) {
         console.log('Login submission ignored: submission already in progress.', {
-            formId: form.id
+            formId: form.id,
         });
         return;
     }
 
     console.log('Login submission started: submit event received.', {
         formId: form.id,
-        submittedAt: new Date().toISOString()
+        submittedAt: new Date().toISOString(),
     });
 
     NotificationCenter.publish('login:status', { status: 'attempted' });
@@ -60,15 +60,13 @@ const validateLoginInput = (emailValue, passwordValue) => {
     const result = {
         valid: missingFields.length === 0,
         missingFields,
-        message: missingFields.length
-            ? `Please fill in: ${missingFields.join(', ')}.`
-            : ''
+        message: missingFields.length ? `Please fill in: ${missingFields.join(', ')}.` : '',
     };
 
     console.log('Login validation completed.', {
         valid: result.valid,
         missingFields: result.missingFields,
-        message: result.message
+        message: result.message,
     });
 
     return result;
@@ -77,31 +75,26 @@ const validateLoginInput = (emailValue, passwordValue) => {
 const handleInvalidLogin = (message, emailValue, email, password) => {
     console.log('Invalid login handled: required fields are missing.', {
         message,
-        focusTarget: emailValue ? 'password' : 'email'
+        focusTarget: emailValue ? 'password' : 'email',
     });
 
     NotificationCenter.publish('login:status', {
         status: 'failed',
-        message
+        message,
     });
 
-    repairAlert.open(
-        'warning',
-        'Missing required fields',
-        message,
-        () => {
-            hideMessageLater();
+    repairAlert.open('warning', 'Missing required fields', message, () => {
+        hideMessageLater();
 
-            requestAnimationFrame(() => {
-                (emailValue ? password : email).focus();
-            });
-        }
-    );
+        requestAnimationFrame(() => {
+            (emailValue ? password : email).focus();
+        });
+    });
 };
 
 const handleValidLogin = (form, submitButton, state) => {
     console.log('Valid login handled: starting credential transition.', {
-        formId: form.id
+        formId: form.id,
     });
 
     NotificationCenter.publish('login:status', { status: 'succeeded' });
@@ -129,7 +122,7 @@ const handleServerLoginError = () => {
         'error',
         'Access denied',
         'The email or password is incorrect.',
-        hideMessageLater
+        hideMessageLater,
     );
 
     const url = new URL(window.location.href);

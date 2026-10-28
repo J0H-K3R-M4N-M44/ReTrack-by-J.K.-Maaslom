@@ -50,29 +50,44 @@
     };
 
     const updateReview = () => {
-        const value = (name) => form.querySelector('[name="' + name + '"]')?.value?.trim() || 'Not entered';
+        const value = (name) =>
+            form.querySelector('[name="' + name + '"]')?.value?.trim() || 'Not entered';
         const customer = customerSelect?.selectedOptions[0]?.textContent?.trim();
         const customerLine = customerSelect?.value ? customer : value('customer_name');
-        const deviceLine = [value('device_type'), value('make'), value('model')].filter((item) => item !== 'Not entered').join(' · ');
+        const deviceLine = [value('device_type'), value('make'), value('model')]
+            .filter((item) => item !== 'Not entered')
+            .join(' · ');
         const review = document.querySelector('[data-intake-review]');
         if (!review) return;
         review.querySelector('[data-review-customer]').textContent = customerLine || 'Not entered';
-        review.querySelector('[data-review-contact]').textContent = customerSelect?.value ? 'Existing customer' : value('contact_value');
+        review.querySelector('[data-review-contact]').textContent = customerSelect?.value
+            ? 'Existing customer'
+            : value('contact_value');
         review.querySelector('[data-review-device]').textContent = deviceLine || 'Not entered';
         review.querySelector('[data-review-problem]').textContent = value('reported_symptoms');
         review.querySelector('[data-review-condition]').textContent = value('condition_notes');
         review.querySelector('[data-review-serial]').textContent = value('serial_number');
-        review.querySelector('[data-review-arrival]').textContent = form.querySelector('[name="arrival_method"]')?.selectedOptions[0]?.textContent?.trim() || 'Not selected';
-        review.querySelector('[data-review-branch]').textContent = form.querySelector('[name="intake_branch_id"]')?.selectedOptions[0]?.textContent?.trim() || 'Not selected';
+        review.querySelector('[data-review-arrival]').textContent =
+            form
+                .querySelector('[name="arrival_method"]')
+                ?.selectedOptions[0]?.textContent?.trim() || 'Not selected';
+        review.querySelector('[data-review-branch]').textContent =
+            form
+                .querySelector('[name="intake_branch_id"]')
+                ?.selectedOptions[0]?.textContent?.trim() || 'Not selected';
     };
 
     // The server repeats all checks. This only helps staff correct mistakes sooner.
     const validateStep = (index) => {
         const make = form.querySelector('[name="make"]');
         const model = form.querySelector('[name="model"]');
-        if (make && model) make.setCustomValidity(make.value.trim() || model.value.trim() ? '' : 'Enter a brand or model.');
-        const requiredFields = [...steps[index].querySelectorAll('input, select, textarea')]
-            .filter((field) => !field.disabled && !field.closest('[hidden]'));
+        if (make && model)
+            make.setCustomValidity(
+                make.value.trim() || model.value.trim() ? '' : 'Enter a brand or model.',
+            );
+        const requiredFields = [...steps[index].querySelectorAll('input, select, textarea')].filter(
+            (field) => !field.disabled && !field.closest('[hidden]'),
+        );
         const firstInvalid = requiredFields.find((field) => !field.checkValidity());
         if (!firstInvalid) return true;
         firstInvalid.reportValidity();

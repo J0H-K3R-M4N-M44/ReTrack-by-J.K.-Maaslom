@@ -34,7 +34,7 @@ function requestAdminPasswordReset(string $email): void
     $findUser = $pdo->prepare(
         "SELECT user_id FROM users
          WHERE email = ? AND role = 'ADMIN' AND is_active = 1
-         LIMIT 1"
+         LIMIT 1",
     );
     $findUser->execute([$email]);
     $user = $findUser->fetch();
@@ -48,7 +48,7 @@ function requestAdminPasswordReset(string $email): void
         'SELECT reset_token_id
          FROM password_reset_tokens
          WHERE user_id = ? AND created_at > UTC_TIMESTAMP() - INTERVAL 1 MINUTE
-         LIMIT 1'
+         LIMIT 1',
     );
     $recentRequest->execute([$userId]);
 
@@ -64,13 +64,13 @@ function requestAdminPasswordReset(string $email): void
     $pdo->beginTransaction();
     try {
         $deleteOldTokens = $pdo->prepare(
-            'DELETE FROM password_reset_tokens WHERE user_id = ? AND used_at IS NULL'
+            'DELETE FROM password_reset_tokens WHERE user_id = ? AND used_at IS NULL',
         );
         $deleteOldTokens->execute([$userId]);
 
         $insertToken = $pdo->prepare(
             'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, created_at)
-             VALUES (?, ?, ?, ?)'
+             VALUES (?, ?, ?, ?)',
         );
         $insertToken->execute([$userId, $tokenHash, $expiresAt, $now]);
         $pdo->commit();
@@ -83,9 +83,10 @@ function requestAdminPasswordReset(string $email): void
 
     $resetUrl = $appUrl . '/admin/reset_password.php?token=' . rawurlencode($token);
     $subject = 'RepairTrack administrator password reset';
-    $message = "A password reset was requested for your RepairTrack administrator account.\n\n"
-        . "Use this one-time link within 30 minutes:\n{$resetUrl}\n\n"
-        . "If you did not request this, you can ignore this email.";
+    $message =
+        "A password reset was requested for your RepairTrack administrator account.\n\n" .
+        "Use this one-time link within 30 minutes:\n{$resetUrl}\n\n" .
+        'If you did not request this, you can ignore this email.';
     $headers = [
         'From' => $mailFrom,
         'Content-Type' => 'text/plain; charset=UTF-8',
@@ -94,7 +95,7 @@ function requestAdminPasswordReset(string $email): void
 
     if (!mail($email, $subject, $message, $headers)) {
         $deleteToken = $pdo->prepare(
-            'DELETE FROM password_reset_tokens WHERE user_id = ? AND token_hash = ?'
+            'DELETE FROM password_reset_tokens WHERE user_id = ? AND token_hash = ?',
         );
         $deleteToken->execute([$userId, $tokenHash]);
         error_log('RepairTrack password recovery email could not be sent.');
@@ -123,7 +124,7 @@ function completeAdminPasswordReset(string $token, string $newPassword): bool
                AND u.role = 'ADMIN'
                AND u.is_active = 1
              LIMIT 1
-             FOR UPDATE"
+             FOR UPDATE",
         );
         $findToken->execute([$tokenHash]);
         $reset = $findToken->fetch();
@@ -134,15 +135,13 @@ function completeAdminPasswordReset(string $token, string $newPassword): bool
         }
 
         $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
-        $updatePassword = $pdo->prepare(
-            'UPDATE users SET password_hash = ? WHERE user_id = ?'
-        );
+        $updatePassword = $pdo->prepare('UPDATE users SET password_hash = ? WHERE user_id = ?');
         $updatePassword->execute([$passwordHash, (int) $reset['user_id']]);
 
         $useTokens = $pdo->prepare(
             'UPDATE password_reset_tokens
              SET used_at = UTC_TIMESTAMP()
-             WHERE user_id = ? AND used_at IS NULL'
+             WHERE user_id = ? AND used_at IS NULL',
         );
         $useTokens->execute([(int) $reset['user_id']]);
 
