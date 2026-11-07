@@ -1,4 +1,6 @@
-<?php // Presentation only: values and permissions are prepared by the controller. ?>
+<?php
+// Presentation only: values and permissions are prepared by the controller.
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,7 +38,9 @@
                 </div>
                 <div class="dashboard-user">
                     <span class="welcome-seal" aria-hidden="true"><i class="fa-solid fa-user-shield"></i></span>
-                    <span><strong><?php echo intakeH($admin['full_name']); ?></strong><small>Administrator</small></span>
+                    <span><strong><?php echo intakeH(
+                        $admin['full_name'],
+                    ); ?></strong><small>Administrator</small></span>
                 </div>
             </header>
 
@@ -54,7 +58,9 @@
                     <?php if ($errors !== []): ?>
                         <div class="intake-errors" role="alert" tabindex="-1">
                             <strong>Review these items before saving:</strong>
-                            <?php foreach ($errors as $error): ?><p><?php echo intakeH($error); ?></p><?php endforeach; ?>
+                            <?php foreach ($errors as $error): ?><p><?php echo intakeH(
+    $error,
+); ?></p><?php endforeach; ?>
                         </div>
                     <?php endif; ?>
 
@@ -77,20 +83,29 @@
                             <p id="customer-search-title"><strong>Returning customer?</strong> Search first so you do not create a duplicate.</p>
                             <form class="intake-search" method="get" action="intake_create.php">
                                 <label for="customer-search">Name, phone, or email
-                                    <input id="customer-search" name="customer_search" value="<?php echo intakeH($values['customer_search']); ?>" autocomplete="off" placeholder="Enter at least 2 characters">
+                                    <input id="customer-search" name="customer_search" value="<?php echo intakeH(
+                                        $values['customer_search'],
+                                    ); ?>" autocomplete="off" placeholder="Enter at least 2 characters">
                                 </label>
                                 <button class="secondary-btn" type="submit"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Search</button>
                             </form>
                             <?php if ($values['customer_search'] !== ''): ?>
                                 <p class="form-help" style="margin:10px 0 0">
-                                    <?php echo count($customerResults) ? count($customerResults) . ' matching customer(s) found. Choose one below, or start a new customer record.' : 'No matches found. Start a new customer record below.'; ?>
+                                    <?php echo count($customerResults)
+                                        ? count($customerResults) .
+                                            ' matching customer(s) found. Choose one below, or start a new customer record.'
+                                        : 'No matches found. Start a new customer record below.'; ?>
                                 </p>
                             <?php endif; ?>
                         </section>
 
                         <form class="intake-form" method="post" action="intake_create.php" data-intake-wizard novalidate>
-                            <input type="hidden" name="csrf_token" value="<?php echo intakeH(csrfToken()); ?>">
-                            <input type="hidden" name="customer_search" value="<?php echo intakeH($values['customer_search']); ?>">
+                            <input type="hidden" name="csrf_token" value="<?php echo intakeH(
+                                csrfToken(),
+                            ); ?>">
+                            <input type="hidden" name="customer_search" value="<?php echo intakeH(
+                                $values['customer_search'],
+                            ); ?>">
 
                             <fieldset class="intake-step" data-intake-step>
                                 <h2 tabindex="-1">Who is bringing in the device?</h2>
@@ -100,8 +115,17 @@
                                     <select id="intake-branch" name="intake_branch_id" required>
                                         <option value="">Choose a branch</option>
                                         <?php foreach ($branches as $branch): ?>
-                                            <option value="<?php echo (int) $branch['branch_id']; ?>" <?php echo $values['intake_branch_id'] === (string) $branch['branch_id'] ? 'selected' : ''; ?>>
-                                                <?php echo intakeH($branch['branch_code'] . ' — ' . $branch['branch_name']); ?>
+                                            <option value="<?php echo (int) $branch[
+                                                'branch_id'
+                                            ]; ?>" <?php echo $values['intake_branch_id'] ===
+(string) $branch['branch_id']
+    ? 'selected'
+    : ''; ?>>
+                                                <?php echo intakeH(
+                                                    $branch['branch_code'] .
+                                                        ' — ' .
+                                                        $branch['branch_name'],
+                                                ); ?>
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
@@ -111,8 +135,18 @@
                                     <select id="customer-id" name="customer_id">
                                         <option value="">Create a new customer</option>
                                         <?php foreach ($customerResults as $customer): ?>
-                                            <option value="<?php echo (int) $customer['customer_id']; ?>" <?php echo $values['customer_id'] === (string) $customer['customer_id'] ? 'selected' : ''; ?>>
-                                                <?php echo intakeH($customer['full_name'] . ($customer['primary_contact'] ? ' — ' . $customer['primary_contact'] : '')); ?>
+                                            <option value="<?php echo (int) $customer[
+                                                'customer_id'
+                                            ]; ?>" <?php echo $values['customer_id'] ===
+(string) $customer['customer_id']
+    ? 'selected'
+    : ''; ?>>
+                                                <?php echo intakeH(
+                                                    $customer['full_name'] .
+                                                        ($customer['primary_contact']
+                                                            ? ' — ' . $customer['primary_contact']
+                                                            : ''),
+                                                ); ?>
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
@@ -122,24 +156,43 @@
                                 <div class="customer-create-fields form-wide" data-new-customer-fields>
                                     <div class="intake-form">
                                         <label for="customer-name">Customer name
-                                            <input id="customer-name" name="customer_name" maxlength="160" autocomplete="name" value="<?php echo intakeH($values['customer_name']); ?>" data-new-customer-required>
+                                            <input id="customer-name" name="customer_name" maxlength="160" autocomplete="name" value="<?php echo intakeH(
+                                                $values['customer_name'],
+                                            ); ?>" data-new-customer-required>
                                         </label>
                                         <label for="contact-type">Best contact method
                                             <select id="contact-type" name="contact_type">
-                                                <option value="PHONE" <?php echo $values['contact_type'] === 'PHONE' ? 'selected' : ''; ?>>Phone</option>
-                                                <option value="EMAIL" <?php echo $values['contact_type'] === 'EMAIL' ? 'selected' : ''; ?>>Email</option>
+                                                <option value="PHONE" <?php echo $values[
+                                                    'contact_type'
+                                                ] === 'PHONE'
+                                                    ? 'selected'
+                                                    : ''; ?>>Phone</option>
+                                                <option value="EMAIL" <?php echo $values[
+                                                    'contact_type'
+                                                ] === 'EMAIL'
+                                                    ? 'selected'
+                                                    : ''; ?>>Email</option>
                                             </select>
                                         </label>
                                         <label class="form-wide" for="contact-value">Phone number or email
-                                            <input id="contact-value" name="contact_value" maxlength="190" value="<?php echo intakeH($values['contact_value']); ?>" placeholder="09xx xxx xxxx" data-new-customer-required>
+                                            <input id="contact-value" name="contact_value" maxlength="190" value="<?php echo intakeH(
+                                                $values['contact_value'],
+                                            ); ?>" placeholder="09xx xxx xxxx" data-new-customer-required>
                                         </label>
                                     </div>
                                     <label class="form-wide" for="different-person">
-                                        <span><input type="checkbox" id="different-person" name="confirm_different_person" value="1" <?php echo $values['confirm_different_person'] === '1' ? 'checked' : ''; ?>> I checked the matches; this is a different person with the same name.</span>
+                                        <span><input type="checkbox" id="different-person" name="confirm_different_person" value="1" <?php echo $values[
+                                            'confirm_different_person'
+                                        ] === '1'
+                                            ? 'checked'
+                                            : ''; ?>> I checked the matches; this is a different person with the same name.</span>
                                     </label>
                                 </div>
 
-                                <?php if ($values['customer_search'] !== '' && count($customerResults) === 0): ?>
+                                <?php if (
+                                    $values['customer_search'] !== '' &&
+                                    count($customerResults) === 0
+                                ): ?>
                                     <div class="intake-help-box form-wide">No customer matched that search. Continue with the new customer fields above.</div>
                                 <?php endif; ?>
 
@@ -147,8 +200,16 @@
                                     <div class="intake-subheading">How did the device arrive?</div>
                                     <label for="arrival-method">Arrival method
                                         <select id="arrival-method" name="arrival_method" required>
-                                            <option value="WALK_IN" <?php echo $values['arrival_method'] === 'WALK_IN' ? 'selected' : ''; ?>>Brought to the branch</option>
-                                            <option value="MAIL" <?php echo $values['arrival_method'] === 'MAIL' ? 'selected' : ''; ?>>Mailed to the branch</option>
+                                            <option value="WALK_IN" <?php echo $values[
+                                                'arrival_method'
+                                            ] === 'WALK_IN'
+                                                ? 'selected'
+                                                : ''; ?>>Brought to the branch</option>
+                                            <option value="MAIL" <?php echo $values[
+                                                'arrival_method'
+                                            ] === 'MAIL'
+                                                ? 'selected'
+                                                : ''; ?>>Mailed to the branch</option>
                                         </select>
                                     </label>
                                 </div>
@@ -165,26 +226,40 @@
                                     <select id="device-type" name="device_type" required>
                                         <option value="">Choose a type</option>
                                         <?php foreach (intakeDeviceTypes() as $deviceType): ?>
-                                            <option value="<?php echo intakeH($deviceType); ?>" <?php echo $values['device_type'] === $deviceType ? 'selected' : ''; ?>><?php echo intakeH($deviceType); ?></option>
+                                            <option value="<?php echo intakeH(
+                                                $deviceType,
+                                            ); ?>" <?php echo $values['device_type'] === $deviceType
+    ? 'selected'
+    : ''; ?>><?php echo intakeH($deviceType); ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </label>
                                 <label for="device-make">Brand / make
-                                    <input id="device-make" name="make" maxlength="100" value="<?php echo intakeH($values['make']); ?>" placeholder="For example, Lenovo">
+                                    <input id="device-make" name="make" maxlength="100" value="<?php echo intakeH(
+                                        $values['make'],
+                                    ); ?>" placeholder="For example, Lenovo">
                                 </label>
                                 <label for="device-model">Model
-                                    <input id="device-model" name="model" maxlength="160" value="<?php echo intakeH($values['model']); ?>" placeholder="For example, ThinkPad T14">
+                                    <input id="device-model" name="model" maxlength="160" value="<?php echo intakeH(
+                                        $values['model'],
+                                    ); ?>" placeholder="For example, ThinkPad T14">
                                 </label>
                                 <label for="serial-number">Serial number <span class="form-optional">optional</span>
-                                    <input id="serial-number" name="serial_number" maxlength="190" value="<?php echo intakeH($values['serial_number']); ?>" autocomplete="off">
+                                    <input id="serial-number" name="serial_number" maxlength="190" value="<?php echo intakeH(
+                                        $values['serial_number'],
+                                    ); ?>" autocomplete="off">
                                 </label>
                                 <div class="intake-help-box form-wide">Enter a brand, a model, or both. If the customer cannot find the serial number, leave it blank.</div>
                                 <label class="form-wide" for="reported-symptoms">Problem reported by customer
-                                    <textarea id="reported-symptoms" name="reported_symptoms" rows="4" required maxlength="3000" placeholder="Example: The laptop shuts down after a few minutes."><?php echo intakeH($values['reported_symptoms']); ?></textarea>
+                                    <textarea id="reported-symptoms" name="reported_symptoms" rows="4" required maxlength="3000" placeholder="Example: The laptop shuts down after a few minutes."><?php echo intakeH(
+                                        $values['reported_symptoms'],
+                                    ); ?></textarea>
                                     <span class="form-help">Use the customer's words. Do not enter a diagnosis here.</span>
                                 </label>
                                 <label class="form-wide" for="condition-notes">Visible condition at check-in
-                                    <textarea id="condition-notes" name="condition_notes" rows="3" required maxlength="2000" placeholder="Example: Small dent near the left hinge; screen has no visible cracks."><?php echo intakeH($values['condition_notes']); ?></textarea>
+                                    <textarea id="condition-notes" name="condition_notes" rows="3" required maxlength="2000" placeholder="Example: Small dent near the left hinge; screen has no visible cracks."><?php echo intakeH(
+                                        $values['condition_notes'],
+                                    ); ?></textarea>
                                     <span class="form-help">Include visible damage or note “no visible damage”. Ask the customer to confirm this description.</span>
                                 </label>
 
