@@ -17,7 +17,7 @@ function getPDO(): PDO
 
     if (!is_file($configFile)) {
         throw new RuntimeException(
-            'Missing config/config.php. Copy config/config.example.php and add your MySQL settings.'
+            'Missing config/config.php. Copy config/config.example.php and add your MySQL settings.',
         );
     }
 

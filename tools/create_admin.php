@@ -4,7 +4,7 @@ declare(strict_types=1);
 // Run from the project folder with: php tools/create_admin.php
 if (PHP_SAPI !== 'cli') {
     http_response_code(404);
-    exit;
+    exit();
 }
 
 require_once __DIR__ . '/../app/db.php';
@@ -44,7 +44,7 @@ try {
 
     $insert = $pdo->prepare(
         "INSERT INTO users (full_name, email, password_hash, role)
-         VALUES (?, ?, ?, 'ADMIN')"
+         VALUES (?, ?, ?, 'ADMIN')",
     );
     $insert->execute([$name, $email, password_hash($password, PASSWORD_DEFAULT)]);
 
@@ -52,7 +52,7 @@ try {
 
     $assignBranches = $pdo->prepare(
         'INSERT INTO user_branch_assignments (user_id, branch_id, is_default)
-         SELECT ?, branch_id, 0 FROM branches WHERE is_active = 1'
+         SELECT ?, branch_id, 0 FROM branches WHERE is_active = 1',
     );
     $assignBranches->execute([$userId]);
 

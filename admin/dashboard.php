@@ -6,7 +6,7 @@ startAppSession();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrfIsValid(is_string($_POST['csrf_token'] ?? null) ? $_POST['csrf_token'] : '')) {
         header('Location: login.php?error=csrf');
-        exit;
+        exit();
     }
 
     $email = is_string($_POST['email'] ?? null) ? trim($_POST['email']) : '';
@@ -15,15 +15,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if (loginAdmin($email, $password)) {
             header('Location: dashboard.php');
-            exit;
+            exit();
         }
 
         header('Location: login.php?error=1');
-        exit;
+        exit();
     } catch (Throwable $error) {
         error_log('RepairTrack login error: ' . $error->getMessage());
         header('Location: login.php?error=db');
-        exit;
+        exit();
     }
 }
 
@@ -135,23 +135,39 @@ $statusCounts = $dashboardData['status_counts'];
                 <section class="analytics-grid" aria-label="Analytics summary" data-dashboard-panel="overview">
                     <article class="dashboard-card metric-card">
                         <div class="card-heading"><span>Active repairs</span><i class="fa-solid fa-laptop-medical" aria-hidden="true"></i></div>
-                        <strong class="metric-value"><?php echo $metricsAvailable ? number_format($metrics['activeRepairs']) : '—'; ?></strong>
-                        <small><?php echo $metricsAvailable ? 'Not completed or cancelled' : 'Database query unavailable'; ?></small>
+                        <strong class="metric-value"><?php echo $metricsAvailable
+                            ? number_format($metrics['activeRepairs'])
+                            : '—'; ?></strong>
+                        <small><?php echo $metricsAvailable
+                            ? 'Not completed or cancelled'
+                            : 'Database query unavailable'; ?></small>
                     </article>
                     <article class="dashboard-card metric-card">
                         <div class="card-heading"><span>Active technicians</span><i class="fa-solid fa-user-check" aria-hidden="true"></i></div>
-                        <strong class="metric-value"><?php echo $metricsAvailable ? number_format($metrics['technicians']) : '—'; ?></strong>
-                        <small><?php echo $metricsAvailable ? 'Enabled technician accounts' : 'Database query unavailable'; ?></small>
+                        <strong class="metric-value"><?php echo $metricsAvailable
+                            ? number_format($metrics['technicians'])
+                            : '—'; ?></strong>
+                        <small><?php echo $metricsAvailable
+                            ? 'Enabled technician accounts'
+                            : 'Database query unavailable'; ?></small>
                     </article>
                     <article class="dashboard-card metric-card">
                         <div class="card-heading"><span>Pending intake</span><i class="fa-solid fa-clipboard-question" aria-hidden="true"></i></div>
-                        <strong class="metric-value"><?php echo $metricsAvailable ? number_format($metrics['pendingIntake']) : '—'; ?></strong>
-                        <small><?php echo $metricsAvailable ? 'Draft tickets not yet issued' : 'Database query unavailable'; ?></small>
+                        <strong class="metric-value"><?php echo $metricsAvailable
+                            ? number_format($metrics['pendingIntake'])
+                            : '—'; ?></strong>
+                        <small><?php echo $metricsAvailable
+                            ? 'Draft tickets not yet issued'
+                            : 'Database query unavailable'; ?></small>
                     </article>
                     <article class="dashboard-card metric-card">
                         <div class="card-heading"><span>Tickets issued today</span><i class="fa-solid fa-circle-check" aria-hidden="true"></i></div>
-                        <strong class="metric-value"><?php echo $metricsAvailable ? number_format($metrics['ticketsIssuedToday']) : '—'; ?></strong>
-                        <small><?php echo $metricsAvailable ? 'Issued today, Asia/Manila time' : 'Database query unavailable'; ?></small>
+                        <strong class="metric-value"><?php echo $metricsAvailable
+                            ? number_format($metrics['ticketsIssuedToday'])
+                            : '—'; ?></strong>
+                        <small><?php echo $metricsAvailable
+                            ? 'Issued today, Asia/Manila time'
+                            : 'Database query unavailable'; ?></small>
                     </article>
                 </section>
 
@@ -176,8 +192,20 @@ $statusCounts = $dashboardData['status_counts'];
                             <dl class="status-list">
                                 <?php foreach (array_slice($repairQueue, 0, 5) as $item): ?>
                                     <div>
-                                        <dt><?php echo htmlspecialchars((string) $item['item_code'], ENT_QUOTES, 'UTF-8'); ?><br><small><?php echo htmlspecialchars(dashboardDeviceLabel($item), ENT_QUOTES, 'UTF-8'); ?></small></dt>
-                                        <dd><?php echo htmlspecialchars(dashboardStatusLabel((string) $item['repair_status']), ENT_QUOTES, 'UTF-8'); ?></dd>
+                                        <dt><?php echo htmlspecialchars(
+                                            (string) $item['item_code'],
+                                            ENT_QUOTES,
+                                            'UTF-8',
+                                        ); ?><br><small><?php echo htmlspecialchars(
+    dashboardDeviceLabel($item),
+    ENT_QUOTES,
+    'UTF-8',
+); ?></small></dt>
+                                        <dd><?php echo htmlspecialchars(
+                                            dashboardStatusLabel((string) $item['repair_status']),
+                                            ENT_QUOTES,
+                                            'UTF-8',
+                                        ); ?></dd>
                                     </div>
                                 <?php endforeach; ?>
                             </dl>
@@ -205,10 +233,26 @@ $statusCounts = $dashboardData['status_counts'];
                             <?php foreach ($repairQueue as $item): ?>
                                 <div>
                                     <dt>
-                                        <?php echo htmlspecialchars((string) $item['item_code'], ENT_QUOTES, 'UTF-8'); ?>
-                                        <br><small><?php echo htmlspecialchars(dashboardDeviceLabel($item), ENT_QUOTES, 'UTF-8'); ?> · <?php echo htmlspecialchars((string) ($item['customer_name'] ?? 'Customer not linked'), ENT_QUOTES, 'UTF-8'); ?></small>
+                                        <?php echo htmlspecialchars(
+                                            (string) $item['item_code'],
+                                            ENT_QUOTES,
+                                            'UTF-8',
+                                        ); ?>
+                                        <br><small><?php echo htmlspecialchars(
+                                            dashboardDeviceLabel($item),
+                                            ENT_QUOTES,
+                                            'UTF-8',
+                                        ); ?> · <?php echo htmlspecialchars(
+     (string) ($item['customer_name'] ?? 'Customer not linked'),
+     ENT_QUOTES,
+     'UTF-8',
+ ); ?></small>
                                     </dt>
-                                    <dd><?php echo htmlspecialchars(dashboardStatusLabel((string) $item['repair_status']), ENT_QUOTES, 'UTF-8'); ?></dd>
+                                    <dd><?php echo htmlspecialchars(
+                                        dashboardStatusLabel((string) $item['repair_status']),
+                                        ENT_QUOTES,
+                                        'UTF-8',
+                                    ); ?></dd>
                                 </div>
                             <?php endforeach; ?>
                         </dl>
@@ -223,8 +267,30 @@ $statusCounts = $dashboardData['status_counts'];
                         <dl class="status-list">
                             <?php foreach ($drafts as $draft): ?>
                                 <div>
-                                    <dt>Draft #<?php echo (int) $draft['ticket_id']; ?><br><small><?php echo htmlspecialchars((string) ($draft['customer_name'] ?? 'Customer not linked'), ENT_QUOTES, 'UTF-8'); ?> · <?php echo htmlspecialchars((string) $draft['branch_code'], ENT_QUOTES, 'UTF-8'); ?></small></dt>
-                                    <dd><?php echo htmlspecialchars(ucwords(strtolower(str_replace('_', ' ', (string) $draft['arrival_method']))), ENT_QUOTES, 'UTF-8'); ?></dd>
+                                    <dt>Draft #<?php echo (int) $draft[
+                                        'ticket_id'
+                                    ]; ?><br><small><?php echo htmlspecialchars(
+    (string) ($draft['customer_name'] ?? 'Customer not linked'),
+    ENT_QUOTES,
+    'UTF-8',
+); ?> · <?php echo htmlspecialchars(
+     (string) $draft['branch_code'],
+     ENT_QUOTES,
+     'UTF-8',
+ ); ?></small></dt>
+                                    <dd><?php echo htmlspecialchars(
+                                        ucwords(
+                                            strtolower(
+                                                str_replace(
+                                                    '_',
+                                                    ' ',
+                                                    (string) $draft['arrival_method'],
+                                                ),
+                                            ),
+                                        ),
+                                        ENT_QUOTES,
+                                        'UTF-8',
+                                    ); ?></dd>
                                 </div>
                             <?php endforeach; ?>
                         </dl>
@@ -242,8 +308,14 @@ $statusCounts = $dashboardData['status_counts'];
                         <dl class="status-list">
                             <?php foreach ($customers as $customer): ?>
                                 <div>
-                                    <dt><?php echo htmlspecialchars((string) $customer['full_name'], ENT_QUOTES, 'UTF-8'); ?></dt>
-                                    <dd><?php echo (int) $customer['ticket_count']; ?> ticket(s)</dd>
+                                    <dt><?php echo htmlspecialchars(
+                                        (string) $customer['full_name'],
+                                        ENT_QUOTES,
+                                        'UTF-8',
+                                    ); ?></dt>
+                                    <dd><?php echo (int) $customer[
+                                        'ticket_count'
+                                    ]; ?> ticket(s)</dd>
                                 </div>
                             <?php endforeach; ?>
                         </dl>
@@ -261,7 +333,13 @@ $statusCounts = $dashboardData['status_counts'];
                         <dl class="status-list">
                             <?php foreach ($statusCounts as $statusCount): ?>
                                 <div>
-                                    <dt><?php echo htmlspecialchars(dashboardStatusLabel((string) $statusCount['repair_status']), ENT_QUOTES, 'UTF-8'); ?></dt>
+                                    <dt><?php echo htmlspecialchars(
+                                        dashboardStatusLabel(
+                                            (string) $statusCount['repair_status'],
+                                        ),
+                                        ENT_QUOTES,
+                                        'UTF-8',
+                                    ); ?></dt>
                                     <dd><?php echo (int) $statusCount['total']; ?></dd>
                                 </div>
                             <?php endforeach; ?>

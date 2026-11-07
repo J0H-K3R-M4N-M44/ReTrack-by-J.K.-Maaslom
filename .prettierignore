@@ -1,0 +1,4 @@
+# Keep third-party distribution files as supplied by their author.
+demo-prototype/vendor/
+# SQL is formatted separately with the MySQL dialect.
+*.sql
