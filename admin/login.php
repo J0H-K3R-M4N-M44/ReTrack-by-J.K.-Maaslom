@@ -31,7 +31,7 @@ if ($errorCode === 'db') {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 </head>
-<body class="page-fade">
+<body class="page-fade login-page">
     <video class="bg-video" autoplay muted loop playsinline>
         <source src="../assets/login-bg.mp4" type="video/mp4">
     </video>
@@ -47,10 +47,6 @@ if ($errorCode === 'db') {
 
             <div class="login-content">
                 <div class="login-panel" id="login-view">
-                    <!-- Use a fixed destination so this works even when login is opened directly. -->
-                    <a class="login-back-link" href="../index.php">
-                        <span aria-hidden="true">&larr;</span> Back to home
-                    </a>
                     <h2>Login</h2>
 
                     <div class="error-box" id="message-area" data-tone="<?php echo isset(
@@ -82,7 +78,11 @@ if ($errorCode === 'db') {
                             <input type="password" id="password" name="password" placeholder="Password" autocomplete="current-password" required>
                         </div>
 
-                        <div class="meta-row">
+                        <div class="meta-row login-links">
+                            <!-- A fixed home link also works when login is opened directly. -->
+                            <a class="login-back-link" href="../index.php">
+                                <span aria-hidden="true">&larr;</span> Back to home
+                            </a>
                             <a href="forgot_password.php">Forgot Password?</a>
                         </div>
 

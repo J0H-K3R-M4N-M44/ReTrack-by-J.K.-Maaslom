@@ -103,6 +103,34 @@ body {
   overflow: hidden;
 }
 
+/* Give the two navigation links room without changing recovery cards. */
+#login-view {
+  width: min(100%, 560px);
+}
+
+.login-links {
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+
+.login-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 0;
+  white-space: nowrap;
+}
+
+.login-links a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.login-links a:focus-visible {
+  outline: 2px solid var(--gold-300);
+  outline-offset: 4px;
+}
+
 .login-panel::before {
   content: '';
   position: absolute;
@@ -251,11 +279,9 @@ form {
   align-items: center;
   gap: 8px;
   min-height: 44px;
-  margin-bottom: 8px;
-  padding: 8px 0;
   border-radius: 4px;
   color: rgba(247, 245, 240, 0.78);
-  font-size: 0.875rem;
+  font-size: inherit;
   text-decoration: none;
 }
 
@@ -317,5 +343,15 @@ form {
 
   .login-panel {
     width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-page .login-scene {
+    padding: 16px;
+  }
+
+  #login-view {
+    padding: 28px 20px 24px;
   }
 }
