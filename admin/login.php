@@ -47,6 +47,10 @@ if ($errorCode === 'db') {
 
             <div class="login-content">
                 <div class="login-panel" id="login-view">
+                    <!-- Use a fixed destination so this works even when login is opened directly. -->
+                    <a class="login-back-link" href="../index.php">
+                        <span aria-hidden="true">&larr;</span> Back to home
+                    </a>
                     <h2>Login</h2>
 
                     <div class="error-box" id="message-area" data-tone="<?php echo isset(

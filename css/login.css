@@ -246,6 +246,29 @@ form {
   box-shadow: 0 14px 26px rgba(183, 112, 58, 0.38);
 }
 
+.login-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid rgba(212, 175, 102, 0.7);
+  border-radius: 10px;
+  color: var(--gold-300);
+  text-decoration: none;
+}
+
+.login-back-link:hover {
+  background: rgba(212, 175, 102, 0.12);
+  text-decoration: underline;
+}
+
+.login-back-link:focus-visible {
+  outline: 2px solid var(--gold-300);
+  outline-offset: 3px;
+}
+
 .reset-panel {
   width: min(100%, 500px);
 }
