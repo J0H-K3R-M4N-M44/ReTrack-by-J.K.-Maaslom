@@ -48,3 +48,7 @@ Draft editing and issue gates (photos, accessory checklist, signatures, and acco
 ## Development branches
 
 Use [the branch map](docs/branch-map.md) to choose the feature category. Tested category work merges into `Simplified-System`; `main` is unchanged. See [consolidation checks](docs/consolidation-checks.md) for fixes, tests and limitations.
+
+## Sample database and integrity tests
+
+See [Database demo setup](docs/database-demo.md) for a separate `repairtrack_demo` database with 963 fictional rows across all 33 existing tables. Import setup, seed, read-only checks and constraint tests in the documented order. Your existing `repairtrack` data is not overwritten. The `Database-Testing` branch owns these fixtures and database checks.
