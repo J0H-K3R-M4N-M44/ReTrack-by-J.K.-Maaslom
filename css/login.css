@@ -251,22 +251,23 @@ form {
   align-items: center;
   gap: 8px;
   min-height: 44px;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  border: 1px solid rgba(212, 175, 102, 0.7);
-  border-radius: 10px;
-  color: var(--gold-300);
+  margin-bottom: 8px;
+  padding: 8px 0;
+  border-radius: 4px;
+  color: rgba(247, 245, 240, 0.78);
+  font-size: 0.875rem;
   text-decoration: none;
 }
 
 .login-back-link:hover {
-  background: rgba(212, 175, 102, 0.12);
+  color: var(--gold-300);
   text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 .login-back-link:focus-visible {
   outline: 2px solid var(--gold-300);
-  outline-offset: 3px;
+  outline-offset: 4px;
 }
 
 .reset-panel {
