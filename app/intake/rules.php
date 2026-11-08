@@ -99,6 +99,12 @@ function intakeValidate(PDO $pdo, array $values, array $branches): array
             !filter_var($values['contact_value'], FILTER_VALIDATE_EMAIL)
         ) {
             $errors[] = 'Enter a valid email address.';
+        } elseif (
+            $values['contact_type'] === 'PHONE' &&
+            !intakePhoneIsValid($values['contact_value'])
+        ) {
+            $errors[] =
+                'Enter a phone number with 7 to 15 digits. Spaces, parentheses and dashes are allowed.';
         } elseif (mb_strlen($values['contact_value']) > 190) {
             $errors[] = 'The contact value is too long.';
         }
@@ -137,4 +143,12 @@ function intakeValidate(PDO $pdo, array $values, array $branches): array
         }
     }
     return $errors;
+}
+
+function intakePhoneIsValid(string $value): bool
+{
+    $digits = preg_replace('/[^0-9]/', '', $value);
+    return preg_match('/^\+?[0-9() -]+$/', $value) === 1 &&
+        strlen($digits) >= 7 &&
+        strlen($digits) <= 15;
 }

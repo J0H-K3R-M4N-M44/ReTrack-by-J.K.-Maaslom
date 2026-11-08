@@ -201,7 +201,7 @@
   }
 }
 @media (max-width: 420px) {
-  .intake-step-marker:not(.is-current):not(.is-complete) > label {
+  .intake-step-marker:not(.is-current):not(.is-complete) > strong {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -234,5 +234,45 @@
   .intake-step-actions {
     position: static;
     flex-wrap: wrap;
+  }
+}
+
+.customer-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.intake-review dd {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .customer-fields-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Use the available width for entry instead of constraining desktop forms. */
+.intake-wizard-card {
+  max-width: none;
+}
+.intake-stepper {
+  padding-left: 0;
+}
+.intake-subheading {
+  margin-bottom: 8px;
+}
+@media (max-width: 600px) {
+  .intake-wizard-heading {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .intake-search {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .intake-step > p {
+    margin-bottom: 0;
+  }
+  .intake-step-actions {
+    margin-top: 12px;
   }
 }

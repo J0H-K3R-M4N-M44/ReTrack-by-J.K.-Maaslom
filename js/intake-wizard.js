@@ -26,11 +26,10 @@
       else marker.removeAttribute('aria-current');
     });
     const count = document.querySelector('[data-step-count]');
-    if (count) count.textContent = 'Step ' + (currentStep + 1) + ' of ' + steps.length;
+    if (count) count.textContent = 'Step ' + (currentStep + 1) + ' of 3';
     if (focusHeading) steps[currentStep].querySelector('h2')?.focus();
     const searchPanel = document.querySelector('.intake-search-panel');
     if (searchPanel) searchPanel.hidden = currentStep !== 0;
-    updateReview();
   };
 
   // Only require new-customer details when an existing customer was not selected.
@@ -49,33 +48,6 @@
     contactValue.type = isEmail ? 'email' : 'tel';
     contactValue.autocomplete = isEmail ? 'email' : 'tel';
     contactValue.placeholder = isEmail ? 'name@example.com' : '09xx xxx xxxx';
-  };
-
-  // Build the review from the latest field values, using textContent for plain text.
-  const updateReview = () => {
-    const value = (name) =>
-      form.querySelector('[name="' + name + '"]')?.value?.trim() || 'Not entered';
-    const customer = customerSelect?.selectedOptions[0]?.textContent?.trim();
-    const customerLine = customerSelect?.value ? customer : value('customer_name');
-    const deviceLine = [value('device_type'), value('make'), value('model')]
-      .filter((item) => item !== 'Not entered')
-      .join(' · ');
-    const review = document.querySelector('[data-intake-review]');
-    if (!review) return;
-    review.querySelector('[data-review-customer]').textContent = customerLine || 'Not entered';
-    review.querySelector('[data-review-contact]').textContent = customerSelect?.value
-      ? 'Existing customer'
-      : value('contact_value');
-    review.querySelector('[data-review-device]').textContent = deviceLine || 'Not entered';
-    review.querySelector('[data-review-problem]').textContent = value('reported_symptoms');
-    review.querySelector('[data-review-condition]').textContent = value('condition_notes');
-    review.querySelector('[data-review-serial]').textContent = value('serial_number');
-    review.querySelector('[data-review-arrival]').textContent =
-      form.querySelector('[name="arrival_method"]')?.selectedOptions[0]?.textContent?.trim() ||
-      'Not selected';
-    review.querySelector('[data-review-branch]').textContent =
-      form.querySelector('[name="intake_branch_id"]')?.selectedOptions[0]?.textContent?.trim() ||
-      'Not selected';
   };
 
   // The server repeats all checks. This only helps staff correct mistakes sooner.
@@ -108,19 +80,20 @@
 
   customerSelect?.addEventListener('change', updateCustomerFields);
   contactType?.addEventListener('change', updateContactType);
-  form.addEventListener('input', updateReview);
-  form.addEventListener('change', updateReview);
 
+  // Enter in the customer step advances instead of submitting hidden fields.
   form.addEventListener('submit', (event) => {
-    event.preventDefault();
     updateCustomerFields();
-    for (let index = 0; index < steps.length; index += 1) {
-      showStep(index);
-      if (!validateStep(index)) return;
+    if (currentStep === 0) {
+      event.preventDefault();
+      if (validateStep(0)) showStep(1, true);
+      return;
     }
-    // Disable the action after validation to discourage accidental double clicks.
-    form.querySelector('[type=submit]').disabled = true;
-    HTMLFormElement.prototype.submit.call(form);
+    if (!validateStep(currentStep)) event.preventDefault();
+    // A valid submission opens server-side review; it cannot save a draft yet.
+  });
+  [...nextButtons, ...backButtons].forEach((button) => {
+    button.hidden = false;
   });
 
   updateCustomerFields();
