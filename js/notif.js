@@ -131,7 +131,7 @@ let loginAttemptCount = 0;
 const handleLoginValidation = (eventData) => {
   const missingFields = [];
 
-  if (eventData.username === '(empty)') missingFields.push('Username');
+  if (eventData.email === '(empty)') missingFields.push('Email');
   if (!eventData.passwordProvided) missingFields.push('Password');
 
   const isValid = missingFields.length === 0;
@@ -141,7 +141,7 @@ const handleLoginValidation = (eventData) => {
   console.log('Handler 1: Login validation.', {
     valid: isValid,
     status,
-    username: eventData.username,
+    email: eventData.email,
     message,
   });
 };
@@ -153,7 +153,7 @@ const handleLoginSubmissionAudit = (eventData) => {
 
   console.log('Handler 2: Login submission and audit.', {
     attemptNumber: loginAttemptCount,
-    username: eventData.username,
+    email: eventData.email,
     formId: eventData.formId,
     submittedAt: eventData.submittedAt,
     status,

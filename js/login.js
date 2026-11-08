@@ -35,7 +35,7 @@ const handleLoginSubmit = (event, form, email, password, submitButton, state) =>
   NotificationCenter.publish('login:status', { status: 'attempted' });
 
   const emailValue = email.value.trim();
-  const passwordValue = password.value.trim();
+  const passwordValue = password.value; // Spaces can be part of a valid password.
   const loginEventData = createLoginEventData(form, emailValue, passwordValue);
 
   console.log('Event published: login:submitted.', loginEventData);
@@ -83,6 +83,11 @@ const handleInvalidLogin = (message, emailValue, email, password) => {
     message,
   });
 
+  if (typeof Swal === 'undefined') {
+    (emailValue ? password : email).focus();
+    return;
+  }
+
   repairAlert.open('warning', 'Missing required fields', message, () => {
     hideMessageLater();
 
@@ -118,6 +123,8 @@ const handlePageShow = (submitButton, originalButtonText, state) => {
 };
 
 const handleServerLoginError = () => {
+  // The PHP-rendered error remains visible when the optional popup is unavailable.
+  if (typeof Swal === 'undefined') return;
   repairAlert.open(
     'error',
     'Access denied',

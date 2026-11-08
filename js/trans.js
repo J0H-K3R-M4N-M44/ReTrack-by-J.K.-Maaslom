@@ -1,4 +1,10 @@
 const startLoginTransition = (form, submitButton) => {
+  // The optional popup must not block server-side login when its CDN is offline.
+  if (typeof Swal === 'undefined') {
+    form.submit();
+    return;
+  }
+
   if (submitButton) submitButton.textContent = 'Securing access...';
 
   repairAlert.loading(

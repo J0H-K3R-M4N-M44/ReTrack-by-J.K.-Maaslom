@@ -556,8 +556,9 @@ function render() {
   };
   const publics = ['home', 'login', 'pickup', 'portal'];
   if (!publics.includes(route) && ['Public', 'Customer'].includes(role)) {
-    role = 'Admin';
-    renderBar();
+    // A direct URL must not select a staff role on the visitor's behalf.
+    go('login');
+    return;
   }
   $('#app').innerHTML = publics.includes(route)
     ? (pages[route] || home)()
@@ -1050,6 +1051,7 @@ function submit(kind, form) {
         );
         requireGate(found, 'Code not found. Try DEMO-1042 or check the receipt.');
         activeTicket = found.id;
+        activeDevice = 0;
         role = 'Customer';
         verified = false;
         go('portal');
@@ -1640,10 +1642,18 @@ document.addEventListener('input', (e) => {
 function handleRoute() {
   const route = location.hash.slice(1);
   if (route.startsWith('track/')) {
-    const code = decodeURIComponent(route.slice(6));
+    let code;
+    try {
+      code = decodeURIComponent(route.slice(6));
+    } catch {
+      go('home');
+      toast('Tracking link unavailable. Contact the branch.');
+      return;
+    }
     const t = state.tickets.find((t) => t.issued && t.code === code);
     if (t) {
       activeTicket = t.id;
+      activeDevice = 0;
       role = 'Customer';
       verified = false;
       go('portal');

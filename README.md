@@ -44,3 +44,7 @@ If you use XAMPP locally, PHP mail delivery is not enabled automatically. Config
 - A role-based page wireframe for customer, counter officer, technician, and branch administrator workflows
 
 Draft editing and issue gates (photos, accessory checklist, signatures, and accountable branch), quotes, parts, billing, and technician workflows remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
+
+## Development branches
+
+Use [the branch map](docs/branch-map.md) to choose the feature category. Tested category work merges into `Simplified-System`; `main` is unchanged. See [consolidation checks](docs/consolidation-checks.md) for fixes, tests and limitations.

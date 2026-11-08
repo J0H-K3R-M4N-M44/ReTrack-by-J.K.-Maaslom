@@ -43,8 +43,10 @@ function intakeSaveDraft(PDO $pdo, array $values, int $userId): int
     $branchId = (int) $values['intake_branch_id'];
     $existingCustomerId = (int) $values['customer_id'];
     try {
+        // Keep the related inserts together; a failure rolls the whole draft back.
         $pdo->beginTransaction();
 
+        // Reuse a selected customer, or create a customer and contact together.
         if ($existingCustomerId > 0) {
             $customerId = $existingCustomerId;
         } else {
@@ -76,6 +78,7 @@ function intakeSaveDraft(PDO $pdo, array $values, int $userId): int
             ]);
         }
 
+        // This remains a draft; tracking codes are assigned by a later issuance step.
         $ticketInsert = $pdo->prepare(
             "INSERT INTO repair_tickets
                 (record_stage, customer_id, intake_branch_id, accepted_by_user_id, arrival_method)

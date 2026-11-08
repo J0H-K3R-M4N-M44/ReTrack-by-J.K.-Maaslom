@@ -18,6 +18,7 @@ function intakeH(string $value): string
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Read only the expected fields before validation and database writes.
     $values = intakeReadValues($values, $_POST);
     $token = is_string($_POST['csrf_token'] ?? null) ? $_POST['csrf_token'] : '';
     if (!csrfIsValid($token)) {
