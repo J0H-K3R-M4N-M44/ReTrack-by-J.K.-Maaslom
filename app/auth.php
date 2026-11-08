@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/web.php';
+require_once __DIR__ . '/login_throttle.php';
 
 // Start the staff session and expire it after 30 minutes without activity.
 function startAppSession(): void
@@ -65,7 +67,10 @@ function loginAdmin(string $email, string $password): bool
     $statement->execute([$email]);
     $user = $statement->fetch();
 
-    if (!$user || !password_verify($password, $user['password_hash'])) {
+    // Unknown accounts still perform a bcrypt check to reduce timing differences.
+    $dummyHash = '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
+    $passwordMatches = password_verify($password, $user['password_hash'] ?? $dummyHash);
+    if (!$user || !$passwordMatches) {
         return false;
     }
 
@@ -113,7 +118,12 @@ function currentAdmin(): ?array
 
 function requireAdmin(): array
 {
-    $user = currentAdmin();
+    try {
+        $user = currentAdmin();
+    } catch (Throwable $error) {
+        error_log('RepairTrack session check: ' . $error->getMessage());
+        unavailablePage('Account access is temporarily unavailable. Please try again later.');
+    }
 
     if ($user === null) {
         header('Location: login.php');

@@ -1,22 +1,39 @@
 <?php
 require_once __DIR__ . '/../app/auth.php';
 startAppSession();
+header('Cache-Control: no-store, private');
 
 if (!empty($_SESSION['admin_user_id'])) {
     header('Location: dashboard.php');
     exit();
 }
 
-$csrf = csrfToken();
-$errorCode = is_string($_GET['error'] ?? null) ? $_GET['error'] : '';
-$errorMessage = 'Invalid email or password.';
-
-if ($errorCode === 'db') {
-    $errorMessage =
-        'Database connection failed. Check config/config.php and confirm MySQL is running.';
-} elseif ($errorCode === 'csrf') {
-    $errorMessage = 'The login form expired. Reload the page and try again.';
+$errorMessage = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!csrfIsValid(requestText($_POST, 'csrf_token'))) {
+        http_response_code(403);
+        $errorMessage = 'The login form expired. Reload the page and try again.';
+    } else {
+        try {
+            $email = trim(requestText($_POST, 'email'));
+            if (!reserveLoginAttempt($email, $_SERVER['REMOTE_ADDR'] ?? 'unknown')) {
+                http_response_code(429);
+                header('Retry-After: 900');
+                $errorMessage = 'Too many sign-in attempts. Please wait 15 minutes.';
+            } elseif (loginAdmin($email, requestText($_POST, 'password'))) {
+                header('Location: dashboard.php', true, 303);
+                exit();
+            } else {
+                $errorMessage = 'Invalid email or password.';
+            }
+        } catch (Throwable $error) {
+            error_log('RepairTrack login: ' . $error->getMessage());
+            http_response_code(503);
+            $errorMessage = 'Sign-in is temporarily unavailable. Please try again later.';
+        }
+    }
 }
+$csrf = csrfToken();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -26,10 +43,9 @@ if ($errorCode === 'db') {
     <title>Login</title>
     
     <link rel="stylesheet" href="../css/base.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="../css/login.css">
     <link rel="stylesheet" href="../css/alerts.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 </head>
 <body class="page-fade login-page">
     <video class="bg-video" autoplay muted loop playsinline>
@@ -49,22 +65,12 @@ if ($errorCode === 'db') {
                 <div class="login-panel" id="login-view">
                     <h2>Login</h2>
 
-                    <div class="error-box" id="message-area" data-tone="<?php echo isset(
-                        $_GET['error'],
-                    )
-                        ? 'error'
-                        : 'info'; ?>"<?php echo isset($_GET['error'])
-    ? ''
-    : ' hidden'; ?>><?php echo isset($_GET['error'])
-    ? htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8')
-    : ''; ?></div>
+                    <div class="error-box" id="message-area" role="alert"<?= $errorMessage === ''
+                        ? ' hidden'
+                        : '' ?>><?= h($errorMessage) ?></div>
 
-                    <form id="admin-login-form" action="dashboard.php" method="POST" autocomplete="off">
-                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(
-                            $csrf,
-                            ENT_QUOTES,
-                            'UTF-8',
-                        ); ?>">
+                    <form id="admin-login-form" action="login.php" method="POST" autocomplete="off">
+                        <input type="hidden" name="csrf_token" value="<?php echo h($csrf); ?>">
 
                         <label class="field-label" for="email">Email</label>
                         <div class="input-wrap">
@@ -92,8 +98,6 @@ if ($errorCode === 'db') {
             </div>
         </div>
     </div>
-    <script src="https://kit.fontawesome.com/19c0f829b8.js" crossorigin="anonymous"></script>
-    <script src="../js/notif.js"></script>
     <script src="../js/trans.js"></script>
     <script src="../js/login.js"></script>
 </body>

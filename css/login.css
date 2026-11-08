@@ -72,22 +72,6 @@ body {
   overflow: hidden;
 }
 
-.auth-view[hidden] {
-  display: none;
-}
-
-.auth-view {
-  will-change: opacity, transform;
-}
-
-.login-content.is-morphing {
-  transition: height 0.38s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.auth-view.is-entering {
-  animation: authViewIn 0.32s ease both;
-}
-
 .login-panel {
   width: min(100%, 440px);
   padding: 32px 28px 24px;
@@ -321,17 +305,6 @@ form {
   margin: 0;
 }
 
-@keyframes authViewIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @media (max-width: 760px) {
   .login-shell {
     max-width: 520px;
@@ -354,4 +327,8 @@ form {
   #login-view {
     padding: 28px 20px 24px;
   }
+}
+
+body {
+  overflow-y: auto;
 }

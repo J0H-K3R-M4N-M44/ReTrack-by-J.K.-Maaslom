@@ -24,8 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = 'This form expired. Reload the page and try again.';
     } elseif (!$tokenIsValid) {
         $message = 'This reset link is invalid or has expired. Request a new one.';
-    } elseif (strlen($password) < 12) {
-        $message = 'Choose a password with at least 12 characters.';
+    } elseif (!passwordIsAcceptable($password)) {
+        $message = 'Choose a password with at least 12 characters and at most 72 UTF-8 bytes.';
     } elseif (!hash_equals($password, $confirmPassword)) {
         $message = 'The passwords do not match.';
     } else {
@@ -39,11 +39,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'We could not update the password right now. Please try again later.';
         }
     }
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && $tokenIsValid) {
-    // Do not reveal whether a token is valid until the form is submitted.
-    // The same safe form response is shown for valid and invalid tokens.
 }
 ?>
 <!DOCTYPE html>
@@ -71,35 +66,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $tokenIsValid) {
             <div class="login-content">
                 <section class="login-panel reset-panel">
                     <h2>Choose a new password</h2>
-                    <p class="reset-copy">Use at least 12 characters. This link works once and expires after 30 minutes.</p>
+                    <p class="reset-copy">Use at least 12 characters and at most 72 UTF-8 bytes. This link works once and expires after 30 minutes.</p>
 
                     <?php if ($message !== ''): ?>
                         <div class="reset-box" role="<?php echo $success ? 'status' : 'alert'; ?>">
-                            <?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?>
+                            <?php echo h($message); ?>
                         </div>
                     <?php endif; ?>
 
                     <?php if (!$success): ?>
                         <form action="reset_password.php" method="POST" autocomplete="on">
-                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(
-                                $csrf,
-                                ENT_QUOTES,
-                                'UTF-8',
-                            ); ?>">
-                            <input type="hidden" name="token" value="<?php echo htmlspecialchars(
-                                $token,
-                                ENT_QUOTES,
-                                'UTF-8',
-                            ); ?>">
+                            <input type="hidden" name="csrf_token" value="<?php echo h($csrf); ?>">
+                            <input type="hidden" name="token" value="<?php echo h($token); ?>">
 
                             <label class="field-label" for="password">New password</label>
                             <div class="input-wrap">
-                                <input type="password" id="password" name="password" autocomplete="new-password" minlength="12" required>
+                                <input type="password" id="password" name="password" autocomplete="new-password" required>
                             </div>
 
                             <label class="field-label" for="confirm-password">Confirm new password</label>
                             <div class="input-wrap">
-                                <input type="password" id="confirm-password" name="confirm_password" autocomplete="new-password" minlength="12" required>
+                                <input type="password" id="confirm-password" name="confirm_password" autocomplete="new-password" required>
                             </div>
 
                             <button type="submit" class="login-btn">Update password</button>

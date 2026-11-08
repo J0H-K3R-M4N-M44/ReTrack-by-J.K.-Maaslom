@@ -8,6 +8,7 @@ if (PHP_SAPI !== 'cli') {
 }
 
 require_once __DIR__ . '/../app/db.php';
+require_once __DIR__ . '/../app/web.php';
 
 function ask(string $question): string
 {
@@ -17,15 +18,16 @@ function ask(string $question): string
 
 $name = ask('Administrator full name: ');
 $email = strtolower(ask('Administrator email: '));
-$password = ask('Password (at least 12 characters): ');
+echo 'Password (at least 12 characters, at most 72 UTF-8 bytes): ';
+$password = rtrim((string) fgets(STDIN), "\r\n");
 
 if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
     fwrite(STDERR, "Enter a name and a valid email address.\n");
     exit(1);
 }
 
-if (strlen($password) < 12) {
-    fwrite(STDERR, "Use a password with at least 12 characters.\n");
+if (!passwordIsAcceptable($password)) {
+    fwrite(STDERR, "Use at least 12 characters and at most 72 UTF-8 bytes, without null bytes.\n");
     exit(1);
 }
 

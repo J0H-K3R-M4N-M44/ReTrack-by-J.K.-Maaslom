@@ -17,17 +17,19 @@ function requestAdminPasswordReset(string $email): void
 
     $configFile = __DIR__ . '/../config/config.php';
     if (!is_file($configFile)) {
-        error_log('RepairTrack password recovery is missing config/config.php.');
-        return;
+        throw new RuntimeException('Recovery configuration is missing.');
     }
 
     $config = require $configFile;
     $appUrl = rtrim((string) ($config['app_url'] ?? ''), '/');
     $mailFrom = (string) ($config['mail_from'] ?? '');
 
-    if ($appUrl === '' || !filter_var($mailFrom, FILTER_VALIDATE_EMAIL)) {
-        error_log('RepairTrack password recovery needs app_url and mail_from configured.');
-        return;
+    if (
+        !filter_var($appUrl, FILTER_VALIDATE_URL) ||
+        !in_array(parse_url($appUrl, PHP_URL_SCHEME), ['http', 'https'], true) ||
+        !filter_var($mailFrom, FILTER_VALIDATE_EMAIL)
+    ) {
+        throw new RuntimeException('Recovery needs a valid app_url and mail_from.');
     }
 
     $pdo = getPDO();
@@ -105,7 +107,7 @@ function requestAdminPasswordReset(string $email): void
 /** Change the password only when an unused, unexpired token is submitted. */
 function completeAdminPasswordReset(string $token, string $newPassword): bool
 {
-    if (!preg_match('/^[a-f0-9]{64}$/', $token) || strlen($newPassword) < 12) {
+    if (!preg_match('/^[a-f0-9]{64}$/', $token) || !passwordIsAcceptable($newPassword)) {
         return false;
     }
 

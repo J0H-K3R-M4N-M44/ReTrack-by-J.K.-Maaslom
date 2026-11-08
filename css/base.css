@@ -30,8 +30,8 @@ body {
 }
 
 body.page-fade {
-  opacity: 0;
-  transform: translateY(8px);
+  opacity: 1;
+  transform: none;
 }
 
 body.page-fade.page-fade-in {
@@ -40,4 +40,20 @@ body.page-fade.page-fade-in {
   transition:
     opacity 0.45s ease,
     transform 0.45s ease;
+}
+
+/* Honor semantic visibility even when a component uses grid or flex. */
+[hidden] {
+  display: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-video {
+    display: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
