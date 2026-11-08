@@ -1,13 +1,16 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/web.php';
 
 /**
  * Read the data shown by the admin dashboard.
  * Keeping these queries together makes the page easier to maintain.
  */
-function loadDashboardData(PDO $pdo): array
+function loadDashboardData(PDO $pdo, array $input = []): array
 {
     $metrics = [];
+    $search = likePattern(mb_substr(requestText($input, 'q'), 0, 190, 'UTF-8'));
+    $pages = [];
 
     $metrics['activeRepairs'] = (int) $pdo
         ->query(
@@ -43,43 +46,56 @@ function loadDashboardData(PDO $pdo): array
     $issuedToday->execute([$fromUtc, $toUtc]);
     $metrics['ticketsIssuedToday'] = (int) $issuedToday->fetchColumn();
 
-    $queue = $pdo
-        ->query(
-            "SELECT d.item_code, d.device_type_snapshot, d.make_snapshot, d.model_snapshot,
-                d.repair_status, d.updated_at, t.ticket_code, c.full_name AS customer_name
-         FROM ticket_devices d
-         JOIN repair_tickets t ON t.ticket_id = d.ticket_id
-         LEFT JOIN customers c ON c.customer_id = t.customer_id
-         WHERE t.record_stage = 'ISSUED'
-         ORDER BY d.updated_at DESC, d.ticket_device_id DESC
-         LIMIT 12",
-        )
-        ->fetchAll();
+    // Count and page the same query so the totals cannot silently disagree.
+    $queueSql = "SELECT d.item_code, d.device_type_snapshot, d.make_snapshot, d.model_snapshot,
+        d.repair_status, d.updated_at, t.ticket_code, c.full_name AS customer_name
+        FROM ticket_devices d
+        JOIN repair_tickets t ON t.ticket_id = d.ticket_id
+        LEFT JOIN customers c ON c.customer_id = t.customer_id
+        WHERE t.record_stage = 'ISSUED'
+        AND (COALESCE(t.ticket_code, '') LIKE ? ESCAPE '!'
+            OR COALESCE(c.full_name, '') LIKE ? ESCAPE '!'
+            OR COALESCE(d.model_snapshot, '') LIKE ? ESCAPE '!')";
+    $pages['queue'] = dashboardPage(
+        $pdo,
+        $queueSql,
+        [$search, $search, $search],
+        'updated_at DESC, item_code DESC',
+        requestText($input, 'queue_page', '1'),
+    );
 
-    $customers = $pdo
-        ->query(
-            "SELECT c.customer_id, c.full_name, c.updated_at,
-                COUNT(DISTINCT t.ticket_id) AS ticket_count
-         FROM customers c
-         LEFT JOIN repair_tickets t ON t.customer_id = c.customer_id
-         GROUP BY c.customer_id, c.full_name, c.updated_at
-         ORDER BY c.updated_at DESC
-         LIMIT 12",
-        )
-        ->fetchAll();
+    $customerSql = "SELECT c.customer_id, c.full_name, c.updated_at, COUNT(DISTINCT t.ticket_id) AS ticket_count
+        FROM customers c
+        LEFT JOIN repair_tickets t ON t.customer_id = c.customer_id
+        WHERE c.full_name LIKE ? ESCAPE '!'
+        OR EXISTS (SELECT 1 FROM customer_contacts cc WHERE cc.customer_id = c.customer_id
+            AND cc.contact_value LIKE ? ESCAPE '!')
+        GROUP BY c.customer_id, c.full_name, c.updated_at";
+    $pages['customers'] = dashboardPage(
+        $pdo,
+        $customerSql,
+        [$search, $search],
+        'updated_at DESC, customer_id DESC',
+        requestText($input, 'customers_page', '1'),
+    );
 
-    $drafts = $pdo
-        ->query(
-            "SELECT t.ticket_id, t.arrival_method, t.created_at,
-                c.full_name AS customer_name, b.branch_code
-         FROM repair_tickets t
-         JOIN branches b ON b.branch_id = t.intake_branch_id
-         LEFT JOIN customers c ON c.customer_id = t.customer_id
-         WHERE t.record_stage = 'DRAFT'
-         ORDER BY t.created_at DESC
-         LIMIT 12",
-        )
-        ->fetchAll();
+    $draftSql = "SELECT t.ticket_id, t.arrival_method, t.created_at, c.full_name AS customer_name, b.branch_code
+        FROM repair_tickets t
+        JOIN branches b ON b.branch_id = t.intake_branch_id
+        LEFT JOIN customers c ON c.customer_id = t.customer_id
+        WHERE t.record_stage = 'DRAFT'
+        AND (CAST(t.ticket_id AS CHAR) LIKE ? ESCAPE '!'
+            OR COALESCE(c.full_name, '') LIKE ? ESCAPE '!')";
+    $pages['drafts'] = dashboardPage(
+        $pdo,
+        $draftSql,
+        [$search, $search],
+        'created_at DESC, ticket_id DESC',
+        requestText($input, 'drafts_page', '1'),
+    );
+    $queue = $pages['queue']['rows'];
+    $customers = $pages['customers']['rows'];
+    $drafts = $pages['drafts']['rows'];
 
     $statusCounts = $pdo
         ->query(
@@ -93,6 +109,7 @@ function loadDashboardData(PDO $pdo): array
         ->fetchAll();
 
     return [
+        'pages' => $pages,
         'metrics' => $metrics,
         'queue' => $queue,
         'customers' => $customers,
@@ -133,4 +150,30 @@ function dashboardStatusLabel(string $status): string
     ];
 
     return $labels[$status] ?? ucwords(strtolower(str_replace('_', ' ', $status)));
+}
+
+// SQL/order fragments come only from this file. User text is always bound.
+function dashboardPage(
+    PDO $pdo,
+    string $sql,
+    array $parameters,
+    string $order,
+    string $requestedPage,
+): array {
+    $count = $pdo->prepare('SELECT COUNT(*) FROM (' . $sql . ') AS records');
+    $count->execute($parameters);
+    $total = (int) $count->fetchColumn();
+    $pages = max(1, (int) ceil($total / 12));
+    $page = ctype_digit($requestedPage) ? min($pages, max(1, (int) $requestedPage)) : 1;
+    $offset = ($page - 1) * 12;
+    $query = $pdo->prepare($sql . ' ORDER BY ' . $order . ' LIMIT 12 OFFSET ' . $offset);
+    $query->execute($parameters);
+    return [
+        'rows' => $query->fetchAll(),
+        'total' => $total,
+        'page' => $page,
+        'pages' => $pages,
+        'from' => $total ? $offset + 1 : 0,
+        'to' => min($offset + 12, $total),
+    ];
 }

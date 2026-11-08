@@ -6,7 +6,7 @@ RepairTrack is a PHP and MySQL learning project for tracking computer repairs ac
 
 - PHP 8.1 or newer
 - MySQL 8.0.16 or newer
-- PHP extensions `pdo_mysql` and `mbstring`
+- PHP extensions `pdo_mysql`, `mbstring` and `ctype`
 - XAMPP or another local Apache + PHP + MySQL setup
 
 ## Local setup
@@ -23,7 +23,7 @@ If PDO reports that the MySQL driver is missing, enable `pdo_mysql` in the PHP c
 
 For an existing database, run `database/password_reset.sql` once in MySQL Workbench. Set `app_url` in `config/config.php` to the full site URL, including the project folder. Set `mail_from` to an address accepted by the mail server, then configure PHP `mail()` (or the server's local mail relay) to deliver messages.
 
-The login page's **Forgot Password?** link emails a one-use reset link. The token is stored as a hash, expires after 30 minutes, and can only be used once. The new password must contain at least 12 characters. The request page uses the same response whether or not an active admin account matches the email.
+The login page's **Forgot Password?** link emails a one-use reset link. The token is stored as a hash, expires after 30 minutes, and can only be used once. The new password must contain at least 12 Unicode characters and fit within 72 UTF-8 bytes. The request page uses the same response whether or not an active admin account matches the email.
 
 If you use XAMPP locally, PHP mail delivery is not enabled automatically. Configure a mail relay before expecting reset emails to arrive. Keep the real sender and database settings only in the ignored `config/config.php`; never commit credentials or reset links.
 
@@ -34,16 +34,16 @@ If you use XAMPP locally, PHP mail delivery is not enabled automatically. Config
 ## Current scope
 
 - Administrator login against the `users` table using `password_verify()`
-- Session ID renewal on login, CSRF protection for login and password recovery, and idle-session expiry
+- Session ID renewal on login, CSRF protection for login, logout and password recovery, and idle-session expiry
 - Single-use, expiring administrator password reset links
 - A database-backed dashboard summary and working dashboard section navigation
-- A repair workbench showing the latest 12 issued device records, pending intake drafts, and current status
-- A three-step staff intake wizard for customer matching, device details, and a reviewable draft
+- A searchable repair workbench with numbered pages, pending intake drafts, and current status
+- An administrator intake workflow for customer matching, device details, server-side review, and reopening/editing single-device drafts
 - A customer roster with ticket totals, plus a report summary grouped by repair status
 - A public landing page with the existing MP4 hero background, scroll navigation, responsive sections, and reduced-motion support
 - A role-based page wireframe for customer, counter officer, technician, and branch administrator workflows
 
-Draft editing and issue gates (photos, accessory checklist, signatures, and accountable branch), quotes, parts, billing, and technician workflows remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
+Ticket issue gates (photos, accessory checklist, signatures, and accountable branch), quotes, parts, billing, and technician workflows remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
 
 ## Development branches
 
@@ -52,3 +52,8 @@ Use [the branch map](docs/branch-map.md) to choose the feature category. Tested 
 ## Sample database and integrity tests
 
 See [Database demo setup](docs/database-demo.md) for a separate `repairtrack_demo` database with 963 fictional rows across all 33 existing tables. Import setup, seed, read-only checks and constraint tests in the documented order. Your existing `repairtrack` data is not overwritten. The `Database-Testing` branch owns these fixtures and database checks.
+
+## Administrator intake milestone
+
+See [the implementation and test notes](docs/admin-milestone.md) for draft review/edit rules, pagination, login limits, test commands and remaining features. No table or column changes are required.
+

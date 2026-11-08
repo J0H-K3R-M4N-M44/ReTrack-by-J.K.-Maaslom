@@ -475,19 +475,6 @@
   filter: brightness(1.08);
 }
 
-.dashboard-shell {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-body.page-fade-in .dashboard-shell {
-  opacity: 1;
-  transform: translateY(0);
-  transition:
-    opacity 0.5s ease 0.1s,
-    transform 0.5s ease 0.1s;
-}
-
 @media (max-width: 720px) {
   .dashboard-sidebar {
     width: 72px;
@@ -734,4 +721,57 @@ body.page-fade-in .dashboard-shell {
   height: 18px;
   margin-top: 1px;
   accent-color: var(--gold-300);
+}
+
+/* Real links keep navigation usable without JavaScript. */
+.nav-item,
+.dashboard-brand {
+  color: inherit;
+  text-decoration: none;
+}
+.list-pager,
+.list-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 16px 0;
+}
+.list-search input {
+  flex: 1;
+  min-width: 120px;
+  padding: 10px;
+}
+.status-list a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+.dashboard-user form {
+  margin: 0;
+}
+
+/* Labels remain visible when an optional icon font fails to load. */
+@media (max-width: 720px) {
+  .nav-item {
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px 2px;
+  }
+  .nav-item > span:last-child {
+    display: block;
+    font-size: 0.65rem;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .dashboard-content {
+    padding: 16px 12px;
+  }
+  .dashboard-topbar {
+    padding: 20px 12px;
+  }
+  .welcome-seal {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
 }

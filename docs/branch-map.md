@@ -7,13 +7,13 @@ Updated: 2026-11-08. All development stays off `main`.
 | Branch | Feature ownership | Existing sources consolidated | Main files |
 | --- | --- | --- | --- |
 | `Code-Readability-Cleanup` | Shared formatting, comments and code guide | `feature/code-readability-cleanup`, `feature/beginner-readable-code` | `.editorconfig`, `.prettierrc.json`, `docs/code-style.md` |
-| `Access-Accounts` | Login, logout, password recovery, staff access | Access portion of `feature/simple-access-activity` | `app/auth.php`, `app/password_reset.php`, auth pages in `admin/`, `js/login.js`, `js/notif.js`, `js/trans.js` |
+| `Access-Accounts` | Login, logout, password recovery, staff access | Access portion of `feature/simple-access-activity` | `app/auth.php`, `app/password_reset.php`, auth pages in `admin/`, `js/login.js`, `js/trans.js` |
 | `Intake-Tracking` | Customers, intake drafts, device tracking | `feature/simple-intake-tracking` | `app/intake/`, `admin/intake_create.php`, `views/intake/`, `js/intake-wizard.js` |
 | `Repair-Operations` | Diagnostics, assignments, repair stages, parts requests, testing | Repair portion of `feature/simple-repair-custody` | Workflow functions in `demo-prototype/app.js`; PHP implementation remains planned |
 | `Branches-Logistics` | Branch locations, transfers, pickup, delivery and custody | `feature/sogod-branch-maps`; custody portion of `feature/simple-repair-custody` | `demo-prototype/branch-maps.js`, logistics and transfer functions in `demo-prototype/app.js` |
 | `Payments-Inventory` | Quotes, bills, cash, refunds, COD and stock | `feature/simple-quotes-cash` | Finance, quote and stock functions in `demo-prototype/app.js` |
 | `Notifications-History` | Alerts, conversation visibility and activity history | `feature/repair-alert-delivery`; activity portion of `feature/simple-access-activity` | `demo-prototype/ticket-alerts.js`, `demo-prototype/demo-email.php`, history and message functions in `demo-prototype/app.js` |
-| `Dashboards-Reports` | Staff overview, summaries and reporting | `feature/simple-reports` | `app/dashboard_data.php`, `admin/dashboard.php`, `js/dashboard.js`, demo report functions |
+| `Dashboards-Reports` | Staff overview, summaries and reporting | `feature/simple-reports` | `app/dashboard_data.php`, `admin/dashboard.php`, demo report functions |
 | `Simplified-System` | Integrates tested category work and shared foundation | All above plus `feature/simple-foundation` and the prior `System-Consolidation` baseline | Whole application; `docs/current-vs-simplified.md` |
 
 ## What the audit found
@@ -33,3 +33,4 @@ The original `feature/` branches are legacy references, retained until they can 
 5. Review database changes separately. This consolidation does not change tables, columns or stored data.
 
 The current PHP backend supports admin authentication, dashboard queries and one-device draft intake. The fuller repair, cash and logistics workflows remain demonstrations. A category name does not mean its production backend is finished.
+

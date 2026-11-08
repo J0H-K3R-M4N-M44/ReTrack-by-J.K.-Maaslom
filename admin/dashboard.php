@@ -3,32 +3,17 @@ require_once __DIR__ . '/../app/auth.php';
 require_once __DIR__ . '/../app/dashboard_data.php';
 startAppSession();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!csrfIsValid(is_string($_POST['csrf_token'] ?? null) ? $_POST['csrf_token'] : '')) {
-        header('Location: login.php?error=csrf');
-        exit();
-    }
-
-    $email = is_string($_POST['email'] ?? null) ? trim($_POST['email']) : '';
-    $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
-
-    try {
-        if (loginAdmin($email, $password)) {
-            header('Location: dashboard.php');
-            exit();
-        }
-
-        header('Location: login.php?error=1');
-        exit();
-    } catch (Throwable $error) {
-        error_log('RepairTrack login error: ' . $error->getMessage());
-        header('Location: login.php?error=db');
-        exit();
-    }
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    header('Allow: GET');
+    unavailablePage('Open the dashboard using its link.', 405);
+}
+$tab = requestText($_GET, 'tab', 'overview');
+if (!in_array($tab, ['overview', 'workbench', 'customers', 'reports'], true)) {
+    $tab = 'overview';
 }
 
 $admin = requireAdmin();
-$admin_username = htmlspecialchars($admin['full_name'], ENT_QUOTES, 'UTF-8');
+$admin_username = h($admin['full_name']);
 
 $metricsAvailable = true;
 $dashboardData = [
@@ -42,10 +27,11 @@ $dashboardData = [
     'customers' => [],
     'drafts' => [],
     'status_counts' => [],
+    'pages' => [],
 ];
 
 try {
-    $dashboardData = loadDashboardData(getPDO());
+    $dashboardData = loadDashboardData(getPDO(), $_GET);
 } catch (Throwable $error) {
     error_log('RepairTrack dashboard data error: ' . $error->getMessage());
     $metricsAvailable = false;
@@ -56,6 +42,24 @@ $repairQueue = $dashboardData['queue'];
 $customers = $dashboardData['customers'];
 $drafts = $dashboardData['drafts'];
 $statusCounts = $dashboardData['status_counts'];
+
+function renderDashboardPager(array $page, string $key, string $tab): void
+{
+    echo '<nav class="list-pager" aria-label="' . h($key) . ' pages">';
+    echo '<span>Showing ' . $page['from'] . '–' . $page['to'] . ' of ' . $page['total'] . '</span>';
+    foreach (['Previous' => $page['page'] - 1, 'Next' => $page['page'] + 1] as $label => $number) {
+        if ($number < 1 || $number > $page['pages']) {
+            continue;
+        }
+        $query = ['tab' => $tab, 'q' => requestText($_GET, 'q'), $key . '_page' => $number];
+        echo '<a class="secondary-btn" href="?' .
+            h(http_build_query($query)) .
+            '">' .
+            $label .
+            '</a>';
+    }
+    echo '</nav>';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -77,28 +81,46 @@ $statusCounts = $dashboardData['status_counts'];
                 </div>
 
                 <nav class="dashboard-nav">
-                    <button class="nav-item is-active" type="button" data-dashboard-tab="overview" aria-current="page">
+                    <a class="nav-item<?= $tab === 'overview'
+                        ? ' is-active'
+                        : '' ?>" href="?tab=overview"<?= $tab === 'overview'
+    ? ' aria-current="page"'
+    : '' ?>>
                         <i class="nav-icon fa-solid fa-chart-line" aria-hidden="true"></i>
                         <span>Operations overview</span>
-                    </button>
-                    <button class="nav-item" type="button" data-dashboard-tab="workbench" aria-current="false">
+                    </a>
+                    <a class="nav-item<?= $tab === 'workbench'
+                        ? ' is-active'
+                        : '' ?>" href="?tab=workbench"<?= $tab === 'workbench'
+    ? ' aria-current="page"'
+    : '' ?>>
                         <i class="nav-icon fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>
                         <span>Repair workbench</span>
-                    </button>
-                    <button class="nav-item" type="button" data-dashboard-tab="customers" aria-current="false">
+                    </a>
+                    <a class="nav-item<?= $tab === 'customers'
+                        ? ' is-active'
+                        : '' ?>" href="?tab=customers"<?= $tab === 'customers'
+    ? ' aria-current="page"'
+    : '' ?>>
                         <i class="nav-icon fa-solid fa-users" aria-hidden="true"></i>
                         <span>Customer roster</span>
-                    </button>
-                    <button class="nav-item" type="button" data-dashboard-tab="reports" aria-current="false">
+                    </a>
+                    <a class="nav-item<?= $tab === 'reports'
+                        ? ' is-active'
+                        : '' ?>" href="?tab=reports"<?= $tab === 'reports'
+    ? ' aria-current="page"'
+    : '' ?>>
                         <i class="nav-icon fa-solid fa-file-invoice" aria-hidden="true"></i>
                         <span>Reports and records</span>
-                    </button>
+                    </a>
                 </nav>
             </div>
 
             <div class="sidebar-footer">
                 <span class="status-dot" aria-hidden="true"></span>
-                <span>System interface ready</span>
+                <span><?= $metricsAvailable
+                    ? 'Dashboard data loaded'
+                    : 'Dashboard data unavailable' ?></span>
             </div>
         </aside>
 
@@ -109,22 +131,44 @@ $statusCounts = $dashboardData['status_counts'];
                     <h1>Admin dashboard</h1>
                 </div>
                 <div class="dashboard-user">
-                    <span class="system-status"><span class="status-dot" aria-hidden="true"></span>Database connected</span>
+                    <span class="system-status"><span class="status-dot" aria-hidden="true"></span><?= $metricsAvailable
+                        ? 'Dashboard data loaded'
+                        : 'Dashboard data unavailable' ?></span>
                     <span class="welcome-seal" aria-hidden="true"><i class="fa-solid fa-user-shield"></i></span>
                     <span>
                         <strong><?php echo $admin_username; ?></strong>
                         <small>Administrator</small>
                     </span>
-                    <a class="logout-btn" id="logout-link" href="logout.php">Log out</a>
+                    <form action="logout.php" method="post"><input type="hidden" name="csrf_token" value="<?= h(
+                        csrfToken(),
+                    ) ?>"><button class="logout-btn" type="submit">Log out</button></form>
                 </div>
             </header>
 
             <div class="dashboard-content">
-                <section class="welcome-panel" data-dashboard-panel="overview">
+                <?php if (in_array($tab, ['workbench', 'customers'], true)): ?>
+                <form class="list-search" method="get">
+                    <input type="hidden" name="tab" value="<?= h($tab) ?>">
+                    <label for="list-search">Search <?= $tab === 'customers'
+                        ? 'customers'
+                        : 'tickets and drafts' ?></label>
+                    <input id="list-search" name="q" value="<?= h(
+                        requestText($_GET, 'q'),
+                    ) ?>" maxlength="190">
+                    <button class="secondary-btn" type="submit">Search</button>
+                    <a href="?tab=<?= h($tab) ?>">Clear</a>
+                </form>
+                <?php endif; ?>
+                <section class="welcome-panel" data-dashboard-panel="overview"<?= $tab !==
+                'overview'
+                    ? ' hidden'
+                    : '' ?>>
                     <div class="welcome-copy">
                         <div class="eyebrow">Workspace status</div>
                         <h2>Good day, <?php echo $admin_username; ?>.</h2>
-                        <p>Your RepairTrack database is connected. Use the consoles to review the current service data.</p>
+                        <p><?= $metricsAvailable
+                            ? 'Review current service data using the workspace links.'
+                            : 'Dashboard queries failed. Please try again later.' ?></p>
                     </div>
                     <div class="construction-mark" aria-label="Data modules under construction">
                         <i class="fa-solid fa-hammer" aria-hidden="true"></i>
@@ -132,7 +176,10 @@ $statusCounts = $dashboardData['status_counts'];
                     </div>
                 </section>
 
-                <section class="analytics-grid" aria-label="Analytics summary" data-dashboard-panel="overview">
+                <section class="analytics-grid" aria-label="Analytics summary" data-dashboard-panel="overview"<?= $tab !==
+                'overview'
+                    ? ' hidden'
+                    : '' ?>>
                     <article class="dashboard-card metric-card">
                         <div class="card-heading"><span>Active repairs</span><i class="fa-solid fa-laptop-medical" aria-hidden="true"></i></div>
                         <strong class="metric-value"><?php echo $metricsAvailable
@@ -171,7 +218,10 @@ $statusCounts = $dashboardData['status_counts'];
                     </article>
                 </section>
 
-                <section class="dashboard-grid" data-dashboard-panel="overview">
+                <section class="dashboard-grid" data-dashboard-panel="overview"<?= $tab !==
+                'overview'
+                    ? ' hidden'
+                    : '' ?>>
                     <article class="dashboard-card construction-card">
                         <div class="card-heading">
                             <div><div class="eyebrow">Repair flow</div><h2>Workbench analytics</h2></div>
@@ -192,19 +242,13 @@ $statusCounts = $dashboardData['status_counts'];
                             <dl class="status-list">
                                 <?php foreach (array_slice($repairQueue, 0, 5) as $item): ?>
                                     <div>
-                                        <dt><?php echo htmlspecialchars(
+                                        <dt><?php echo h(
                                             (string) $item['item_code'],
-                                            ENT_QUOTES,
-                                            'UTF-8',
-                                        ); ?><br><small><?php echo htmlspecialchars(
+                                        ); ?><br><small><?php echo h(
     dashboardDeviceLabel($item),
-    ENT_QUOTES,
-    'UTF-8',
 ); ?></small></dt>
-                                        <dd><?php echo htmlspecialchars(
+                                        <dd><?php echo h(
                                             dashboardStatusLabel((string) $item['repair_status']),
-                                            ENT_QUOTES,
-                                            'UTF-8',
                                         ); ?></dd>
                                     </div>
                                 <?php endforeach; ?>
@@ -213,7 +257,10 @@ $statusCounts = $dashboardData['status_counts'];
                     </article>
                 </section>
 
-                <section class="dashboard-panel dashboard-card" data-dashboard-panel="workbench" hidden>
+                <section class="dashboard-panel dashboard-card" data-dashboard-panel="workbench"<?= $tab !==
+                'workbench'
+                    ? ' hidden'
+                    : '' ?>>
                     <div class="card-heading">
                         <div>
                             <div class="eyebrow">Operational hub</div>
@@ -221,9 +268,11 @@ $statusCounts = $dashboardData['status_counts'];
                         </div>
                         <a class="secondary-btn" href="intake_create.php">Start intake</a>
                     </div>
-                    <?php if (isset($_GET['created'])): ?>
+                    <?php if (!empty($_SESSION['intake_saved'])):
+                        unset($_SESSION['intake_saved']); ?>
                         <p class="intake-success" role="status">Draft saved and added to pending intake.</p>
-                    <?php endif; ?>
+                    <?php
+                    endif; ?>
                     <?php if (!$metricsAvailable): ?>
                         <div class="empty-state"><i class="fa-solid fa-database" aria-hidden="true"></i><strong>Dashboard data unavailable</strong><span>Check the database connection and try again.</span></div>
                     <?php elseif ($repairQueue === []): ?>
@@ -233,31 +282,28 @@ $statusCounts = $dashboardData['status_counts'];
                             <?php foreach ($repairQueue as $item): ?>
                                 <div>
                                     <dt>
-                                        <?php echo htmlspecialchars(
-                                            (string) $item['item_code'],
-                                            ENT_QUOTES,
-                                            'UTF-8',
-                                        ); ?>
-                                        <br><small><?php echo htmlspecialchars(
+                                        <?php echo h((string) $item['item_code']); ?>
+                                        <br><small><?php echo h(
                                             dashboardDeviceLabel($item),
-                                            ENT_QUOTES,
-                                            'UTF-8',
-                                        ); ?> · <?php echo htmlspecialchars(
+                                        ); ?> · <?php echo h(
      (string) ($item['customer_name'] ?? 'Customer not linked'),
-     ENT_QUOTES,
-     'UTF-8',
  ); ?></small>
                                     </dt>
-                                    <dd><?php echo htmlspecialchars(
+                                    <dd><?php echo h(
                                         dashboardStatusLabel((string) $item['repair_status']),
-                                        ENT_QUOTES,
-                                        'UTF-8',
                                     ); ?></dd>
                                 </div>
                             <?php endforeach; ?>
                         </dl>
                     <?php endif; ?>
 
+                    <?php if ($metricsAvailable) {
+                        renderDashboardPager(
+                            $dashboardData['pages']['queue'],
+                            'queue',
+                            'workbench',
+                        );
+                    } ?>
                     <div class="eyebrow intake-subheading">Pending intake drafts</div>
                     <?php if (!$metricsAvailable): ?>
                         <div class="empty-state"><strong>Draft list unavailable</strong><span>Check the database connection and try again.</span></div>
@@ -267,18 +313,14 @@ $statusCounts = $dashboardData['status_counts'];
                         <dl class="status-list">
                             <?php foreach ($drafts as $draft): ?>
                                 <div>
-                                    <dt>Draft #<?php echo (int) $draft[
+                                    <dt><a href="intake_create.php?id=<?= (int) $draft[
                                         'ticket_id'
-                                    ]; ?><br><small><?php echo htmlspecialchars(
+                                    ] ?>">Draft #<?= (int) $draft[
+    'ticket_id'
+] ?></a><br><small><?php echo h(
     (string) ($draft['customer_name'] ?? 'Customer not linked'),
-    ENT_QUOTES,
-    'UTF-8',
-); ?> · <?php echo htmlspecialchars(
-     (string) $draft['branch_code'],
-     ENT_QUOTES,
-     'UTF-8',
- ); ?></small></dt>
-                                    <dd><?php echo htmlspecialchars(
+); ?> · <?php echo h((string) $draft['branch_code']); ?></small></dt>
+                                    <dd><?php echo h(
                                         ucwords(
                                             strtolower(
                                                 str_replace(
@@ -288,16 +330,24 @@ $statusCounts = $dashboardData['status_counts'];
                                                 ),
                                             ),
                                         ),
-                                        ENT_QUOTES,
-                                        'UTF-8',
                                     ); ?></dd>
                                 </div>
                             <?php endforeach; ?>
                         </dl>
                     <?php endif; ?>
+                    <?php if ($metricsAvailable) {
+                        renderDashboardPager(
+                            $dashboardData['pages']['drafts'],
+                            'drafts',
+                            'workbench',
+                        );
+                    } ?>
                 </section>
 
-                <section class="dashboard-panel dashboard-card" data-dashboard-panel="customers" hidden>
+                <section class="dashboard-panel dashboard-card" data-dashboard-panel="customers"<?= $tab !==
+                'customers'
+                    ? ' hidden'
+                    : '' ?>>
                     <div class="eyebrow">Records and contacts</div>
                     <h2>Customer roster</h2>
                     <?php if (!$metricsAvailable): ?>
@@ -308,11 +358,7 @@ $statusCounts = $dashboardData['status_counts'];
                         <dl class="status-list">
                             <?php foreach ($customers as $customer): ?>
                                 <div>
-                                    <dt><?php echo htmlspecialchars(
-                                        (string) $customer['full_name'],
-                                        ENT_QUOTES,
-                                        'UTF-8',
-                                    ); ?></dt>
+                                    <dt><?php echo h((string) $customer['full_name']); ?></dt>
                                     <dd><?php echo (int) $customer[
                                         'ticket_count'
                                     ]; ?> ticket(s)</dd>
@@ -320,9 +366,19 @@ $statusCounts = $dashboardData['status_counts'];
                             <?php endforeach; ?>
                         </dl>
                     <?php endif; ?>
+                    <?php if ($metricsAvailable) {
+                        renderDashboardPager(
+                            $dashboardData['pages']['customers'],
+                            'customers',
+                            'customers',
+                        );
+                    } ?>
                 </section>
 
-                <section class="dashboard-panel dashboard-card" data-dashboard-panel="reports" hidden>
+                <section class="dashboard-panel dashboard-card" data-dashboard-panel="reports"<?= $tab !==
+                'reports'
+                    ? ' hidden'
+                    : '' ?>>
                     <div class="eyebrow">Records and assets</div>
                     <h2>Reports and service records</h2>
                     <?php if (!$metricsAvailable): ?>
@@ -333,12 +389,10 @@ $statusCounts = $dashboardData['status_counts'];
                         <dl class="status-list">
                             <?php foreach ($statusCounts as $statusCount): ?>
                                 <div>
-                                    <dt><?php echo htmlspecialchars(
+                                    <dt><?php echo h(
                                         dashboardStatusLabel(
                                             (string) $statusCount['repair_status'],
                                         ),
-                                        ENT_QUOTES,
-                                        'UTF-8',
                                     ); ?></dt>
                                     <dd><?php echo (int) $statusCount['total']; ?></dd>
                                 </div>
@@ -350,8 +404,6 @@ $statusCounts = $dashboardData['status_counts'];
         </main>
     </div>
 
-    <script src="../js/notif.js"></script>
     <script src="../js/trans.js"></script>
-    <script src="../js/dashboard.js"></script>
 </body>
 </html>
