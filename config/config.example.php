@@ -12,4 +12,11 @@ return [
     'app_url' => 'http://localhost/ReTrack-by-J.K.-Maaslom',
     // Use a real sender address accepted by your configured PHP mail server.
     'mail_from' => 'no-reply@example.com',
+
+    // Issuance only: create this private folder outside htdocs and this project.
+    // Example on Windows: C:/repairtrack-private/intake (give PHP write access).
+    'intake_storage_path' => '',
+    // Generate once: php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+    // Keep the generated key unchanged and private; it protects duplicate fingerprints.
+    'intake_hmac_key' => '',
 ];

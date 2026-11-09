@@ -6,7 +6,7 @@ RepairTrack is a PHP and MySQL learning project for tracking computer repairs ac
 
 - PHP 8.1 or newer
 - MySQL 8.0.16 or newer
-- PHP extensions `pdo_mysql`, `mbstring` and `ctype`
+- PHP extensions `pdo_mysql`, `mbstring`, `ctype` and `fileinfo`
 - XAMPP or another local Apache + PHP + MySQL setup
 
 ## Local setup
@@ -43,7 +43,7 @@ If you use XAMPP locally, PHP mail delivery is not enabled automatically. Config
 - A public landing page with the existing MP4 hero background, scroll navigation, responsive sections, and reduced-motion support
 - A role-based page wireframe for customer, counter officer, technician, and branch administrator workflows
 
-Ticket issue gates (photos, accessory checklist, signatures, and accountable branch), quotes, parts, billing, and technician workflows remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
+Single-device ticket issuance now captures accessories, a condition photo, customer-signed paperwork and a branch storage location. Quotes, parts, billing, and technician workflows remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
 
 ## Development branches
 
@@ -56,4 +56,7 @@ See [Database demo setup](docs/database-demo.md) for a separate `repairtrack_dem
 ## Administrator intake milestone
 
 See [the implementation and test notes](docs/admin-milestone.md) for draft review/edit rules, pagination, login limits, test commands and remaining features. No table or column changes are required.
+
+See [Ticket issuance setup and workflow](docs/ticket-issuance.md) before issuing a draft. It requires a private image folder and a one-time local key in your ignored configuration file.
+
 

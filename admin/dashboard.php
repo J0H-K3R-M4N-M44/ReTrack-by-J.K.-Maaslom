@@ -242,11 +242,11 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                             <dl class="status-list">
                                 <?php foreach (array_slice($repairQueue, 0, 5) as $item): ?>
                                     <div>
-                                        <dt><?php echo h(
-                                            (string) $item['item_code'],
-                                        ); ?><br><small><?php echo h(
-    dashboardDeviceLabel($item),
-); ?></small></dt>
+                                        <dt><a href="ticket.php?id=<?= (int) $item[
+                                            'ticket_id'
+                                        ] ?>"><?= h(
+    (string) $item['item_code'],
+) ?></a><br><small><?php echo h(dashboardDeviceLabel($item)); ?></small></dt>
                                         <dd><?php echo h(
                                             dashboardStatusLabel((string) $item['repair_status']),
                                         ); ?></dd>
@@ -282,7 +282,9 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                             <?php foreach ($repairQueue as $item): ?>
                                 <div>
                                     <dt>
-                                        <?php echo h((string) $item['item_code']); ?>
+                                        <a href="ticket.php?id=<?= (int) $item[
+                                            'ticket_id'
+                                        ] ?>"><?= h((string) $item['item_code']) ?></a>
                                         <br><small><?php echo h(
                                             dashboardDeviceLabel($item),
                                         ); ?> · <?php echo h(
@@ -407,3 +409,4 @@ function renderDashboardPager(array $page, string $key, string $tab): void
     <script src="../js/trans.js"></script>
 </body>
 </html>
+

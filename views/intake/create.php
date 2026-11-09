@@ -49,6 +49,9 @@
             </header>
 
             <div class="dashboard-content">
+                <?php if (
+                    $draftId > 0
+                ): ?><p><a class="secondary-btn" href="intake_issue.php?id=<?= $draftId ?>">Complete checks and issue ticket</a> Save any draft edits first.</p><?php endif; ?>
                 <section class="dashboard-card intake-card intake-wizard-card">
                     <div class="card-heading intake-wizard-heading">
                         <div>
@@ -349,3 +352,4 @@
     <script src="../js/trans.js"></script>
 </body>
 </html>
+

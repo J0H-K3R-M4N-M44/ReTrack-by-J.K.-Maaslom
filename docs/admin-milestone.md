@@ -67,6 +67,7 @@ For `tests/admin-browser.mjs`, install `playwright-core`, provide `CHROME_PATH`,
 
 ## Remaining work
 
-Ticket issuance still needs consent/signature, accessory and evidence checks. Issued queue rows and customer summaries are read-only. Multi-device draft editing, branch transfers, technician/cashier access, assignments, repair-status changes, quotes, payments, inventory operations, notifications/history UI, and richer analytics remain outside this milestone. The prototype's screens do not imply that these PHP workflows are implemented.
+The follow-up [ticket issuance milestone](ticket-issuance.md) adds consent/signature uploads, accessory and evidence checks, and linked ticket receipts. Issued records and customer summaries remain read-only. Multi-device draft editing, branch transfers, technician/cashier access, assignments, repair-status changes, quotes, payments, inventory operations, notifications/history UI, and richer analytics remain outside this milestone. The prototype's screens do not imply that these PHP workflows are implemented.
 
 The Access-Accounts, Intake-Tracking and Dashboards-Reports changes are grouped into separate commits, then synchronized to the tested integrated result on Simplified-System. Main is not changed. Other category branches retain their existing heads until their work needs the shared updates.
+

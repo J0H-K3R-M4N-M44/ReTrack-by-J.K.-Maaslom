@@ -47,7 +47,7 @@ function loadDashboardData(PDO $pdo, array $input = []): array
     $metrics['ticketsIssuedToday'] = (int) $issuedToday->fetchColumn();
 
     // Count and page the same query so the totals cannot silently disagree.
-    $queueSql = "SELECT d.item_code, d.device_type_snapshot, d.make_snapshot, d.model_snapshot,
+    $queueSql = "SELECT t.ticket_id, d.item_code, d.device_type_snapshot, d.make_snapshot, d.model_snapshot,
         d.repair_status, d.updated_at, t.ticket_code, c.full_name AS customer_name
         FROM ticket_devices d
         JOIN repair_tickets t ON t.ticket_id = d.ticket_id
