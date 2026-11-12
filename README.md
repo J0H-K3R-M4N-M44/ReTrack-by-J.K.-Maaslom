@@ -65,3 +65,5 @@ See [Ticket issuance setup and workflow](docs/ticket-issuance.md) before issuing
 ## Staff management
 
 Administrators can add, edit and deactivate staff with branch-scoped permissions and a reviewed activation-link workflow. See [staff account setup and limits](docs/staff-management.md). No database migration is required. Role-specific staff work tools are still pending.
+
+See [home content notes](docs/home-content.md) for the preparation guide, FAQ and current-versus-planned feature explanations.

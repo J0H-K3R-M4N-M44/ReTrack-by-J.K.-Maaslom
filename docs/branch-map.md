@@ -1,6 +1,6 @@
 # RepairTrack branch map
 
-Updated: 2026-11-08. All development stays off `main`.
+Updated: 2026-11-12. All development stays off `main`.
 
 `Simplified-System` is the integration branch. The category branches below start from the same tested, consolidated application. They are work areas for future changes, not separate applications or completed backend implementations. Existing features depend on shared authentication, database and UI files, so those files remain available in every branch.
 
@@ -8,6 +8,7 @@ Updated: 2026-11-08. All development stays off `main`.
 | --- | --- | --- | --- |
 | `Code-Readability-Cleanup` | Shared formatting, comments and code guide | `feature/code-readability-cleanup`, `feature/beginner-readable-code` | `.editorconfig`, `.prettierrc.json`, `docs/code-style.md` |
 | `Access-Accounts` | Login, logout, password recovery, staff access | Access portion of `feature/simple-access-activity` | `app/auth.php`, `app/password_reset.php`, auth pages in `admin/`, `js/login.js`, `js/trans.js` |
+| `Home-Content` | Public homepage content, preparation guidance and FAQs | Current public landing page | `index.php`, `css/landing.css`, `js/landing.js` |
 | `Intake-Tracking` | Customers, intake drafts, device tracking | `feature/simple-intake-tracking` | `app/intake/`, `admin/intake_create.php`, `views/intake/`, `js/intake-wizard.js` |
 | `Repair-Operations` | Diagnostics, assignments, repair stages, parts requests, testing | Repair portion of `feature/simple-repair-custody` | Workflow functions in `demo-prototype/app.js`; PHP implementation remains planned |
 | `Branches-Logistics` | Branch locations, transfers, pickup, delivery and custody | `feature/sogod-branch-maps`; custody portion of `feature/simple-repair-custody` | `demo-prototype/branch-maps.js`, logistics and transfer functions in `demo-prototype/app.js` |
@@ -32,5 +33,6 @@ The original `feature/` branches are legacy references, retained until they can 
 4. Bring tested shared changes back into category branches as needed. Avoid maintaining different copies of authentication or the schema.
 5. Review database changes separately. This consolidation does not change tables, columns or stored data.
 
-The current PHP backend supports admin authentication, dashboard queries and one-device draft intake. The fuller repair, cash and logistics workflows remain demonstrations. A category name does not mean its production backend is finished.
+The current PHP backend supports shared staff authentication, branch-scoped administrator staff management, dashboard queries, one-device draft intake and ticket issuance. The fuller repair, cash and logistics workflows remain demonstrations. A category name does not mean its production backend is finished.
+
 

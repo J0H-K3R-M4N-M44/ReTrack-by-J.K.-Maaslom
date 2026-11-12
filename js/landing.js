@@ -5,24 +5,31 @@
   const video = document.querySelector('.hero-video');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  document.documentElement.classList.add('landing-enhanced');
   if (menuButton && menu) {
     menuButton.addEventListener('click', () => {
       const isOpen = menu.classList.toggle('is-open');
       menuButton.setAttribute('aria-expanded', String(isOpen));
-      menuButton.querySelector('i').className = isOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars';
+      menuButton.querySelector('[aria-hidden]').textContent = isOpen ? '×' : '☰';
     });
     menu.querySelectorAll('a').forEach((link) => {
       link.addEventListener('click', () => {
         menu.classList.remove('is-open');
         menuButton.setAttribute('aria-expanded', 'false');
-        menuButton.querySelector('i').className = 'fa-solid fa-bars';
+        menuButton.querySelector('[aria-hidden]').textContent = '☰';
       });
     });
   }
 
-  if (video && reduceMotion) {
-    video.pause();
-    video.removeAttribute('autoplay');
+  // Keep the poster when motion reduction or data saving is requested.
+  // Without JavaScript the page still works and the large video is not fetched.
+  if (video && !reduceMotion && !navigator.connection?.saveData) {
+    const source = video.querySelector('[data-src]');
+    if (source) {
+      source.src = source.dataset.src;
+      video.load();
+      video.play().catch(() => {});
+    }
   }
 
   const revealItems = document.querySelectorAll('.reveal');
