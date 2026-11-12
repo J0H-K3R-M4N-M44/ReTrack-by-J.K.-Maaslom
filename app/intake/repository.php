@@ -49,6 +49,7 @@ function intakeSaveDraft(PDO $pdo, array $values, int $userId): int
     try {
         // Keep the related inserts together; a failure rolls the whole draft back.
         $pdo->beginTransaction();
+        intakeLockActor($pdo, $userId);
 
         $errors = intakeValidate($pdo, $values, intakeBranches($pdo, $userId));
         if ($errors !== []) {
@@ -156,4 +157,15 @@ function intakeFindOrCreateCustomer(PDO $pdo, array $values): int
     }
 
     return $customerId;
+}
+
+function intakeLockActor(PDO $pdo, int $userId): void
+{
+    $query = $pdo->prepare(
+        "SELECT user_id FROM users WHERE user_id = ? AND is_active = 1 AND role IN ('ADMIN', 'MANAGER', 'INTAKE_AGENT') FOR UPDATE",
+    );
+    $query->execute([$userId]);
+    if (!$query->fetchColumn()) {
+        throw new DomainException('An active intake staff member must save this draft.');
+    }
 }

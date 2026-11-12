@@ -16,14 +16,14 @@
 </head>
 <body class="dashboard-body page-fade">
     <div class="dashboard-shell">
-        <aside class="dashboard-sidebar" aria-label="Administrator navigation">
+        <aside class="dashboard-sidebar" aria-label="Staff navigation">
             <div>
-                <a class="dashboard-brand" href="dashboard.php" >
+                <a class="dashboard-brand" href="<?= h(accountHome()) ?>" >
                     <span class="brand-mark"><i class="fa-solid fa-microchip" aria-hidden="true"></i></span>
-                    <span>RepairTrack <strong>Admin</strong></span>
+                    <span>RepairTrack <strong>Intake</strong></span>
                 </a>
                 <nav class="dashboard-nav">
-                    <a class="nav-item" href="dashboard.php?tab=workbench">
+                    <a class="nav-item" href="<?= h(workbenchHome()) ?>">
                         <i class="nav-icon fa-solid fa-arrow-left" aria-hidden="true"></i>
                         <span>Workbench</span>
                     </a>
@@ -35,16 +35,16 @@
         <main class="dashboard-main">
             <header class="dashboard-topbar">
                 <div>
-                    <div class="eyebrow">Administrator intake</div>
+                    <div class="eyebrow">Device intake</div>
                     <h1><?= $draftId
                         ? 'Edit intake draft #' . $draftId
                         : 'New repair intake' ?></h1>
                 </div>
                 <div class="dashboard-user">
                     <span class="welcome-seal" aria-hidden="true"><i class="fa-solid fa-user-shield"></i></span>
-                    <span><strong><?php echo h(
-                        $admin['full_name'],
-                    ); ?></strong><small>Administrator</small></span>
+                    <span><strong><?php echo h($admin['full_name']); ?></strong><small><?= h(
+    ucwords(strtolower(str_replace('_', ' ', $admin['role']))),
+) ?></small></span>
                 </div>
             </header>
 
@@ -286,7 +286,9 @@
                                     </label>
                                 </div>
                                 <div class="intake-step-actions form-wide">
-                                    <a class="secondary-btn" href="dashboard.php?tab=workbench">Cancel</a>
+                                    <a class="secondary-btn" href="<?= h(
+                                        workbenchHome(),
+                                    ) ?>">Cancel</a>
                                     <button class="logout-btn" type="button" data-step-next hidden>Continue to device <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
                                 </div>
                             </fieldset>
@@ -294,17 +296,27 @@
                             <fieldset class="intake-step" data-intake-step>
                                 <h2 tabindex="-1">What device needs service?</h2>
                                 <p>Enter what you can identify. The serial number is optional; never guess or make one up.</p>
+                                <?php $customDevice =
+                                    $values['device_type'] !== '' &&
+                                    !in_array($values['device_type'], intakeDeviceTypes(), true); ?>
                                 <label for="device-type">Device type
                                     <select id="device-type" name="device_type" required>
                                         <option value="">Choose a type</option>
                                         <?php foreach (intakeDeviceTypes() as $deviceType): ?>
                                             <option value="<?php echo h(
                                                 $deviceType,
-                                            ); ?>" <?php echo $values['device_type'] === $deviceType
+                                            ); ?>" <?php echo $values['device_type'] ===
+    $deviceType ||
+($customDevice && $deviceType === 'Other')
     ? 'selected'
     : ''; ?>><?php echo h($deviceType); ?></option>
                                         <?php endforeach; ?>
                                     </select>
+                                </label>
+                                <label for="device-other">Other device name
+                                    <input id="device-other" name="device_other" maxlength="80" value="<?= h(
+                                        $customDevice ? $values['device_type'] : '',
+                                    ) ?>" placeholder="Only needed for Other">
                                 </label>
                                 <label for="device-make">Brand / make
                                     <input id="device-make" name="make" maxlength="100" value="<?php echo h(
@@ -322,19 +334,53 @@
                                     ); ?>" autocomplete="off">
                                 </label>
                                 <div class="intake-help-box form-wide">Enter a brand, a model, or both. If the customer cannot find the serial number, leave it blank.</div>
-                                <label class="form-wide" for="reported-symptoms">Problem reported by customer
-                                    <textarea id="reported-symptoms" name="reported_symptoms" rows="4" required maxlength="3000" placeholder="Example: The laptop shuts down after a few minutes."><?php echo h(
-                                        $values['reported_symptoms'],
-                                    ); ?></textarea>
-                                    <span class="form-help">Use the customer's words. Do not enter a diagnosis here.</span>
-                                </label>
-                                <label class="form-wide" for="condition-notes">Visible condition at check-in
-                                    <textarea id="condition-notes" name="condition_notes" rows="3" required maxlength="2000" placeholder="Example: Small dent near the left hinge; screen has no visible cracks."><?php echo h(
-                                        $values['condition_notes'],
-                                    ); ?></textarea>
-                                    <span class="form-help">Include visible damage or note “no visible damage”. Ask the customer to confirm this description.</span>
-                                </label>
-
+                                <input type="hidden" name="quick_choices" value="1">
+                                <?php foreach (
+                                    [
+                                        'reported_symptoms' => [
+                                            'problems',
+                                            'Reported problem',
+                                            intakeProblemChoices(),
+                                            'reported-symptoms',
+                                        ],
+                                        'condition_notes' => [
+                                            'conditions',
+                                            'Visible damage or condition',
+                                            intakeConditionChoices(),
+                                            'condition-notes',
+                                        ],
+                                    ]
+                                    as $field => [$key, $label, $choices, $inputId]
+                                ):
+                                    $choiceState = intakeChoiceState($values[$field], $choices); ?>
+                                <fieldset class="form-wide intake-choice-group">
+                                    <legend><?= h($label) ?></legend>
+                                    <p>Select all that apply. These are observations, not a diagnosis.</p>
+                                    <div class="intake-choice-grid">
+                                    <?php foreach ($choices as $choice): ?>
+                                        <label><input type="checkbox" name="<?= h(
+                                            $key,
+                                        ) ?>[]" value="<?= h($choice) ?>" <?= in_array(
+    $choice,
+    $choiceState['selected'],
+    true,
+)
+    ? 'checked'
+    : '' ?>> <span><?= h($choice) ?></span></label>
+                                    <?php endforeach; ?>
+                                    </div>
+                                    <label for="<?= h($inputId) ?>">Additional details / Other
+                                        <textarea id="<?= h($inputId) ?>" name="<?= h(
+    $field,
+) ?>" rows="2" maxlength="<?= $field === 'reported_symptoms'
+    ? 2800
+    : 1800 ?>" placeholder="Optional unless Other is selected"><?= h(
+    $choiceState['details'],
+) ?></textarea>
+                                    </label>
+                                </fieldset>
+                                <?php
+                                endforeach; ?>
                                 <div class="intake-step-actions form-wide">
                                     <button class="secondary-btn" type="button" data-step-back hidden><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back</button>
                                     <button class="logout-btn" type="submit" name="intent" value="review">Review details <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
@@ -352,4 +398,5 @@
     <script src="../js/trans.js"></script>
 </body>
 </html>
+
 

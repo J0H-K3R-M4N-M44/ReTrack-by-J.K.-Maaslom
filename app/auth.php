@@ -179,3 +179,18 @@ function logoutAdmin(): void
         session_destroy();
     }
 }
+
+// Page permissions stay explicit. A role label alone never grants access.
+function requireRoles(array $roles): array
+{
+    $user = requireAccount();
+    if (!in_array($user['role'], $roles, true)) {
+        unavailablePage('Your role cannot open this page.', 403);
+    }
+    return $user;
+}
+
+function workbenchHome(): string
+{
+    return accountHome() === 'dashboard.php' ? 'dashboard.php?tab=workbench' : 'staff_home.php';
+}

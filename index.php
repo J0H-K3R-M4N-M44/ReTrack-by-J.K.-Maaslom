@@ -143,8 +143,8 @@
         <section class="section capability-section" id="available" aria-labelledby="available-title">
             <div class="section-heading reveal"><p class="eyebrow">What this version supports</p><h2 id="available-title">Clear expectations, from the start.</h2></div>
             <div class="capability-grid">
-                <article class="capability-card reveal"><h3>Available now</h3><ul><li>Administrator intake, review and draft editing.</li><li>Issued intake references and printable records.</li><li>Private intake evidence and recorded storage locations.</li><li>Staff account creation, activation and branch assignments.</li><li>Searchable workbench, customer summaries and status totals.</li></ul></article>
-                <article class="capability-card reveal"><h3>Still being built</h3><ul><li>Public tracking by code or QR.</li><li>Technician work queues and repair-stage updates.</li><li>Automated SMS/email repair alerts and customer chat.</li><li>Quotes, cashier/COD records and inventory actions.</li></ul><p>For a repair update, contact the branch handling your device and give your intake reference.</p></article>
+                <article class="capability-card reveal"><h3>Available now</h3><ul><li>Authorized staff intake, quick menus, review and draft editing.</li><li>Issued intake references and printable records.</li><li>Private intake evidence and recorded storage locations.</li><li>Staff account creation, activation and branch assignments.</li><li>Role-specific queues, technician assignments and repair-stage updates.</li><li>Searchable workbench, customer summaries and status totals.</li></ul></article>
+                <article class="capability-card reveal"><h3>Still being built</h3><ul><li>Public tracking by code or QR.</li><li>Automated SMS/email repair alerts and customer chat.</li><li>Quotes, cashier/COD records and inventory actions.</li></ul><p>For a repair update, contact the branch handling your device and give your intake reference.</p></article>
             </div>
         </section>
         <section class="section faq-section" id="questions" aria-labelledby="questions-title">

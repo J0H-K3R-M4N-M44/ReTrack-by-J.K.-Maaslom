@@ -31,7 +31,7 @@ $dashboardData = [
 ];
 
 try {
-    $dashboardData = loadDashboardData(getPDO(), $_GET);
+    $dashboardData = loadDashboardData(getPDO(), $_GET, (int) $admin['user_id']);
 } catch (Throwable $error) {
     error_log('RepairTrack dashboard data error: ' . $error->getMessage());
     $metricsAvailable = false;
@@ -81,6 +81,7 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                 </div>
 
                 <nav class="dashboard-nav">
+                    <a class="nav-item" href="staff_home.php">Repair operations</a>
                     <a class="nav-item" href="staff.php"><span class="nav-icon" aria-hidden="true">＋</span><span>Staff management</span></a>
                     <a class="nav-item<?= $tab === 'overview'
                         ? ' is-active'
@@ -228,7 +229,18 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                             <div><div class="eyebrow">Repair flow</div><h2>Workbench analytics</h2></div>
                             <i class="fa-solid fa-chart-area" aria-hidden="true"></i>
                         </div>
-                        <div class="empty-state"><i class="fa-solid fa-database" aria-hidden="true"></i><strong>Analytics module under construction</strong><span>Charts will appear when repair records are connected.</span></div>
+                        <p>Totals cover your assigned active branches.</p>
+                        <?php if ($metricsAvailable): ?>
+                        <dl class="status-list">
+                            <?php foreach ($statusCounts as $count): ?>
+                            <div><dt><?= h(
+                                dashboardStatusLabel($count['repair_status']),
+                            ) ?></dt><dd><?= (int) $count['total'] ?></dd></div>
+                            <?php endforeach; ?>
+                        </dl>
+                        <?php if (!$statusCounts): ?><p>No issued repairs yet.</p><?php endif; ?>
+                        <a class="secondary-btn" href="staff_home.php">Assign and review repairs</a>
+                        <?php else: ?><p>Repair totals are temporarily unavailable.</p><?php endif; ?>
                     </article>
                     <article class="dashboard-card construction-card">
                         <div class="card-heading">

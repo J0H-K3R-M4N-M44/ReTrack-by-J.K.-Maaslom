@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../app/auth.php';
 require_once __DIR__ . '/../app/intake/issuance.php';
 startAppSession();
-$admin = requireAdmin();
+$admin = requireRoles(['ADMIN', 'MANAGER', 'INTAKE_AGENT']);
 header('Cache-Control: no-store, private');
 $userId = (int) $admin['user_id'];
 $errors = [];

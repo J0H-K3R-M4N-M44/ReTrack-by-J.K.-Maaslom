@@ -89,7 +89,8 @@
 .intake-search label {
   gap: 6px;
 }
-.intake-search .secondary-btn {
+.intake-search .secondary-btn,
+.intake-wizard-card button.secondary-btn {
   min-height: 44px;
 }
 .intake-form {
@@ -274,5 +275,88 @@
   }
   .intake-step-actions {
     margin-top: 12px;
+  }
+}
+
+/* Menus replace repeated typing without hiding the free-text escape hatch. */
+.intake-choice-group {
+  min-width: 0;
+  border: 1px solid #647983;
+  border-radius: 12px;
+  padding: 18px;
+}
+.intake-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.intake-choice-grid label {
+  display: flex;
+  align-items: start;
+  gap: 8px;
+  padding: 12px;
+  background: #21353e;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.intake-choice-grid input {
+  width: auto;
+  flex: none;
+  margin-top: 3px;
+}
+.intake-review dd {
+  white-space: pre-line;
+}
+@media (max-width: 800px) {
+  .intake-choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .intake-choice-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* On narrow screens a top return bar leaves the full width for intake choices. */
+.intake-search .secondary-btn,
+.intake-wizard-card button.secondary-btn {
+  background: transparent;
+}
+@media (max-width: 700px) {
+  .dashboard-shell:has(.intake-wizard-card) {
+    display: block;
+  }
+  .dashboard-shell:has(.intake-wizard-card) .dashboard-sidebar {
+    width: 100%;
+    min-height: 0;
+    padding: 12px 18px;
+    position: static;
+  }
+  .dashboard-shell:has(.intake-wizard-card) .dashboard-sidebar > div:first-child {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .dashboard-shell:has(.intake-wizard-card) .dashboard-brand {
+    margin: 0;
+  }
+  .dashboard-shell:has(.intake-wizard-card) .dashboard-nav {
+    margin: 0;
+  }
+  .dashboard-shell:has(.intake-wizard-card) .sidebar-footer {
+    display: none;
+  }
+  .dashboard-shell:has(.intake-wizard-card) .dashboard-nav .nav-item {
+    white-space: nowrap;
+  }
+  .intake-choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .intake-choice-grid label {
+    font-size: 0.85rem;
+    padding: 10px 8px;
   }
 }

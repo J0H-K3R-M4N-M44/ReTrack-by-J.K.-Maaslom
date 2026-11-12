@@ -1,6 +1,6 @@
 # RepairTrack branch map
 
-Updated: 2026-11-12. All development stays off `main`.
+Updated: 2026-11-13. All development stays off `main`.
 
 `Simplified-System` is the integration branch. The category branches below start from the same tested, consolidated application. They are work areas for future changes, not separate applications or completed backend implementations. Existing features depend on shared authentication, database and UI files, so those files remain available in every branch.
 
@@ -36,3 +36,7 @@ The original `feature/` branches are legacy references, retained until they can 
 The current PHP backend supports shared staff authentication, branch-scoped administrator staff management, dashboard queries, one-device draft intake and ticket issuance. The fuller repair, cash and logistics workflows remain demonstrations. A category name does not mean its production backend is finished.
 
 
+
+## Staff consoles and quick intake update
+
+The shared tested update belongs to Dashboards-Reports (staff consoles/admin summaries), Repair-Operations (assignments/progress) and Intake-Tracking (menu-driven intake and intake-role permissions). These category branches share this integration point because the permissions and console links depend on the same code. Main remains unchanged. See [staff consoles](staff-consoles.md).

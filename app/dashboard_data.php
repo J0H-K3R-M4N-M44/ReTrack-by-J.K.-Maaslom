@@ -6,31 +6,41 @@ require_once __DIR__ . '/web.php';
  * Read the data shown by the admin dashboard.
  * Keeping these queries together makes the page easier to maintain.
  */
-function loadDashboardData(PDO $pdo, array $input = []): array
+function loadDashboardData(PDO $pdo, array $input = [], ?int $userId = null): array
 {
     $metrics = [];
     $search = likePattern(mb_substr(requestText($input, 'q'), 0, 190, 'UTF-8'));
     $pages = [];
 
-    $metrics['activeRepairs'] = (int) $pdo
+    $userId = $userId ?? (int) ($_SESSION['user_id'] ?? 0);
+    // The ID is an integer from the authenticated account, never a posted SQL fragment.
+    $scope = "EXISTS (SELECT 1 FROM user_branch_assignments scope_a
+        JOIN branches scope_b ON scope_b.branch_id = scope_a.branch_id
+        WHERE scope_a.user_id = $userId AND scope_b.is_active = 1
+        AND scope_a.branch_id = COALESCE(t.accountable_branch_id, t.intake_branch_id))";
+    $statusCounts = $pdo
         ->query(
-            "SELECT COUNT(*) FROM ticket_devices
-         WHERE repair_status IN (
-             'RECEIVED', 'DIAGNOSING', 'AWAITING_CUSTOMER_APPROVAL',
-             'AWAITING_PARTS', 'IN_PROGRESS', 'TESTING', 'READY_FOR_PICKUP'
-         )",
+            "SELECT d.repair_status, COUNT(*) AS total
+        FROM ticket_devices d JOIN repair_tickets t ON t.ticket_id = d.ticket_id
+        WHERE t.record_stage = 'ISSUED' AND $scope GROUP BY d.repair_status ORDER BY d.repair_status",
         )
-        ->fetchColumn();
-
+        ->fetchAll();
+    // Reuse grouped counts for metrics and reports instead of scanning devices twice.
+    $metrics['activeRepairs'] = 0;
+    foreach ($statusCounts as $count) {
+        if (!in_array($count['repair_status'], ['DRAFT', 'COMPLETED', 'CANCELLED'], true)) {
+            $metrics['activeRepairs'] += (int) $count['total'];
+        }
+    }
     $metrics['technicians'] = (int) $pdo
         ->query(
-            "SELECT COUNT(*) FROM users
-         WHERE role = 'TECHNICIAN' AND is_active = 1",
+            "SELECT COUNT(*) FROM users u
+        WHERE u.role = 'TECHNICIAN' AND u.is_active = 1 AND EXISTS (
+        SELECT 1 FROM user_branch_assignments tech_a
+        JOIN user_branch_assignments admin_a ON admin_a.branch_id = tech_a.branch_id
+        JOIN branches b ON b.branch_id = tech_a.branch_id AND b.is_active = 1
+        WHERE tech_a.user_id = u.user_id AND admin_a.user_id = $userId)",
         )
-        ->fetchColumn();
-
-    $metrics['pendingIntake'] = (int) $pdo
-        ->query("SELECT COUNT(*) FROM repair_tickets WHERE record_stage = 'DRAFT'")
         ->fetchColumn();
 
     $manila = new DateTimeZone('Asia/Manila');
@@ -39,12 +49,14 @@ function loadDashboardData(PDO $pdo, array $input = []): array
     $fromUtc = $today->setTimezone($utc)->format('Y-m-d H:i:s');
     $toUtc = $today->modify('+1 day')->setTimezone($utc)->format('Y-m-d H:i:s');
 
-    $issuedToday = $pdo->prepare(
-        "SELECT COUNT(*) FROM repair_tickets
-         WHERE record_stage = 'ISSUED' AND issued_at >= ? AND issued_at < ?",
-    );
-    $issuedToday->execute([$fromUtc, $toUtc]);
-    $metrics['ticketsIssuedToday'] = (int) $issuedToday->fetchColumn();
+    $ticketTotals = $pdo->prepare("SELECT
+        COALESCE(SUM(t.record_stage = 'DRAFT'), 0) AS drafts,
+        COALESCE(SUM(t.record_stage = 'ISSUED' AND t.issued_at >= ? AND t.issued_at < ?), 0) AS issued_today
+        FROM repair_tickets t WHERE $scope");
+    $ticketTotals->execute([$fromUtc, $toUtc]);
+    $totals = $ticketTotals->fetch();
+    $metrics['pendingIntake'] = (int) $totals['drafts'];
+    $metrics['ticketsIssuedToday'] = (int) $totals['issued_today'];
 
     // Count and page the same query so the totals cannot silently disagree.
     $queueSql = "SELECT t.ticket_id, d.item_code, d.device_type_snapshot, d.make_snapshot, d.model_snapshot,
@@ -52,7 +64,7 @@ function loadDashboardData(PDO $pdo, array $input = []): array
         FROM ticket_devices d
         JOIN repair_tickets t ON t.ticket_id = d.ticket_id
         LEFT JOIN customers c ON c.customer_id = t.customer_id
-        WHERE t.record_stage = 'ISSUED'
+        WHERE t.record_stage = 'ISSUED' AND $scope
         AND (COALESCE(t.ticket_code, '') LIKE ? ESCAPE '!'
             OR COALESCE(c.full_name, '') LIKE ? ESCAPE '!'
             OR COALESCE(d.model_snapshot, '') LIKE ? ESCAPE '!')";
@@ -66,10 +78,10 @@ function loadDashboardData(PDO $pdo, array $input = []): array
 
     $customerSql = "SELECT c.customer_id, c.full_name, c.updated_at, COUNT(DISTINCT t.ticket_id) AS ticket_count
         FROM customers c
-        LEFT JOIN repair_tickets t ON t.customer_id = c.customer_id
-        WHERE c.full_name LIKE ? ESCAPE '!'
+        JOIN repair_tickets t ON t.customer_id = c.customer_id AND $scope
+        WHERE (c.full_name LIKE ? ESCAPE '!'
         OR EXISTS (SELECT 1 FROM customer_contacts cc WHERE cc.customer_id = c.customer_id
-            AND cc.contact_value LIKE ? ESCAPE '!')
+            AND cc.contact_value LIKE ? ESCAPE '!'))
         GROUP BY c.customer_id, c.full_name, c.updated_at";
     $pages['customers'] = dashboardPage(
         $pdo,
@@ -83,7 +95,7 @@ function loadDashboardData(PDO $pdo, array $input = []): array
         FROM repair_tickets t
         JOIN branches b ON b.branch_id = t.intake_branch_id
         LEFT JOIN customers c ON c.customer_id = t.customer_id
-        WHERE t.record_stage = 'DRAFT'
+        WHERE t.record_stage = 'DRAFT' AND $scope
         AND (CAST(t.ticket_id AS CHAR) LIKE ? ESCAPE '!'
             OR COALESCE(c.full_name, '') LIKE ? ESCAPE '!')";
     $pages['drafts'] = dashboardPage(
@@ -96,17 +108,6 @@ function loadDashboardData(PDO $pdo, array $input = []): array
     $queue = $pages['queue']['rows'];
     $customers = $pages['customers']['rows'];
     $drafts = $pages['drafts']['rows'];
-
-    $statusCounts = $pdo
-        ->query(
-            "SELECT d.repair_status, COUNT(*) AS total
-         FROM ticket_devices d
-         JOIN repair_tickets t ON t.ticket_id = d.ticket_id
-         WHERE t.record_stage = 'ISSUED'
-         GROUP BY d.repair_status
-         ORDER BY d.repair_status",
-        )
-        ->fetchAll();
 
     return [
         'pages' => $pages,

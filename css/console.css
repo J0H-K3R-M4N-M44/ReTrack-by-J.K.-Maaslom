@@ -1,0 +1,86 @@
+/* Shared staff shell: new roles reuse these pieces instead of separate dashboards. */
+.staff-page > .dashboard-card {
+  margin-bottom: 24px;
+}
+.staff-page .dashboard-card:hover {
+  transform: none;
+}
+.console-navigation {
+  margin-bottom: 24px;
+}
+.console-account {
+  position: relative;
+  max-width: 100%;
+  padding: 16px;
+  border: 1px solid #647983;
+  border-radius: 12px;
+}
+.console-account summary {
+  cursor: pointer;
+}
+.console-account form {
+  margin-top: 16px;
+}
+.console-account p {
+  overflow-wrap: anywhere;
+}
+.console-branches ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+}
+.console-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.console-metrics strong {
+  display: block;
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+.console-search {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.console-search label {
+  flex: 1;
+  min-width: 200px;
+}
+.staff-page textarea {
+  width: 100%;
+  background: #21353e;
+  color: var(--soft-white);
+  border: 1px solid #73838a;
+  border-radius: 8px;
+  padding: 12px;
+  font: inherit;
+  margin: 8px 0 16px;
+}
+.staff-page form > label {
+  display: block;
+  margin-bottom: 16px;
+}
+.console-event {
+  border-top: 1px solid #526771;
+  padding: 16px 0;
+}
+.console-event p,
+.staff-review dd {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.console-drafts li {
+  margin: 16px 0;
+}
+@media (max-width: 600px) {
+  .console-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+  .staff-page .dashboard-card {
+    padding: 18px;
+  }
+}

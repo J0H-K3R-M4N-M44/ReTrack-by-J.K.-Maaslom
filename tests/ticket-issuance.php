@@ -92,8 +92,8 @@ foreach (
     );
 }
 mustReject(
-    fn() => intakeIssueTicket($pdo, $id, 2, $version, $values, $evidence),
-    'Non-admin accepted',
+    fn() => intakeIssueTicket($pdo, $id, 4, $version, $values, $evidence),
+    'Non-intake role accepted',
 );
 mustReject(
     fn() => intakeIssueTicket($pdo, $id, 1, 'stale', $values, $evidence),

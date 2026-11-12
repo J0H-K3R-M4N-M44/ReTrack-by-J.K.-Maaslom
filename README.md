@@ -43,7 +43,7 @@ If you use XAMPP locally, PHP mail delivery is not enabled automatically. Config
 - A public landing page with the existing MP4 hero background, scroll navigation, responsive sections, and reduced-motion support
 - A role-based page wireframe for customer, counter officer, technician, and branch administrator workflows
 
-Single-device ticket issuance now captures accessories, a condition photo, customer-signed paperwork and a branch storage location. Quotes, parts, billing, and technician workflows remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
+Single-device ticket issuance now captures accessories, a condition photo, customer-signed paperwork and a branch storage location. Quote approval screens, parts, billing, transfer handovers and repair completion remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
 
 ## Development branches
 
@@ -64,6 +64,6 @@ See [Ticket issuance setup and workflow](docs/ticket-issuance.md) before issuing
 
 ## Staff management
 
-Administrators can add, edit and deactivate staff with branch-scoped permissions and a reviewed activation-link workflow. See [staff account setup and limits](docs/staff-management.md). No database migration is required. Role-specific staff work tools are still pending.
+Administrators can add, edit and deactivate staff with branch-scoped permissions and a reviewed activation-link workflow. See [staff account setup and limits](docs/staff-management.md). No database migration is required. See [staff consoles and quick intake](docs/staff-consoles.md) for the available role-specific tools and their limits.
 
 See [home content notes](docs/home-content.md) for the preparation guide, FAQ and current-versus-planned feature explanations.

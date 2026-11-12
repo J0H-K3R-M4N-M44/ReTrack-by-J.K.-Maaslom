@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../app/auth.php';
 startAppSession();
-$admin = requireAdmin();
+$admin = requireRoles(['ADMIN', 'MANAGER', 'INTAKE_AGENT']);
 header('Cache-Control: no-store, private');
 $id = requestText($_GET, 'id');
 if (!ctype_digit($id)) {
@@ -44,7 +44,9 @@ try {
     $ticket['ticket_code'],
 ) ?></h1><p><?= h($ticket['full_name']) ?> · <?= h($ticket['branch_name']) ?> · <?= h(
      $ticket['intake_date'],
- ) ?></p></div><a class="secondary-btn no-print" href="dashboard.php?tab=workbench">Back to workbench</a></header>
+ ) ?></p></div><a class="secondary-btn no-print" href="<?= h(
+    workbenchHome(),
+) ?>">Back to workbench</a></header>
 <p>This reference identifies the repair intake. It is not a payment receipt. Use your browser's Print command for a copy. Public online tracking is not available in this version.</p>
 <?php foreach ($devices as $device): ?><section class="dashboard-card ticket-receipt"><h2><?= h(
     $device['item_code'],
@@ -80,3 +82,4 @@ try {
     $ticket['terms_version'],
 ) ?></p><div class="issuance-actions no-print"><a class="secondary-btn" href="intake_evidence.php?ticket=<?= (int) $id ?>&amp;kind=photo">View condition photo</a><a class="secondary-btn" href="intake_evidence.php?ticket=<?= (int) $id ?>&amp;kind=signed_form">View signed intake form</a></div></section>
 </main></body></html>
+

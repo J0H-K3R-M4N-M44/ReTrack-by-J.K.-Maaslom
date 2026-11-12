@@ -11,7 +11,7 @@
 <body class="dashboard-body">
 <main class="issuance-page">
     <header class="issuance-heading">
-        <div><div class="eyebrow">Administrator · Intake</div><h1><?= $review
+        <div><div class="eyebrow">Staff · Intake</div><h1><?= $review
             ? 'Confirm ticket issuance'
             : 'Complete intake checks' ?></h1><p>Draft #<?= $ticketId ?> · <?= h(
      $draft['customer_name'],
@@ -157,3 +157,4 @@
 </main>
 </body>
 </html>
+

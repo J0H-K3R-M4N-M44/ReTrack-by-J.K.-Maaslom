@@ -58,6 +58,27 @@
       make.setCustomValidity(
         make.value.trim() || model.value.trim() ? '' : 'Enter a brand or model.'
       );
+    const otherDevice = form.querySelector('[name="device_other"]');
+    if (otherDevice) {
+      otherDevice.required = form.querySelector('[name="device_type"]').value === 'Other';
+    }
+    for (const [group, field] of [
+      ['problems', 'reported_symptoms'],
+      ['conditions', 'condition_notes'],
+    ]) {
+      const selected = [...form.querySelectorAll('[name="' + group + '[]"]:checked')].map(
+        (input) => input.value
+      );
+      const details = form.querySelector('[name="' + field + '"]');
+      let message = '';
+      if (!selected.length && !details.value.trim())
+        message = 'Select an option or add a short description.';
+      if (selected.includes('Other') && !details.value.trim())
+        message = 'Please describe Other briefly.';
+      if (group === 'conditions' && selected.includes('No visible damage') && selected.length > 1)
+        message = 'Choose No visible damage by itself, or select the observed damage.';
+      details.setCustomValidity(message);
+    }
     const requiredFields = [...steps[index].querySelectorAll('input, select, textarea')].filter(
       (field) => !field.disabled && !field.closest('[hidden]')
     );

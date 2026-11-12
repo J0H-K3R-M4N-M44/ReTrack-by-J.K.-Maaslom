@@ -144,11 +144,11 @@ function intakeIssueTicket(
     $pdo->beginTransaction();
     try {
         $account = $pdo->prepare(
-            "SELECT user_id FROM users WHERE user_id = ? AND role = 'ADMIN' AND is_active = 1 FOR UPDATE",
+            "SELECT user_id FROM users WHERE user_id = ? AND role IN ('ADMIN', 'MANAGER', 'INTAKE_AGENT') AND is_active = 1 FOR UPDATE",
         );
         $account->execute([$userId]);
         if (!$account->fetchColumn()) {
-            throw new DomainException('An active administrator must issue the ticket.');
+            throw new DomainException('An active intake staff member must issue the ticket.');
         }
         $draft = intakeIssueDraft($pdo, $ticketId, $userId, true);
         if (!hash_equals($version, intakeDraftVersion($draft))) {

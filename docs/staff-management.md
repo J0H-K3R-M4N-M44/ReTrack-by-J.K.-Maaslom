@@ -26,7 +26,7 @@ Only active administrators can manage staff, and they must have access to every 
 
 ## What staff can use today
 
-Active staff can sign in, recover their password and view their own role and branches. Their welcome page states that role-specific work tools are still pending. Administrator dashboard, intake and ticket actions remain administrator-only. Creating a Technician account does not claim to deliver a technician workbench. There is no Cashier role in the existing schema.
+Active staff sign in to their role-specific console. Managers and intake agents can prepare and issue intake; technicians can update assigned repairs and save private notes. Couriers have a branch manifest and viewers have read-only status access. See [staff consoles](staff-consoles.md) for exact permissions and remaining features. There is no Cashier role in the existing schema.
 
 ## Database and implementation
 

@@ -65,7 +65,7 @@
         : 'Add staff member' ?></h2><?php if (
     $editingId
 ): ?><a href="staff.php">Add someone else</a><?php endif; ?></div>
-    <p>Staff roles do not grant administrator access. Each staff member will have a separate sign-in and account workspace; role-specific repair tools are still being built.</p>
+    <p>Staff roles do not grant administrator access. Each staff member has a separate sign-in and a console limited to their role and assigned branches.</p>
     <?php if (
         !$branches
     ): ?><p role="alert">You need an assigned active branch before adding staff.</p><?php else: ?>

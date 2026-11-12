@@ -6,7 +6,7 @@ require_once __DIR__ . '/../app/intake/repository.php';
 require_once __DIR__ . '/../app/intake/drafts.php';
 
 startAppSession();
-$admin = requireAdmin();
+$admin = requireRoles(['ADMIN', 'MANAGER', 'INTAKE_AGENT']);
 header('Cache-Control: no-store, private');
 $userId = (int) $admin['user_id'];
 $errors = [];
@@ -33,12 +33,13 @@ try {
         }
         $draftId = $formState['draft_id'];
         $values = intakeReadValues($values, $_POST);
+        [$values, $choiceErrors] = intakeQuickValues($values, $_POST);
         $intent = requestText($_POST, 'intent');
         $digest = hash('sha256', json_encode($values, JSON_THROW_ON_ERROR));
         if ($intent === 'edit') {
             unset($_SESSION['intake_forms'][$formKey]['review_hash']);
         } else {
-            $errors = intakeValidate($pdo, $values, $branches);
+            $errors = array_merge($choiceErrors, intakeValidate($pdo, $values, $branches));
             if ($errors === [] && $intent === 'review') {
                 $_SESSION['intake_forms'][$formKey]['review_hash'] = $digest;
                 $review = true;
@@ -56,7 +57,7 @@ try {
                     }
                     unset($_SESSION['intake_forms'][$formKey]);
                     $_SESSION['intake_saved'] = true;
-                    header('Location: dashboard.php?tab=workbench', true, 303);
+                    header('Location: ' . workbenchHome(), true, 303);
                     exit();
                 }
             } elseif ($errors === []) {

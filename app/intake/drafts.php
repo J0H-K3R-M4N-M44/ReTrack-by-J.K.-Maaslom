@@ -41,6 +41,7 @@ function intakeUpdateDraft(
 ): void {
     $pdo->beginTransaction();
     try {
+        intakeLockActor($pdo, $userId);
         $before = intakeLoadDraft($pdo, $ticketId, $userId, true);
         if (!hash_equals($version, intakeDraftVersion($before))) {
             throw new DomainException(
