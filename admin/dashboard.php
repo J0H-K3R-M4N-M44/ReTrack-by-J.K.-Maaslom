@@ -81,6 +81,7 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                 </div>
 
                 <nav class="dashboard-nav">
+                    <a class="nav-item" href="staff.php"><span class="nav-icon" aria-hidden="true">＋</span><span>Staff management</span></a>
                     <a class="nav-item<?= $tab === 'overview'
                         ? ' is-active'
                         : '' ?>" href="?tab=overview"<?= $tab === 'overview'
@@ -409,4 +410,5 @@ function renderDashboardPager(array $page, string $key, string $tab): void
     <script src="../js/trans.js"></script>
 </body>
 </html>
+
 

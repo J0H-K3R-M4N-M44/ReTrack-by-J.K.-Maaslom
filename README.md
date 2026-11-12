@@ -1,6 +1,6 @@
 # RepairTrack
 
-RepairTrack is a PHP and MySQL learning project for tracking computer repairs across one or more store branches. The current `Dashboard` screen keeps the existing dark interface and uses database-backed administrator login.
+RepairTrack is a PHP and MySQL learning project for tracking computer repairs across one or more store branches. The current `Dashboard` screen keeps the existing dark interface and uses database-backed staff login with administrator-only management.
 
 ## Requirements
 
@@ -19,11 +19,11 @@ RepairTrack is a PHP and MySQL learning project for tracking computer repairs ac
 
 If PDO reports that the MySQL driver is missing, enable `pdo_mysql` in the PHP configuration used by Apache and the command line.
 
-## Admin password recovery
+## Account password recovery
 
 For an existing database, run `database/password_reset.sql` once in MySQL Workbench. Set `app_url` in `config/config.php` to the full site URL, including the project folder. Set `mail_from` to an address accepted by the mail server, then configure PHP `mail()` (or the server's local mail relay) to deliver messages.
 
-The login page's **Forgot Password?** link emails a one-use reset link. The token is stored as a hash, expires after 30 minutes, and can only be used once. The new password must contain at least 12 Unicode characters and fit within 72 UTF-8 bytes. The request page uses the same response whether or not an active admin account matches the email.
+The login page's **Forgot Password?** link emails a one-use reset link. The token is stored as a hash, expires after 30 minutes, and can only be used once. The new password must contain at least 12 Unicode characters and fit within 72 UTF-8 bytes. The request page uses the same response whether or not an active account matches the email.
 
 If you use XAMPP locally, PHP mail delivery is not enabled automatically. Configure a mail relay before expecting reset emails to arrive. Keep the real sender and database settings only in the ignored `config/config.php`; never commit credentials or reset links.
 
@@ -33,9 +33,9 @@ If you use XAMPP locally, PHP mail delivery is not enabled automatically. Config
 
 ## Current scope
 
-- Administrator login against the `users` table using `password_verify()`
+- Shared staff login with administrator-only protected screens against the `users` table using `password_verify()`
 - Session ID renewal on login, CSRF protection for login, logout and password recovery, and idle-session expiry
-- Single-use, expiring administrator password reset links
+- Single-use, expiring account password reset links
 - A database-backed dashboard summary and working dashboard section navigation
 - A searchable repair workbench with numbered pages, pending intake drafts, and current status
 - An administrator intake workflow for customer matching, device details, server-side review, and reopening/editing single-device drafts
@@ -60,3 +60,8 @@ See [the implementation and test notes](docs/admin-milestone.md) for draft revie
 See [Ticket issuance setup and workflow](docs/ticket-issuance.md) before issuing a draft. It requires a private image folder and a one-time local key in your ignored configuration file.
 
 
+
+
+## Staff management
+
+Administrators can add, edit and deactivate staff with branch-scoped permissions and a reviewed activation-link workflow. See [staff account setup and limits](docs/staff-management.md). No database migration is required. Role-specific staff work tools are still pending.

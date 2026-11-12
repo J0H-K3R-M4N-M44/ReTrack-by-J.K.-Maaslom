@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/auth.php';
 
 /**
- * Send a generic recovery email when an active admin email is found.
+ * Send a generic recovery email when an active staff email is found.
  * The raw token only appears in the email; the database stores its SHA-256 hash.
  */
 function requestAdminPasswordReset(string $email): void
@@ -35,7 +35,7 @@ function requestAdminPasswordReset(string $email): void
     $pdo = getPDO();
     $findUser = $pdo->prepare(
         "SELECT user_id FROM users
-         WHERE email = ? AND role = 'ADMIN' AND is_active = 1
+         WHERE email = ? AND is_active = 1
          LIMIT 1",
     );
     $findUser->execute([$email]);
@@ -84,9 +84,9 @@ function requestAdminPasswordReset(string $email): void
     }
 
     $resetUrl = $appUrl . '/admin/reset_password.php?token=' . rawurlencode($token);
-    $subject = 'RepairTrack administrator password reset';
+    $subject = 'RepairTrack account password reset';
     $message =
-        "A password reset was requested for your RepairTrack administrator account.\n\n" .
+        "A password reset was requested for your RepairTrack staff account.\n\n" .
         "Use this one-time link within 30 minutes:\n{$resetUrl}\n\n" .
         'If you did not request this, you can ignore this email.';
     $headers = [
@@ -123,7 +123,6 @@ function completeAdminPasswordReset(string $token, string $newPassword): bool
              WHERE prt.token_hash = ?
                AND prt.used_at IS NULL
                AND prt.expires_at > UTC_TIMESTAMP()
-               AND u.role = 'ADMIN'
                AND u.is_active = 1
              LIMIT 1
              FOR UPDATE",

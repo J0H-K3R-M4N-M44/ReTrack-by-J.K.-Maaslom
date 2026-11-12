@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             requestAdminPasswordReset($email);
             // Keep the message the same whether or not an account exists.
             $status =
-                'If an active admin account matches, a reset email has been requested. Delivery depends on the mail service. Contact your administrator if it does not arrive.';
+                'If an active staff account matches, a reset email has been requested. Delivery depends on the mail service. Contact your administrator if it does not arrive.';
         } catch (Throwable $exception) {
             error_log('RepairTrack password reset request failed: ' . $exception->getMessage());
             $error = 'We could not process that request right now. Please try again later.';
@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="login-content">
                 <section class="login-panel reset-panel">
                     <h2>Reset Password</h2>
-                    <p class="reset-copy">Enter the email address for your admin account. We’ll send a one-time link if it matches an active account.</p>
+                    <p class="reset-copy">Enter the email address for your staff account. We’ll send a one-time link if it matches an active account.</p>
 
                     <?php if ($status !== ''): ?>
                         <div class="reset-box" role="status"><?php echo h($status); ?></div>
@@ -78,3 +78,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="../js/trans.js"></script>
 </body>
 </html>
+

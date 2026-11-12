@@ -53,83 +53,108 @@ function csrfIsValid(string $sentToken): bool
         hash_equals($_SESSION['csrf_token'], $sentToken);
 }
 
-// Look up an active admin, verify the password hash, then start their signed-in session.
+// Keep the admin-only helper for existing CLI/tests. The shared sign-in page
+// uses loginAccount and sends non-admin accounts to their own workspace.
 function loginAdmin(string $email, string $password): bool
 {
-    $email = strtolower(trim($email));
+    return loginAccount($email, $password, true);
+}
 
-    $statement = getPDO()->prepare(
-        "SELECT user_id, full_name, password_hash
-         FROM users
-         WHERE email = ? AND role = 'ADMIN' AND is_active = 1
-         LIMIT 1",
+function loginAccount(string $email, string $password, bool $adminOnly = false): bool
+{
+    $query = getPDO()->prepare(
+        "SELECT user_id, full_name, email, role, password_hash FROM users
+        WHERE email = ? AND is_active = 1" .
+            ($adminOnly ? " AND role = 'ADMIN'" : '') .
+            ' LIMIT 1',
     );
-    $statement->execute([$email]);
-    $user = $statement->fetch();
-
-    // Unknown accounts still perform a bcrypt check to reduce timing differences.
+    $query->execute([strtolower(trim($email))]);
+    $user = $query->fetch();
     $dummyHash = '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
-    $passwordMatches = password_verify($password, $user['password_hash'] ?? $dummyHash);
-    if (!$user || !$passwordMatches) {
+    $matches = password_verify($password, $user['password_hash'] ?? $dummyHash);
+    if (!$user || !$matches) {
         return false;
     }
-
-    session_regenerate_id(true);
-    unset($_SESSION['csrf_token']);
-
-    $_SESSION['admin_user_id'] = (int) $user['user_id'];
-    $_SESSION['admin_name'] = $user['full_name'];
-    $_SESSION['last_activity'] = time();
-
-    $updateLogin = getPDO()->prepare(
+    $update = getPDO()->prepare(
         'UPDATE users SET last_login_at = UTC_TIMESTAMP() WHERE user_id = ?',
     );
-    $updateLogin->execute([$user['user_id']]);
-
+    $update->execute([$user['user_id']]);
+    session_regenerate_id(true);
+    // Clear old role, review and invitation state when the account changes.
+    $_SESSION = [
+        'user_id' => (int) $user['user_id'],
+        'account_role' => $user['role'],
+        'credential_version' => hash('sha256', $user['password_hash'] . '|' . $user['email']),
+        'last_activity' => time(),
+    ];
+    if ($user['role'] === 'ADMIN') {
+        $_SESSION['admin_user_id'] = (int) $user['user_id'];
+        $_SESSION['admin_name'] = $user['full_name'];
+    }
     return true;
 }
 
-// Recheck the database so disabled accounts cannot keep using an old session.
-function currentAdmin(): ?array
+function accountHome(): string
 {
-    if (empty($_SESSION['admin_user_id'])) {
+    return ($_SESSION['account_role'] ?? 'ADMIN') === 'ADMIN' ? 'dashboard.php' : 'staff_home.php';
+}
+
+// Fresh role/active checks and a password-hash fingerprint invalidate disabled
+// accounts and sessions whose password or role has changed, without a new column.
+function currentAccount(): ?array
+{
+    $id = (int) ($_SESSION['user_id'] ?? ($_SESSION['admin_user_id'] ?? 0));
+    if (!$id) {
         return null;
     }
-
-    $statement = getPDO()->prepare(
-        "SELECT user_id, full_name, email, role
-         FROM users
-         WHERE user_id = ? AND role = 'ADMIN' AND is_active = 1
-         LIMIT 1",
+    $query = getPDO()->prepare(
+        'SELECT user_id, full_name, email, role, password_hash FROM users WHERE user_id = ? AND is_active = 1 LIMIT 1',
     );
-    $statement->execute([(int) $_SESSION['admin_user_id']]);
-    $user = $statement->fetch();
-
-    if (!$user) {
+    $query->execute([$id]);
+    $user = $query->fetch();
+    if (
+        !$user ||
+        ($_SESSION['account_role'] ?? null) !== $user['role'] ||
+        (!isset($_SESSION['credential_version']) ||
+            !hash_equals(
+                $_SESSION['credential_version'],
+                hash('sha256', $user['password_hash'] . '|' . $user['email']),
+            ))
+    ) {
         logoutAdmin();
         return null;
     }
+    unset($user['password_hash']);
+    return $user;
+}
 
-    $_SESSION['admin_name'] = $user['full_name'];
-    $_SESSION['last_activity'] = time();
+function currentAdmin(): ?array
+{
+    $user = currentAccount();
+    return $user && $user['role'] === 'ADMIN' ? $user : null;
+}
 
+function requireAccount(): array
+{
+    try {
+        $user = currentAccount();
+    } catch (Throwable $error) {
+        error_log('RepairTrack account check: ' . $error->getMessage());
+        unavailablePage('Account access is temporarily unavailable. Please try again later.');
+    }
+    if (!$user) {
+        header('Location: login.php');
+        exit();
+    }
     return $user;
 }
 
 function requireAdmin(): array
 {
-    try {
-        $user = currentAdmin();
-    } catch (Throwable $error) {
-        error_log('RepairTrack session check: ' . $error->getMessage());
-        unavailablePage('Account access is temporarily unavailable. Please try again later.');
+    $user = requireAccount();
+    if ($user['role'] !== 'ADMIN') {
+        unavailablePage('This page is for administrators. Return to your staff workspace.', 403);
     }
-
-    if ($user === null) {
-        header('Location: login.php');
-        exit();
-    }
-
     return $user;
 }
 

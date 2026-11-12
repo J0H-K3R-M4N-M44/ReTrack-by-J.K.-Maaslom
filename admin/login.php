@@ -3,8 +3,8 @@ require_once __DIR__ . '/../app/auth.php';
 startAppSession();
 header('Cache-Control: no-store, private');
 
-if (!empty($_SESSION['admin_user_id'])) {
-    header('Location: dashboard.php');
+if (!empty($_SESSION['user_id']) || !empty($_SESSION['admin_user_id'])) {
+    header('Location: ' . accountHome());
     exit();
 }
 
@@ -20,8 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 http_response_code(429);
                 header('Retry-After: 900');
                 $errorMessage = 'Too many sign-in attempts. Please wait 15 minutes.';
-            } elseif (loginAdmin($email, requestText($_POST, 'password'))) {
-                header('Location: dashboard.php', true, 303);
+            } elseif (loginAccount($email, requestText($_POST, 'password'))) {
+                header('Location: ' . accountHome(), true, 303);
                 exit();
             } else {
                 $errorMessage = 'Invalid email or password.';
@@ -57,7 +57,7 @@ $csrf = csrfToken();
     <div class="login-scene">
         <div class="login-shell">
             <div class="brand-wrap">
-                <div class="brand-tag">Computer Repair Admin</div>
+                <div class="brand-tag">RepairTrack staff access</div>
                 <h1 class="brand-title">RepairTrack</h1>
             </div>
 
@@ -102,3 +102,4 @@ $csrf = csrfToken();
     <script src="../js/login.js"></script>
 </body>
 </html>
+
