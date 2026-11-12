@@ -1,0 +1,171 @@
+.issuance-page {
+  max-width: 1400px;
+  margin: auto;
+  padding: 32px;
+}
+.issuance-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+.issuance-heading h1 {
+  margin: 8px 0;
+}
+.issuance-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 24px;
+  align-items: start;
+}
+.issuance-form {
+  display: grid;
+  gap: 20px;
+}
+.issuance-form label {
+  display: grid;
+  gap: 8px;
+}
+.issuance-form input:not([type='checkbox']),
+.issuance-form select,
+.issuance-form textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #697980;
+  color: var(--soft-white);
+  background: #243740;
+  font: inherit;
+}
+.issuance-form fieldset {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #697980;
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+}
+.issuance-form .check-row,
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.5;
+}
+.check-row input {
+  flex: none;
+  margin-top: 5px;
+}
+.issuance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+.issuance-actions button {
+  cursor: pointer;
+  font: inherit;
+}
+.receipt-details {
+  display: grid;
+  gap: 16px;
+}
+.receipt-details dt {
+  color: var(--gold-300);
+  font-size: 0.85rem;
+  margin-bottom: 5px;
+}
+.receipt-details dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.evidence-previews {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.evidence-previews figure {
+  margin: 0 0 20px;
+  min-width: 0;
+}
+.evidence-previews img {
+  width: 100%;
+  height: 200px;
+  object-fit: contain;
+  background: #16252c;
+  border-radius: 8px;
+}
+.evidence-previews figcaption {
+  margin-top: 8px;
+  font-size: 0.85rem;
+}
+.ticket-receipt {
+  margin: 20px 0;
+}
+@media (max-width: 760px) {
+  .issuance-page {
+    padding: 20px 12px;
+  }
+  .issuance-grid {
+    grid-template-columns: 1fr;
+  }
+  .issuance-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .evidence-previews {
+    grid-template-columns: 1fr;
+  }
+}
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .dashboard-body {
+    background: white;
+    color: black;
+  }
+  .dashboard-card {
+    background: white;
+    color: black;
+    box-shadow: none;
+    border: 1px solid #888;
+    break-inside: avoid;
+  }
+  .receipt-details dt,
+  .eyebrow {
+    color: #333;
+  }
+  .issuance-page {
+    padding: 0;
+  }
+}
+/* Use desktop width for the checks; keep the mobile form in reading order. */
+.issuance-actions .secondary-btn {
+  background: transparent;
+}
+@media (min-width: 1100px) {
+  .issuance-grid {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 2fr);
+  }
+  .issuance-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+  .issuance-form > fieldset,
+  .issuance-form > p,
+  .issuance-form > button {
+    grid-column: 1 / -1;
+  }
+  .issuance-form > fieldset {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .issuance-form > fieldset > label:nth-of-type(n + 4) {
+    grid-column: 1 / -1;
+  }
+}
