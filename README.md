@@ -1,3 +1,7 @@
+# RepairTrack — Demo-System
+
+This branch preserves the standalone prototype and provides an expanded disposable database for the working PHP application. Start with [Demo setup and accounts](docs/demo-system.md). Read [current system gaps](docs/system-gaps.md) before presenting prototype features as finished.
+
 # RepairTrack
 
 RepairTrack is a PHP and MySQL learning project for tracking computer repairs across one or more store branches. The current `Dashboard` screen keeps the existing dark interface and uses database-backed staff login with administrator-only management.

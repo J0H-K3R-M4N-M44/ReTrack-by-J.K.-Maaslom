@@ -40,3 +40,7 @@ The current PHP backend supports shared staff authentication, branch-scoped admi
 ## Staff consoles and quick intake update
 
 The shared tested update belongs to Dashboards-Reports (staff consoles/admin summaries), Repair-Operations (assignments/progress) and Intake-Tracking (menu-driven intake and intake-role permissions). These category branches share this integration point because the permissions and console links depend on the same code. Main remains unchanged. See [staff consoles](staff-consoles.md).
+
+## Demo separation
+
+Demo-System was created from Simplified-System at 39011d5382a740887369bffa43fe6d5bad69ed7e. It owns demo-prototype/ and the expanded console seeder. Legacy branch deletion is requested but requires authenticated write access; do not treat deletion as complete until the remote list confirms it.
