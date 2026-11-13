@@ -10,10 +10,10 @@ Updated: 2026-11-13. All development stays off `main`.
 | `Access-Accounts` | Login, logout, password recovery, staff access | Access portion of `feature/simple-access-activity` | `app/auth.php`, `app/password_reset.php`, auth pages in `admin/`, `js/login.js`, `js/trans.js` |
 | `Home-Content` | Public homepage content, preparation guidance and FAQs | Current public landing page | `index.php`, `css/landing.css`, `js/landing.js` |
 | `Intake-Tracking` | Customers, intake drafts, device tracking | `feature/simple-intake-tracking` | `app/intake/`, `admin/intake_create.php`, `views/intake/`, `js/intake-wizard.js` |
-| `Repair-Operations` | Diagnostics, assignments, repair stages, parts requests, testing | Repair portion of `feature/simple-repair-custody` | Workflow functions in `demo-prototype/app.js`; PHP implementation remains planned |
-| `Branches-Logistics` | Branch locations, transfers, pickup, delivery and custody | `feature/sogod-branch-maps`; custody portion of `feature/simple-repair-custody` | `demo-prototype/branch-maps.js`, logistics and transfer functions in `demo-prototype/app.js` |
-| `Payments-Inventory` | Quotes, bills, cash, refunds, COD and stock | `feature/simple-quotes-cash` | Finance, quote and stock functions in `demo-prototype/app.js` |
-| `Notifications-History` | Alerts, conversation visibility and activity history | `feature/repair-alert-delivery`; activity portion of `feature/simple-access-activity` | `demo-prototype/ticket-alerts.js`, `demo-prototype/demo-email.php`, history and message functions in `demo-prototype/app.js` |
+| `Repair-Operations` | Diagnostics, assignments, repair stages, parts requests, testing | Repair portion of `feature/simple-repair-custody` | Workflow functions in `Demo-System: demo-prototype/app.js`; PHP implementation remains planned |
+| `Branches-Logistics` | Branch locations, transfers, pickup, delivery and custody | `feature/sogod-branch-maps`; custody portion of `feature/simple-repair-custody` | `Demo-System: demo-prototype/branch-maps.js`, logistics and transfer functions in `Demo-System: demo-prototype/app.js` |
+| `Payments-Inventory` | Quotes, bills, cash, refunds, COD and stock | `feature/simple-quotes-cash` | Finance, quote and stock functions in `Demo-System: demo-prototype/app.js` |
+| `Notifications-History` | Alerts, conversation visibility and activity history | `feature/repair-alert-delivery`; activity portion of `feature/simple-access-activity` | `Demo-System: demo-prototype/ticket-alerts.js`, `Demo-System: demo-prototype/demo-email.php`, history and message functions in `Demo-System: demo-prototype/app.js` |
 | `Dashboards-Reports` | Staff overview, summaries and reporting | `feature/simple-reports` | `app/dashboard_data.php`, `admin/dashboard.php`, demo report functions |
 | `Simplified-System` | Integrates tested category work and shared foundation | All above plus `feature/simple-foundation` and the prior `System-Consolidation` baseline | Whole application; `docs/current-vs-simplified.md` |
 
@@ -40,3 +40,7 @@ The current PHP backend supports shared staff authentication, branch-scoped admi
 ## Staff consoles and quick intake update
 
 The shared tested update belongs to Dashboards-Reports (staff consoles/admin summaries), Repair-Operations (assignments/progress) and Intake-Tracking (menu-driven intake and intake-role permissions). These category branches share this integration point because the permissions and console links depend on the same code. Main remains unchanged. See [staff consoles](staff-consoles.md).
+
+## Demo separation and legacy cleanup
+
+Demo-System preserves the standalone prototype and expanded console seeder. The demo-prototype directory has been removed from Simplified-System; existing small SQL fixtures remain for regression tests. Main is unchanged. The requested System-Consolidation and feature/* reference deletion remains pending authenticated GitHub write access. Their heads are already ancestors of Simplified-System. See [cleanup commands](branch-cleanup.md).

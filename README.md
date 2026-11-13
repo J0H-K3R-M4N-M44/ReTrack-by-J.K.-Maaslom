@@ -67,3 +67,7 @@ See [Ticket issuance setup and workflow](docs/ticket-issuance.md) before issuing
 Administrators can add, edit and deactivate staff with branch-scoped permissions and a reviewed activation-link workflow. See [staff account setup and limits](docs/staff-management.md). No database migration is required. See [staff consoles and quick intake](docs/staff-consoles.md) for the available role-specific tools and their limits.
 
 See [home content notes](docs/home-content.md) for the preparation guide, FAQ and current-versus-planned feature explanations.
+
+## Demo separation
+
+The standalone prototype and expanded classroom seeder now live on [Demo-System](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/tree/Demo-System). This branch keeps the working PHP application and original SQL regression fixtures. See [remaining workflows](docs/system-gaps.md) and [pending legacy branch cleanup](docs/branch-cleanup.md).
