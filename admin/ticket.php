@@ -1,16 +1,20 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../app/auth.php';
+require_once __DIR__ . '/../app/public/tracking.php';
 startAppSession();
 $admin = requireRoles(['ADMIN', 'MANAGER', 'INTAKE_AGENT']);
 header('Cache-Control: no-store, private');
+header('Referrer-Policy: no-referrer');
+$trackingCode = '';
+$trackingError = '';
 $id = requestText($_GET, 'id');
 if (!ctype_digit($id)) {
     unavailablePage('Choose a ticket from the workbench.', 400);
 }
 try {
     $query = getPDO()
-        ->prepare("SELECT t.ticket_id, t.ticket_code, t.intake_date, t.terms_version, t.issued_at, c.full_name,
+        ->prepare("SELECT t.ticket_id, t.ticket_code, t.tracking_token_hash, t.intake_date, t.terms_version, t.issued_at, c.full_name,
         b.branch_name, d.item_code, d.device_type_snapshot, d.make_snapshot, d.model_snapshot, d.serial_number_snapshot,
         d.alternative_identifiers, d.reported_symptoms, d.condition_notes, d.repair_status, l.location_name
         FROM repair_tickets t JOIN customers c ON c.customer_id = t.customer_id
@@ -25,6 +29,38 @@ try {
         unavailablePage('This ticket is unavailable or belongs to an unassigned branch.', 404);
     }
     $ticket = $devices[0];
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (!csrfIsValid(requestText($_POST, 'csrf_token'))) {
+            unavailablePage('The sharing form expired. Reopen the receipt.', 403);
+        }
+        if (requestText($_POST, 'confirm_share') !== '1') {
+            $trackingError = 'Confirm that you are replacing the previous private code.';
+        } else {
+            try {
+                $token = replaceTrackingCode(
+                    getPDO(),
+                    (int) $admin['user_id'],
+                    (int) $id,
+                    requestText($_POST, 'tracking_version'),
+                );
+                $_SESSION['tracking_receipt'] = [
+                    'id' => (int) $id,
+                    'token' => $token,
+                    'expires' => time() + 300,
+                ];
+                header('Location: ticket.php?id=' . (int) $id, true, 303);
+                exit();
+            } catch (DomainException $problem) {
+                $trackingError = $problem->getMessage();
+            }
+        }
+    }
+    $shared = $_SESSION['tracking_receipt'] ?? null;
+    if ($shared && $shared['id'] === (int) $id && $shared['expires'] > time()) {
+        $trackingCode = $shared['token'];
+        unset($_SESSION['tracking_receipt']);
+    }
+
     $accessoryQuery = getPDO()->prepare(
         'SELECT a.accessory_name, a.received, a.notes, d.item_code FROM ticket_accessory_items a JOIN ticket_devices d ON d.ticket_device_id = a.ticket_device_id WHERE d.ticket_id = ? ORDER BY d.child_sequence, a.accessory_item_id',
     );
@@ -47,7 +83,32 @@ try {
  ) ?></p></div><a class="secondary-btn no-print" href="<?= h(
     workbenchHome(),
 ) ?>">Back to workbench</a></header>
-<p>This reference identifies the repair intake. It is not a payment receipt. Use your browser's Print command for a copy. Public online tracking is not available in this version.</p>
+<p>This reference identifies the repair intake. It is not a payment receipt. Use your browser's Print command for a copy. Share a private tracking code below so the customer can view repair updates.</p>
+<section class="dashboard-card ticket-receipt">
+    <h2>Customer tracking access</h2>
+    <p>Only give this code to the customer or an authorized representative. It shows repair status and customer updates, never private work notes.</p>
+    <?php if ($trackingError): ?><p role="alert"><?= h($trackingError) ?></p><?php endif; ?>
+    <?php if ($trackingCode): ?>
+        <p role="status">New private code created. The previous code no longer works. Copy or print this code now; it is shown only once.</p>
+        <label for="private-code">Private tracking code</label>
+        <textarea id="private-code" readonly rows="3" class="tracking-code"><?= h(
+            $trackingCode,
+        ) ?></textarea>
+        <p>Enter this code on the public home page under Track your repair.</p>
+        <a href="../track.php#code=<?= h(
+            $trackingCode,
+        ) ?>" class="secondary-btn no-print">Preview customer tracking</a>
+    <?php else: ?>
+        <form method="post" class="no-print">
+            <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+            <input type="hidden" name="tracking_version" value="<?= h(
+                $ticket['tracking_token_hash'],
+            ) ?>">
+            <label><input type="checkbox" name="confirm_share" value="1" required> Create a new private code and invalidate any previous code.</label>
+            <p><button class="secondary-btn">Create private tracking code</button></p>
+        </form>
+    <?php endif; ?>
+</section>
 <?php foreach ($devices as $device): ?><section class="dashboard-card ticket-receipt"><h2><?= h(
     $device['item_code'],
 ) ?></h2><dl class="receipt-details">

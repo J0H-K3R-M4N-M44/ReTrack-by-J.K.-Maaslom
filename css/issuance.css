@@ -169,3 +169,10 @@
     grid-column: 1 / -1;
   }
 }
+
+.tracking-code {
+  width: 100%;
+  padding: 12px;
+  overflow-wrap: anywhere;
+  font: inherit;
+}

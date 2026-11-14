@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="../css/console.css">
 </head>
 <body class="dashboard-body">
+<a class="skip-link" href="#work-list">Skip to work list</a>
 <main class="staff-page">
     <header class="staff-heading">
         <div>
@@ -62,6 +63,7 @@
         ): ?><p>This is a branch manifest, not a personal delivery assignment. Transfer creation and receipt confirmation are not available yet; contact your manager for handover changes.</p><?php endif; ?>
     </section>
     <?php if (!$isCourier): ?>
+    <p class="console-scope-note">Totals cover all issued devices in your assigned scope. Search and status filters apply to the queue below.</p>
     <section class="console-metrics" aria-label="Work status totals">
         <?php foreach ($data['counts'] as $count): ?>
         <article class="dashboard-card"><strong><?= (int) $count['total'] ?></strong><span><?= h(
@@ -83,6 +85,18 @@
                     requestText($_GET, 'q'),
                 ) ?>" maxlength="100">
             </label>
+            <?php if (!$isCourier): ?>
+            <label for="queue-status">Repair status
+                <select id="queue-status" name="status">
+                    <option value="">All statuses</option>
+                    <?php foreach (consoleStatuses() as $status): ?>
+                    <option value="<?= h($status) ?>" <?= consoleStatusFilter($_GET) === $status
+    ? 'selected'
+    : '' ?>><?= h(dashboardStatusLabel($status)) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <?php endif; ?>
             <button class="secondary-btn">Search</button><a href="staff_home.php">Clear</a>
         </form>
         <p>Showing <?= $page['from'] ?>–<?= $page['to'] ?> of <?= $page['total'] ?></p>
@@ -143,8 +157,8 @@
                     continue;
                 } ?>
                 <a class="secondary-btn" href="?<?= h(
-                    http_build_query(['q' => requestText($_GET, 'q'), 'page' => $number]),
-                ) ?>#work-list"><?= h($label) ?></a>
+                    ltrim(consolePageUrl($_GET, 'page', $number, 'work-list'), '?'),
+                ) ?>"><?= h($label) ?></a>
             <?php
             endforeach; ?>
         </nav>
@@ -173,7 +187,9 @@
             if ($number < 1 || $number > $drafts['pages']) {
                 continue;
             } ?>
-            <a class="secondary-btn" href="?draft_page=<?= $number ?>#drafts"><?= h($label) ?></a>
+            <a class="secondary-btn" href="<?= h(
+                consolePageUrl($_GET, 'draft_page', $number, 'drafts'),
+            ) ?>"><?= h($label) ?></a>
         <?php
         endforeach; ?>
         </nav>

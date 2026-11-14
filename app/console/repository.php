@@ -20,6 +20,7 @@ function consoleScope(array $user): array
 function consoleDevices(PDO $pdo, array $user, array $input): array
 {
     [$scope, $params] = consoleScope($user);
+    $status = consoleStatusFilter($input);
     $q = likePattern(mb_substr(trim(requestText($input, 'q')), 0, 100));
     $sql = "SELECT d.ticket_device_id, d.item_code, d.device_type_snapshot, d.make_snapshot,
         d.model_snapshot, d.repair_status, d.updated_at, d.custody_state,
@@ -29,10 +30,15 @@ function consoleDevices(PDO $pdo, array $user, array $input): array
         LEFT JOIN users u ON u.user_id = d.assigned_technician_id
         WHERE $scope AND (d.item_code LIKE ? ESCAPE '!' OR t.ticket_code LIKE ? ESCAPE '!'
         OR d.model_snapshot LIKE ? ESCAPE '!')";
+    $pageParams = [...$params, $q, $q, $q];
+    if ($status !== '') {
+        $sql .= ' AND d.repair_status = ?';
+        $pageParams[] = $status;
+    }
     $page = dashboardPage(
         $pdo,
         $sql,
-        [...$params, $q, $q, $q],
+        $pageParams,
         'updated_at DESC, ticket_device_id DESC',
         requestText($input, 'page', '1'),
     );
@@ -138,9 +144,16 @@ function consoleSave(PDO $pdo, int $actorId, int $id, string $version, array $in
         } elseif ($action === 'progress' && $user['role'] === 'TECHNICIAN') {
             $status = requestText($input, 'status');
             $note = trim(requestText($input, 'note'));
-            if (mb_strlen($note) > 2000 || ($status === $device['repair_status'] && $note === '')) {
+            $publicMessage = trim(requestText($input, 'public_message'));
+            if (mb_strlen($publicMessage) > 1000) {
+                throw new DomainException('Keep customer updates within 1000 characters.');
+            }
+            if (
+                mb_strlen($note) > 2000 ||
+                ($status === $device['repair_status'] && $note === '' && $publicMessage === '')
+            ) {
                 throw new DomainException(
-                    'Add a note of up to 2000 characters, or choose the next repair stage.',
+                    'Add a private note, a customer update, or choose the next repair stage.',
                 );
             }
             if (
@@ -174,9 +187,22 @@ function consoleSave(PDO $pdo, int $actorId, int $id, string $version, array $in
             )->execute([$status, $id]);
             $pdo->prepare(
                 "INSERT INTO ticket_status_events
-                (ticket_device_id, from_status, to_status, actor_type, actor_user_id, internal_note, is_customer_visible, created_at)
-                VALUES (?, ?, ?, 'USER', ?, ?, 0, UTC_TIMESTAMP())",
-            )->execute([$id, $device['repair_status'], $status, $actorId, $note ?: null]);
+                (ticket_device_id, from_status, to_status, actor_type, actor_user_id, internal_note, public_summary, is_customer_visible, created_at)
+                VALUES (?, ?, ?, 'USER', ?, ?, ?, ?, UTC_TIMESTAMP())",
+            )->execute([
+                $id,
+                $device['repair_status'],
+                $status,
+                $actorId,
+                $note ?: null,
+                $publicMessage ?: null,
+                (int) ($status !== $device['repair_status'] || $publicMessage !== ''),
+            ]);
+            if ($publicMessage !== '') {
+                $pdo->prepare(
+                    'UPDATE ticket_devices SET public_summary = ? WHERE ticket_device_id = ?',
+                )->execute([$publicMessage, $id]);
+            }
             $details = ['repair_status' => $status];
         } else {
             throw new DomainException('Your role cannot perform this action.');
@@ -234,4 +260,39 @@ function consoleDrafts(PDO $pdo, int $userId, array $input): array
         'created_at DESC, ticket_id DESC',
         requestText($input, 'draft_page', '1'),
     );
+}
+
+// Share the same allowed status values between the form and query.
+function consoleStatuses(): array
+{
+    return [
+        'RECEIVED',
+        'DIAGNOSING',
+        'AWAITING_CUSTOMER_APPROVAL',
+        'AWAITING_PARTS',
+        'IN_PROGRESS',
+        'TESTING',
+        'READY_FOR_PICKUP',
+        'COMPLETED',
+        'CANCELLED',
+    ];
+}
+
+function consoleStatusFilter(array $input): string
+{
+    $status = requestText($input, 'status');
+    return in_array($status, consoleStatuses(), true) ? $status : '';
+}
+
+// Changing one list must not reset the other list or its search filters.
+function consolePageUrl(array $input, string $key, int $page, string $anchor): string
+{
+    $query = [
+        'q' => mb_substr(requestText($input, 'q'), 0, 100),
+        'status' => consoleStatusFilter($input),
+        'page' => max(1, (int) requestText($input, 'page', '1')),
+        'draft_page' => max(1, (int) requestText($input, 'draft_page', '1')),
+    ];
+    $query[$key] = $page;
+    return '?' . http_build_query($query) . '#' . $anchor;
 }

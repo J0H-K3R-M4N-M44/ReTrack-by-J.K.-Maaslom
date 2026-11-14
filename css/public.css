@@ -1,0 +1,132 @@
+/* Customer pages share the existing dark and amber palette. */
+.public-body {
+  background: var(--steel-900);
+  color: var(--soft-white);
+  line-height: 1.6;
+}
+.public-body a {
+  color: var(--gold-300);
+}
+.public-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--steel-900);
+  border-bottom: 1px solid var(--steel-600);
+  padding: 18px max(20px, calc((100% - 1120px) / 2));
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.public-header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.public-page {
+  max-width: 1160px;
+  margin: auto;
+  padding: 36px 20px 64px;
+}
+.public-page h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  margin-top: 8px;
+}
+.public-card {
+  background: var(--steel-800);
+  border: 1px solid var(--steel-600);
+  border-radius: 16px;
+  padding: clamp(20px, 4vw, 32px);
+  margin-bottom: 24px;
+  min-width: 0;
+}
+.public-card h2 {
+  margin-top: 0;
+}
+.public-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 24px;
+}
+.public-card input {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #91a4ad;
+  border-radius: 8px;
+  background: var(--steel-900);
+  color: var(--soft-white);
+  font: inherit;
+  margin-top: 8px;
+}
+.public-button {
+  display: inline-block;
+  background: var(--gold-300);
+  color: var(--steel-900);
+  padding: 12px 20px;
+  border: 1px solid var(--gold-300);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+.public-button.secondary {
+  background: transparent;
+  color: var(--gold-300);
+}
+.public-toolbar {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.public-notice {
+  padding: 16px;
+  border-left: 4px solid var(--gold-300);
+  background: var(--steel-800);
+}
+.public-status {
+  display: inline-block;
+  border: 1px solid var(--gold-300);
+  color: var(--gold-300);
+  padding: 6px 14px;
+  border-radius: 24px;
+}
+.public-timeline {
+  padding-left: 24px;
+}
+.public-timeline li {
+  padding: 8px 0 24px 12px;
+  border-left: 2px solid var(--steel-600);
+}
+.public-message {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.public-body :focus-visible {
+  outline: 3px solid var(--gold-300);
+  outline-offset: 4px;
+}
+.skip-link:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .public-card {
+    animation: customer-entry 240ms ease-out;
+  }
+  @keyframes customer-entry {
+    from {
+      transform: translateX(-12px);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+}

@@ -1,10 +1,10 @@
 # RepairTrack: what is still missing
 
-Reviewed against the current PHP implementation on 2026-11-13. Prototype buttons and seeded records do not count as implemented features.
+Reviewed against the current PHP implementation on 2026-11-14. Prototype buttons and seeded records do not count as implemented features.
 
 ## Implemented foundation
 
-Shared login and password recovery; branch-scoped staff accounts; reviewed intake with device/problem/damage menus; draft editing; evidence-backed ticket issuance; admin summaries; manager technician assignment; assigned technician queues and private notes; limited repair-stage updates; read-only courier manifests and viewer status.
+Shared login and password recovery; branch-scoped staff accounts; reviewed intake with device/problem/damage menus; draft editing; evidence-backed ticket issuance; admin summaries; manager technician assignment; assigned technician queues and private notes; limited repair-stage updates; read-only courier manifests and viewer status; status-filtered queues; private customer tracking; staff-issued/replaced access codes; separate customer updates and private technician notes.
 
 ## Work still needed, in practical order
 
@@ -14,7 +14,7 @@ Shared login and password recovery; branch-scoped staff accounts; reviewed intak
 | 2 | Parts requests, reservation, issue/return and stock adjustments | Existing tables and demo rows do not implement stock operations. Prevent negative stock and record who approved each change. |
 | 3 | Cashier/COD records, billing and final handover | Cashier is not an existing user role. Decide whether a manager handles this first. Completion/cancellation must synchronize payment rules, device custody and ticket closure. |
 | 4 | Transfer dispatch, receiving and exceptions | Courier screens currently display manifests only. A handover must update device location, transfer items and custody history together. |
-| 5 | Public code/QR tracking | Issued codes identify records, but there is no working customer tracking page. Expose only approved customer-facing data, never internal notes or contact lists. |
+| 5 | QR convenience and richer customer actions | Private-code tracking now works. QR generation/scanning and customer approval/request actions remain. Receipt numbers alone never open a repair. |
 | 6 | Customer consultation and requests | Technician/customer messages, upgrades, cancellations and approval responses need real storage, permissions and audited decisions. |
 | 7 | Notifications and usable history screens | Current audit/status records are not a full notification inbox or searchable admin history. Add role/device scope, read state and grouped delivery. SMS/email repair alerts remain unimplemented. |
 | 8 | Branch and store operations UI | Branch/location setup and technician skills/availability management are incomplete. |

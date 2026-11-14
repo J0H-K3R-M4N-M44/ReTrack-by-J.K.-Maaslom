@@ -20,6 +20,11 @@
 ) ?> <a href="?id=<?= $id ?>">Reload device</a></p><?php endif; ?>
     <section class="dashboard-card">
         <h2>Repair details</h2>
+        <?php if (in_array($user['role'], ['ADMIN', 'MANAGER', 'INTAKE_AGENT'], true)): ?>
+            <p><a class="secondary-btn" href="ticket.php?id=<?= (int) $device[
+                'ticket_id'
+            ] ?>">Receipt and customer tracking access</a></p>
+        <?php endif; ?>
         <dl class="staff-review">
             <div><dt>Status</dt><dd><?= h(
                 dashboardStatusLabel($device['repair_status']),
@@ -69,6 +74,9 @@
                         dashboardStatusLabel($values['status']),
                     ) ?></dd></div>
                     <div><dt>Private note</dt><dd><?= h($values['note'] ?: 'No note') ?></dd></div>
+                    <div><dt>Customer-visible update</dt><dd><?= h(
+                        $values['public_message'] ?: 'No new message',
+                    ) ?></dd></div>
                     <?php endif; ?>
                 </dl>
                 <div class="staff-actions"><button name="intent" value="edit" class="secondary-btn">Go back</button><button name="intent" value="save" class="logout-btn">Confirm change</button></div>
@@ -106,7 +114,13 @@
                         $values['note'],
                     ) ?></textarea>
                 </label>
-                <p>Only you and administrators can see this note. Starting repair requires an approved quote; quote approval and customer handover are not performed here.</p>
+                <label for="public-message">Customer-visible update (optional)
+                    <textarea id="public-message" name="public_message" rows="3" maxlength="1000"><?= h(
+                        $values['public_message'],
+                    ) ?></textarea>
+                </label>
+                <p>Customer updates and stage changes appear in private tracking. Never include passwords, private diagnostics or other customers' information.</p>
+                <p>Only you and administrators can see the private work note. Starting repair requires an approved quote; quote approval and customer handover are not performed here.</p>
                 <button name="intent" value="review" class="logout-btn">Review progress</button>
             <?php endif; ?>
         </form>
@@ -115,7 +129,7 @@
     <?php if (in_array($user['role'], ['ADMIN', 'TECHNICIAN'], true)): ?>
     <section class="dashboard-card">
         <h2><?= $user['role'] === 'ADMIN' ? 'Internal repair history' : 'Your repair notes' ?></h2>
-        <p>Latest 20 entries. This view does not publish notes or send notifications.</p>
+        <p>Latest 20 entries. Private notes stay internal. Customer updates are published separately; no SMS or email is sent.</p>
         <?php if (!$events): ?><p>No entries available.</p><?php endif; ?>
         <?php foreach ($events as $event): ?>
             <article class="console-event"><strong><?= h(

@@ -7,7 +7,13 @@ $user = requireRoles(['ADMIN', 'MANAGER', 'TECHNICIAN', 'INTAKE_AGENT', 'VIEWER'
 header('Cache-Control: no-store, private');
 $error = '';
 $review = false;
-$values = ['action' => '', 'technician' => '', 'status' => '', 'note' => ''];
+$values = [
+    'action' => '',
+    'technician' => '',
+    'status' => '',
+    'note' => '',
+    'public_message' => '',
+];
 try {
     $pdo = getPDO();
     foreach ($_SESSION['device_forms'] ?? [] as $key => $state) {

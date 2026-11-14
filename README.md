@@ -71,3 +71,7 @@ See [home content notes](docs/home-content.md) for the preparation guide, FAQ an
 ## Demo separation
 
 The standalone prototype and expanded classroom seeder now live on [Demo-System](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/tree/Demo-System). This branch keeps the working PHP application and original SQL regression fixtures. See [remaining workflows](docs/system-gaps.md) and [pending legacy branch cleanup](docs/branch-cleanup.md).
+
+## Customer portal and console improvements
+
+Private customer tracking, revocable access codes, customer-safe technician updates and queue filters now reuse the existing database. See [the workflow and tests](docs/customer-tracking.md). No schema migration is needed.

@@ -24,7 +24,7 @@ try {
   );
   await page.getByText('Can I track a repair online yet?', { exact: true }).click();
   assert(
-    await page.getByText('Public code/QR tracking is not available', { exact: false }).isVisible()
+    await page.getByText('Ask your branch for a private tracking code', { exact: false }).isVisible()
   );
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   assert(await page.locator('#site-nav').isVisible());
@@ -39,7 +39,14 @@ try {
   });
   await motion.goto(url + '/index.php');
   assert.equal(videos, 0);
+  assert.equal(await motion.locator('.site-header').evaluate(el => getComputedStyle(el).position), 'fixed');
+  assert.equal(await motion.locator('#services .process-card').first().evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(27, 44, 52)');
   await motion.screenshot({ path: site + '/home-desktop.png', fullPage: true });
+  await motion.setViewportSize({ width: 390, height: 844 });
+  await motion.locator('.menu-toggle').click();
+  assert.equal(await motion.locator('.menu-toggle').getAttribute('aria-expanded'), 'true');
+  await motion.keyboard.press('Escape');
+  assert.equal(await motion.locator('.menu-toggle').getAttribute('aria-expanded'), 'false');
   console.log('PASS: homepage FAQ, no-JS mobile navigation and reduced-motion video.');
 } finally {
   await browser.close();
