@@ -1,6 +1,6 @@
 # RepairTrack complete demonstration
 
-Open `index.html` in a modern browser, or use the hosted demo. Use the role selector to explore Public, Customer, Admin, Technician, Cashier and Collector workspaces. No account or real password is needed.
+Open `index.html` for an offline walkthrough or use the hosted demo. Serve the folder over HTTP with VS Code Live Server or PHP when enabling Google Maps. Use the role selector to explore Public, Customer, Admin, Technician, Cashier and Collector workspaces. No account or real password is needed.
 
 Tracking code: `DEMO-1042`. Separate demo PIN: `2468`.
 
@@ -21,10 +21,15 @@ Use **Wireframe view** to explain the structure, **Screen sizes** to preview pho
 - `app.js`: rendering helpers, screens, dialogs, workflow actions and form handlers.
 - `styles.css`: design tokens, desktop/mobile layouts, print and wireframe styles.
 - `responsive.html`: interactive device-size preview.
+- `branch-maps.js`: Sogod map data, map loading and last-confirmed custody markers.
+- `maps-config.example.js`: safe starter config for a restricted browser key.
 - `vendor/qrcode.js`: vendored MIT QR generator.
 
+## Maps setup
+See `MAPS-AND-ALERTS.md` to add a Google Maps JavaScript API key to the ignored local `maps-config.js`. Contact listings, the customer Location tab and staff Map and custody page use the same map. Device positions show the last branch where staff confirmed custody. The demo does not track a courier by GPS. Without a key, branch addresses and Google Maps links remain available.
+
 ## Demonstration limits
-This is a browser-only simulation, not production authentication or financial software. All records, PINs, receipts, customers and amounts are fictional. Roles are deliberately switchable. There is no live chat server, email/SMS, digital payment, real map/GPS, actual photo upload or legal signature. QR generation works; camera scanning depends on browser support, permission and HTTPS, with manual code entry as fallback. Camera operation was not tested. A local file QR cannot be opened on another device without hosting the demo.
+This is a browser-only simulation, not production authentication or financial software. All records, PINs, receipts, customers and amounts are fictional. Roles are deliberately switchable. There is no live chat server, production email/SMS, digital payment or live GPS tracking. Google Maps displays branch reference points when configured; it does not show a courier's current position. Actual photo upload and legal signature are not captured. QR generation works; camera scanning depends on browser support, permission and HTTPS, with manual code entry as fallback. Camera operation was not tested. A local file QR cannot be opened on another device without hosting the demo.
 
 The prototype captures cash at the final-bill stage, partial payments, refunds and COD remittance. Production policies for deposits, cancellation charges and signatures still need approval. The demo records a photo filename only. Catalog editing, date-range analytics and granular staff permissions are production extensions; sample prices and all-record reporting demonstrate those concepts.
 
