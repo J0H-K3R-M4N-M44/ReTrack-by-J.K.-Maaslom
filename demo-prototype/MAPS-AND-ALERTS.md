@@ -6,7 +6,7 @@ The maps work in the contact page, the customer portal's **Location** tab, and t
 
 1. In Google Cloud, enable **Maps JavaScript API**, attach a billing account, and create a browser API key.
 2. Restrict the key to the Maps JavaScript API and to the local web address you use, such as `http://localhost:5500/*` for VS Code Live Server or `http://localhost:8080/*` for PHP's built-in server. Use the exact host and port shown in your browser.
-3. Copy `maps-config.example.js` to `maps-config.js` and paste the restricted browser key into `apiKey`. The local key file is ignored by Git.
+3. Copy `maps-config.example.js` to `maps-config.js` and paste the restricted browser key into `apiKey`. The local key file is ignored by Git. In `index.html`, uncomment the `maps-config.js` script immediately after `maps-config.example.js`. The default example has no key and loads without missing-file errors.
 4. Serve the folder using VS Code Live Server or PHP, then open the site's HTTP address. Maps JavaScript API needs a website origin; opening the page as `file://` only shows the fallback link.
 
 The map uses Google's `DEMO_MAP_ID` for the sample view. For a deployed site, create a map ID in Google Cloud and set it in the local config. Never put a server key or an unrestricted key in a browser file. Google Maps sends the visitor's browser request to Google when an enabled map loads.
@@ -37,3 +37,12 @@ The staff **Map and custody** page filters its device list using the selected br
 Track `DEMO-1042`, open **Messages**, verify with the demo PIN `2468`, then select Email or SMS under Alerts. Switch to the assigned technician, open that repair, and publish a valid stage change or a quotation. Track the same ticket again and verify to see the alert. Internal notes do not generate external alerts.
 
 Both channels preview automatically by default. For real email during a local presentation, configure PHP mail with a working mail transport, set the server environment variable `REPAIRTRACK_DEMO_EMAIL` to your own test inbox, enable `USE_LOCAL_EMAIL_RELAY` in `ticket-alerts.js`, and serve this directory using PHP on localhost. Email goes only to that configured inbox. Mail acceptance does not confirm delivery. SMS is simulated. Never place provider secrets in browser scripts.
+
+## Regression checks after changing maps
+
+- On **Map and custody**, open two different repairs. Each heading must match the clicked ticket. Invalid ticket URLs must return to Repairs rather than show another customer's record.
+- Without a key, every map panel must offer working branch links. The default page must not request a missing `maps-config.js` file.
+- With a configured key, check a transfer: the origin is **Last confirmed** and the receiving branch is **Destination**. Shop names and internal branch names are different fields.
+- Navigate away while the map is loading, then return. Removed panels must not initialize; an existing panel must not create a second map.
+- Block the Google script request, then unblock it and reopen the page. Failed requests must not permanently cache a rejected loader.
+- Check widths of 320, 390, 768 and 1440 pixels for horizontal overflow and readable map messages. Live Google tiles and account restrictions require a real restricted key; mocked API checks do not validate those.

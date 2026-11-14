@@ -50,7 +50,7 @@ function branchMapCard(branch, options = {}) {
     branches,
     current,
     destination: options.destination || '',
-      inTransit: Boolean(options.inTransit),
+    inTransit: Boolean(options.inTransit),
   };
 
   return `<article class="card map-card">
@@ -66,34 +66,36 @@ function branchMapCard(branch, options = {}) {
 
 // Add a map only when the current page has a map panel and a browser key is configured.
 function initRepairTrackMaps() {
-  const mapElements = [...document.querySelectorAll('[data-branches]')];
+  const mapElements = [...document.querySelectorAll('.repairtrack-map[data-branches]')];
   if (!mapElements.length) return;
 
   const config = window.REPAIRTRACK_MAPS_CONFIG || {};
-  if (!config.apiKey) {
+  if (!config.apiKey || location.protocol === 'file:') {
     mapElements.forEach((element) => {
-      element.classList.add('map-fallback');
-      element.textContent = 'Map preview is off. Add a restricted Google Maps key to maps-config.js, or use Open in Google Maps.';
+      showMapFallback(element, 'Interactive map unavailable. You can still view these branch locations in Google Maps.');
     });
     return;
   }
 
   loadGoogleMaps(config.apiKey)
     .then(async () => {
-      const [{ Map }, { AdvancedMarkerElement }, { InfoWindow }] = await Promise.all([
+      const [{ Map, InfoWindow }, { AdvancedMarkerElement }] = await Promise.all([
         google.maps.importLibrary('maps'),
         google.maps.importLibrary('marker'),
-        google.maps.importLibrary('maps'),
       ]);
 
       mapElements.forEach((element) => {
+        // Navigation may have replaced this panel while Google was loading.
+        if (!element.isConnected || element.dataset.mapReady === 'true') return;
+        element.classList.remove('map-fallback');
+        element.replaceChildren();
         const branchNames = element.dataset.branches
           .split(',')
           .map(decodeURIComponent)
           .filter((name) => branchPlaces[name]);
         const current = element.dataset.current;
         const destination = element.dataset.destination;
-        const places = branchNames.map((name) => ({ name, ...branchPlaces[name] }));
+        const places = branchNames.map((name) => ({ ...branchPlaces[name], branchName: name }));
         if (!places.length) return;
 
         const map = new Map(element, {
@@ -108,8 +110,8 @@ function initRepairTrackMaps() {
         const info = new InfoWindow();
 
         places.forEach((place) => {
-          const isCurrent = place.name === current;
-          const isDestination = place.name === destination;
+          const isCurrent = place.branchName === current;
+          const isDestination = place.branchName === destination;
           const markerLabel = isCurrent ? 'Last confirmed' : isDestination ? 'Destination' : 'Branch';
           const markerContent = document.createElement('div');
           markerContent.className = `repairtrack-map-pin${isCurrent ? ' is-current' : ''}${isDestination ? ' is-destination' : ''}`;
@@ -118,14 +120,15 @@ function initRepairTrackMaps() {
           const marker = new AdvancedMarkerElement({
             map,
             position: place.position,
-            title: `${markerLabel}: ${place.name}`,
+            title: `${markerLabel}: ${place.branchName} · ${place.name}`,
             content: markerContent,
           });
           marker.addListener('click', () => {
             const details = document.createElement('div');
+            details.className = 'map-info';
             const title = document.createElement('strong');
             const address = document.createElement('p');
-            title.textContent = `${markerLabel}: ${place.name}`;
+            title.textContent = `${markerLabel}: ${place.branchName} · ${place.name}`;
             address.textContent = `${place.address}, Philippines`;
             details.append(title, address);
             info.setContent(details);
@@ -134,6 +137,7 @@ function initRepairTrackMaps() {
           bounds.extend(place.position);
         });
 
+        element.dataset.mapReady = 'true';
         if (places.length > 1) {
           map.fitBounds(bounds);
         } else {
@@ -143,10 +147,33 @@ function initRepairTrackMaps() {
     })
     .catch(() => {
       mapElements.forEach((element) => {
-        element.classList.add('map-fallback');
-        element.textContent = 'Google Maps could not load. Check the API key, enabled APIs, billing, and allowed website address.';
+        if (element.isConnected) {
+          showMapFallback(element, 'The map could not load. Use a branch link below to view its location.');
+        }
       });
     });
+}
+
+// Every map, including the staff overview, has useful links if loading fails.
+function showMapFallback(element, message) {
+  element.classList.add('map-fallback');
+  element.removeAttribute('data-map-ready');
+  const text = document.createElement('p');
+  text.textContent = message;
+  const links = document.createElement('div');
+  links.className = 'actions';
+  element.dataset.branches.split(',').map(decodeURIComponent).forEach((branch) => {
+    const place = branchPlaces[branch];
+    if (!place) return;
+    const link = document.createElement('a');
+    link.className = 'button quiet';
+    link.textContent = `View ${branch}`;
+    link.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name + ', ' + place.address)}`;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    links.append(link);
+  });
+  element.replaceChildren(text, links);
 }
 
 let googleMapsPromise;
@@ -155,7 +182,6 @@ function loadGoogleMaps(apiKey) {
   if (googleMapsPromise) return googleMapsPromise;
 
   googleMapsPromise = new Promise((resolve, reject) => {
-    window.repairTrackMapsLoaded = resolve;
     const script = document.createElement('script');
     const params = new URLSearchParams({
       key: apiKey,
@@ -163,15 +189,30 @@ function loadGoogleMaps(apiKey) {
       loading: 'async',
       callback: 'repairTrackMapsLoaded',
     });
-    const timeout = setTimeout(() => reject(new Error('Google Maps timed out')), 12000);
+    // Clear failed requests so returning to the page can try again.
+    const fail = () => {
+      clearTimeout(timeout);
+      script.remove();
+      reject(new Error('Google Maps failed to load'));
+    };
+    const timeout = setTimeout(fail, 12000);
     window.repairTrackMapsLoaded = () => {
       clearTimeout(timeout);
       resolve();
     };
+    window.gm_authFailure = () => {
+      fail();
+      document.querySelectorAll('.repairtrack-map[data-branches]').forEach((element) => {
+        showMapFallback(element, 'Interactive map unavailable. Use a branch link to view its location.');
+      });
+    };
     script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
     script.async = true;
-    script.onerror = () => reject(new Error('Google Maps failed to load'));
+    script.onerror = fail;
     document.head.appendChild(script);
+  }).catch((error) => {
+    googleMapsPromise = null;
+    throw error;
   });
   return googleMapsPromise;
 }

@@ -300,8 +300,25 @@ small {
   display: grid;
   place-items: center;
   padding: 28px;
-  color: var(--muted);
+  color: var(--text);
+  background: var(--panel);
   text-align: center;
+}
+.map-info {
+  color: #17232d;
+  max-width: 260px;
+  line-height: 1.5;
+}
+.map-fallback .actions {
+  justify-content: center;
+}
+@media (max-width: 600px) {
+  .map-canvas {
+    min-height: 260px;
+  }
+  .map-canvas.map-fallback {
+    padding: 16px;
+  }
 }
 .map-status {
   padding: 12px 14px;
@@ -328,6 +345,11 @@ small {
 }
 .map-overview .map-canvas {
   min-height: 420px;
+}
+@media (max-width: 600px) {
+  .map-overview .map-canvas {
+    min-height: 260px;
+  }
 }
 .metric {
   font-size: 34px;

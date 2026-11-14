@@ -587,6 +587,23 @@ function render() {
     go('login');
     return;
   }
+  // Deep links must select their own ticket instead of reusing the last one opened.
+  if (route === 'repair' && location.hash.split('/')[1]) {
+    let repairId = '';
+    try {
+      repairId = decodeURIComponent(location.hash.split('/')[1]);
+    } catch {
+      // Malformed links are treated like an unavailable repair.
+    }
+    const selected = scope().find((repair) => repair.id === repairId);
+    if (!selected) {
+      go('repairs');
+      toast('This repair is unavailable in your current branch or assignment.');
+      return;
+    }
+    if (activeTicket !== selected.id) activeDevice = 0;
+    activeTicket = selected.id;
+  }
   $('#app').innerHTML = publics.includes(route)
     ? (pages[route] || home)()
     : shell(route, (pages[route] || overview)());
