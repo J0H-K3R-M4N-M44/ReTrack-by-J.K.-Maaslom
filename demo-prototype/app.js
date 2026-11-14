@@ -146,6 +146,7 @@ const navs = {
   Admin: [
     ['overview', 'Overview', '◈'],
     ['repairs', 'Repairs', '▣'],
+    ['locations', 'Map and custody', '⌖'],
     ['customers', 'Customers', '◎'],
     ['team', 'Team', '♧'],
     ['inventory', 'Inventory', '▤'],
@@ -168,6 +169,7 @@ const navs = {
   Collector: [
     ['logistics', 'My collections', '⌖'],
     ['transfers', 'Handoffs', '⇄'],
+    ['locations', 'Device locations', '⌖'],
     ['finance', 'COD remittance', '₱'],
   ],
 };
@@ -357,8 +359,16 @@ function portal() {
   let html = '';
   if (tab === 'overview')
     html = `<div class="grid"><section class="card"><p class="eyebrow">Your devices</p><div class="list">${t.devices.map((d) => `<article class="list-item"><div><h3>${esc(d.name)}</h3><p>${esc(d.problem)}</p>${badge(d.status)}</div></article>`).join('')}</div></section><section class="card"><p class="eyebrow">What happens next</p><h2>${currentQuote(t)?.status === 'Pending' ? 'Your quotation is ready' : t.devices.every((d) => d.status === 'Returned') ? 'Your devices are back with you' : 'Your team will keep you informed'}</h2><p class="muted">${currentQuote(t)?.status === 'Pending' ? 'Review the itemized costs before work proceeds.' : 'Check the latest published update below, or contact your repair team.'}</p>${link('View costs', 'portal/costs', 'button primary')}</section></div><section class="card section"><h2>Repair timeline</h2>${timeline(t.events.filter((e) => e.public))}</section>`;
-  if (tab === 'location')
-    html = `<div class="grid"><section class="card"><p class="eyebrow">Last confirmed custody</p><h2>${esc(t.location)}</h2><p>${esc(t.custody)}</p>${BRANCHES.includes(t.location) ? branchMapCard(t.location) : '<p>Device is away from a branch. See the last confirmed handoff below.</p>'}</section><section class="card"><h2>Location updates</h2>${timeline(t.events.filter((e) => e.public && /branch|handoff|transit|deliver|return|received/i.test(e.text)))}</section></div>`;
+  if (tab === 'location') {
+    const transfer = [...state.transfers].reverse().find((movement) =>
+      movement.ticket === t.id && movement.status === 'In transit'
+    );
+    const lastConfirmed = transfer?.from || t.location;
+    const mapStatus = transfer
+      ? `In transit to ${transfer.to}. Last confirmed at ${lastConfirmed}. Live GPS is not available.`
+      : `Last confirmed at ${lastConfirmed}. The map updates after staff records a handoff.`;
+    html = `<div class="grid"><section class="card"><p class="eyebrow">Last confirmed custody</p><h2>${esc(lastConfirmed)}</h2><p>${esc(t.custody)}</p>${BRANCHES.includes(lastConfirmed) ? branchMapCard(lastConfirmed, { id: 'ticket-location-map', branches: transfer ? [transfer.from, transfer.to] : [lastConfirmed], current: lastConfirmed, destination: transfer?.to, inTransit: Boolean(transfer), statusText: mapStatus }) : '<p>Device is away from a branch. See the last confirmed handoff below.</p>'}</section><section class="card"><h2>Location updates</h2>${timeline(t.events.filter((e) => e.public && /branch|handoff|transit|deliver|return|received/i.test(e.text)))}</section></div>`;
+  }
   if (['messages', 'requests', 'costs'].includes(tab) && !verified)
     html = `<section class="card narrow"><p class="eyebrow">Extra verification</p><h2>Confirm access to your repair</h2><p class="muted">Tracking shows basic progress. Messages, costs and decisions need a separate PIN.</p><form data-form="verify" class="stack">${field('Demo PIN', 'pin', '', 'password')}<button class="primary">Verify demo access</button><small>Demo PIN: 2468. This is simulated verification only.</small></form></section>`;
   else if (tab === 'messages') html = chatHTML(t, true);
@@ -468,6 +478,22 @@ function transfers() {
     `<section class="list">${state.transfers.map((x, i) => `<article class="card"><div class="row between"><h2>${x.ticket} · ${esc(x.type)}</h2>${badge(x.status)}</div><p>${esc(x.from)} to ${esc(x.to)}</p><p class="muted">${esc(x.evidence || 'Handoff evidence pending')}</p><div class="actions">${x.status === 'In transit' ? btn('Confirm handoff', 'receive-transfer', `data-index="${i}"`, 'primary') : ''}</div></article>`).join('') || empty('Open a repair and choose Transfer / delivery to start a handoff.')}</section>`
   );
 }
+function locations() {
+  const records = scope().filter((repair) => repair.issued);
+  const visibleBranches = state.branch === 'All branches' ? BRANCHES : [state.branch];
+  const activeMovements = state.transfers.filter((movement) =>
+    records.some((repair) => repair.id === movement.ticket) && movement.status === 'In transit'
+  );
+  return (
+    header('Map and device custody', 'Branch pins and the last confirmed device handoff.') +
+    `<section class="card map-overview"><h2>${state.branch === 'All branches' ? 'Sogod service area' : esc(state.branch)}</h2><p class="muted">Shop pins are geographic references. Device locations change only when staff records a handoff.</p>${branchMapPanel(visibleBranches, { id: 'staff-branch-map' })}</section><section class="section"><h2>Issued devices</h2><div class="list">${records.map((repair) => {
+      const movement = [...state.transfers].reverse().find((item) => item.ticket === repair.id && item.status === 'In transit');
+      const lastConfirmed = movement?.from || repair.location;
+      const movementText = movement ? `In transit to ${movement.to}. Last confirmed at ${lastConfirmed}.` : `Last confirmed at ${lastConfirmed}.`;
+      return `<article class="card"><div class="row between"><h3>${esc(repair.id)} · ${esc(repair.customer)}</h3>${badge(repair.custody)}</div><p>${esc(repair.devices.map((device) => device.name).join(', '))}</p><p class="muted">${esc(movementText)}</p>${link('Open repair', `repair/${encodeURIComponent(repair.id)}`, 'button quiet')}</article>`;
+    }).join('') || empty('No issued devices in this branch.')}</div></section>${activeMovements.length ? `<section class="card section"><h2>In transit</h2>${activeMovements.map((movement) => `<p><strong>${esc(movement.ticket)}</strong> from ${esc(movement.from)} to ${esc(movement.to)}</p>`).join('')}<small>Positions between handoffs are not tracked by GPS.</small></section>` : ''}`
+  );
+}
 function finance() {
   return (
     header(
@@ -539,6 +565,7 @@ function render() {
     portal,
     overview,
     repairs,
+    locations,
     intake,
     repair: repairDetail,
     messages,
@@ -563,6 +590,7 @@ function render() {
   $('#app').innerHTML = publics.includes(route)
     ? (pages[route] || home)()
     : shell(route, (pages[route] || overview)());
+  initRepairTrackMaps();
   if (route === 'home' && matchMedia('(prefers-reduced-motion: reduce)').matches) {
     $('video')?.pause();
     const b = $('[data-action=video]');

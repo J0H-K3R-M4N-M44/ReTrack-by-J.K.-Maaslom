@@ -284,6 +284,51 @@ small {
   padding: 24px;
   min-width: 0;
 }
+.map-card {
+  display: grid;
+  gap: 12px;
+}
+.map-canvas {
+  width: 100%;
+  min-height: 320px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #dce7e6;
+}
+.map-canvas.map-fallback {
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  color: var(--muted);
+  text-align: center;
+}
+.map-status {
+  padding: 12px 14px;
+  border-left: 3px solid var(--accent);
+  background: #2a2520;
+  color: #f5dfbd;
+}
+.repairtrack-map-pin {
+  padding: 6px 10px;
+  border: 2px solid #fff;
+  border-radius: 20px;
+  background: #344b5a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px #0007;
+  white-space: nowrap;
+}
+.repairtrack-map-pin.is-current {
+  background: #147c72;
+}
+.repairtrack-map-pin.is-destination {
+  background: #a76022;
+}
+.map-overview .map-canvas {
+  min-height: 420px;
+}
 .metric {
   font-size: 34px;
   font-weight: 750;
