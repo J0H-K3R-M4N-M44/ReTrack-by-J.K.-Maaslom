@@ -1,0 +1,49 @@
+# Staff workspace
+
+This branch extends the PHP application. Main is unchanged. It uses the prototype's compact dark interface, with one selected work list instead of repeated tables.
+
+## Upgrade an existing installation
+
+Back up the database. Select your application database in MySQL Workbench, then run `database/staff_workspace.sql`. The migration can run again safely. It adds three nullable columns and the CASHIER role; it adds no tables. Fresh installations already include these fields in `database/schema.sql`.
+
+Set `technician_active_limit` in your local `config/config.php` if needed; the default is 5. Keep this file untracked. Existing ticket references and old tracking links are preserved.
+
+## Daily workflow
+
+- All staff use the same sign-in form. Their account role and branch assignments select the available console. Show password and Caps Lock feedback help with entry.
+- Managers assign devices. Each technician may hold five active devices by default, across branches. Completed/cancelled devices and closed tickets no longer count. The server checks capacity while locking the technician record; disabling a full technician in the dropdown is only a convenience.
+- Technicians work from their assigned queue. The first transition into In progress records the repair start time. Pausing and resuming does not overwrite it. Adding a note does not invent a start time. Quote approval rules still apply.
+- The status board groups the current page of devices by repair stage. It is not a total of every matching device. Queue and board show the same filtered data in different layouts.
+- History contains completed/cancelled devices and closed tickets. Records remain stored; this is not deletion. Couriers have separate active and historical manifest views.
+- Intake agents and managers can open Saved drafts or start intake. Only the selected section loads its list.
+- Cashiers can search issued/void bills by ticket reference, five-character tracking code or bill number. This is read-only bill lookup: it does not record payment, calculate outstanding balances, or authorize handover. Administrators/managers can also access it.
+
+## Dates, tables and analytics
+
+Repair start timestamps are stored in UTC and displayed in Philippine time. The migration backfills only genuine first In progress status events. Missing dates say Not recorded.
+
+Tables and history lists use ten rows per page, visible result counts, search and navigation. Numeric amounts align right. Search and selected view remain in pagination links. Mobile tables scroll within their container.
+
+Seven-day repair-start trends show dates and exact counts on hover, keyboard focus or tap. Escape dismisses the detail. Counts reflect the user's current assigned scope, not historical technician attribution. Admin metric details show snapshot date/count. These are not financial or turnaround reports.
+
+## Customer access
+
+Staff issue an uppercase five-character hexadecimal code and a PIN derived from the last four digits of the customer's recorded phone number. The PIN is hashed; the code is indexed uniquely and collisions are retried. Existing receipt references are unchanged. Existing 64-character private codes continue working until replaced.
+
+Replacement revokes both old access formats. The PIN is a snapshot when issued: changing a phone record does not silently change it; issue replacement access. Invalid/missing phone records must be corrected before issuance. Code and IP attempt limits use the existing single-server limiter. Customer sessions expire after thirty minutes and recheck access on each request.
+
+A phone suffix is predictable, so this is a convenience credential with limited security. The portal exposes only repair progress and public updates, never phone numbers, private work notes, serial numbers or payment details. Use HTTPS in deployment; agree on retention and stronger credentials before widening the information shown.
+
+## Verification
+
+Use only a disposable `repairtrack_test_*` database. Import the original demo schema and seed, then apply the migration twice to check upgrades and repeatability. Configure the test database locally. Run these in order:
+
+1. `php tests/staff-consoles.php`
+2. `php tests/public-tracking.php`
+3. With a local PHP server, run `tests/consoles-browser.mjs`, `tests/public-browser.mjs`, and `tests/home-browser.mjs` using Node.
+4. `php tests/staff-workspace.php`
+5. `node tests/workspace-browser.mjs`
+
+Browser scripts use Playwright, `CHROME_PATH`, `REPAIRTRACK_TEST_URL` and `REPAIRTRACK_TEST_SITE`. Fixture scripts change data; recreate the disposable database before repeating. Do not deploy generated fixture files or screenshots.
+
+See `system-gaps.md` for unfinished quote, stock, payment and handover workflows. Validate the migration on the target MySQL installation before deploying.

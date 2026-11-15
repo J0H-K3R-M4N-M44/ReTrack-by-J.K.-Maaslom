@@ -120,7 +120,7 @@
      'total'
  ] ?> · maximum 10 per page</p>
         <?php if (!$page['rows']): ?>
-            <div class="workspace-empty"><h3>No matching records</h3><p>Try clearing your filters. Finished work is available in History.</p></div>
+            <div class="workspace-empty"><h3>No matching records</h3><p>Try clearing your filters or searching with a shorter term.</p></div>
         <?php elseif ($view === 'board'): ?>
             <p>Cards show this page of filtered results. Active queue shows the same records as a table.</p>
             <div class="status-board">

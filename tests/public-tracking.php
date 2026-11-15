@@ -37,6 +37,14 @@ $manager = $fixture['accounts']['MANAGER'];
 $tech = $fixture['accounts']['TECHNICIAN'];
 $device = consoleDevice($pdo, $manager, $fixture['device']);
 $ticketId = (int) $device['ticket_id'];
+// Older seed customers only have email; short-code access requires a recorded phone.
+$pdo->prepare(
+    "INSERT INTO customer_contacts
+    (customer_id, contact_type, contact_value, normalized_value, is_primary)
+    SELECT customer_id, 'PHONE', '09171234567', '09171234567', 0
+    FROM repair_tickets WHERE ticket_id = ?",
+)->execute([$ticketId]);
+
 $query = $pdo->prepare('SELECT tracking_token_hash FROM repair_tickets WHERE ticket_id = ?');
 $query->execute([$ticketId]);
 $code = replaceTrackingCode($pdo, $manager['user_id'], $ticketId, $query->fetchColumn());

@@ -74,6 +74,11 @@ try {
   );
   await page.locator('[name=confirm_share]').check();
   await page.getByRole('button', { name: 'Create tracking code and PIN' }).click();
+  assert.equal(
+    await page.locator('#private-code').count(),
+    1,
+    await page.locator('main').innerText()
+  );
   assert.match(await page.locator('#private-code').inputValue(), /^[A-F0-9]{5}$/);
   await visitor.reload();
   assert(

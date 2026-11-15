@@ -2,6 +2,10 @@
 
 RepairTrack is a PHP and MySQL learning project for tracking computer repairs across one or more store branches. The current `Dashboard` screen keeps the existing dark interface and uses database-backed staff login with administrator-only management.
 
+## Staff workspace update
+
+Before using this branch with an existing database, select that database and run `database/staff_workspace.sql`. See [staff workflow and upgrade instructions](docs/staff-workspace.md) for role-specific queues, workload limits, history, cash-desk lookup and short-code/PIN tracking. Fresh schemas already include the changes.
+
 ## Requirements
 
 - PHP 8.1 or newer

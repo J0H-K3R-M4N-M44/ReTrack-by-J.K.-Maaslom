@@ -57,7 +57,7 @@
                 <article class="process-card"><h3>Laptops and desktops</h3><p>Power problems, slow performance, startup failures and overheating.</p></article>
                 <article class="process-card"><h3>Device diagnostics</h3><p>Describe the symptoms and let the technician inspect the cause.</p></article>
                 <article class="process-card"><h3>Parts and upgrades</h3><p>Ask about compatible memory, storage and replacement components.</p></article>
-                <article class="process-card"><h3>Repair updates</h3><p>Use your private code to check progress and messages from the service team.</p><a href="track.php">Open tracking →</a></article>
+                <article class="process-card"><h3>Repair updates</h3><p>Use your tracking code and phone PIN to check progress and messages from the service team.</p><a href="track.php">Open tracking →</a></article>
             </div>
         </section>
         <section class="section process-section" id="how-it-works" aria-labelledby="process-title">
@@ -161,7 +161,7 @@
             <div class="section-heading reveal"><p class="eyebrow">Common questions</p><h2 id="questions-title">Know what happens next.</h2></div>
             <div class="faq-list">
                 <details><summary>Do I need an account to bring in a device?</summary><p>No customer account is needed for the current counter-intake workflow. An administrator records your details and links your device to the intake.</p></details>
-                <details><summary>Can I track a repair online yet?</summary><p>Yes. Ask your branch for a private tracking code, then choose Track your repair. Your receipt number alone does not grant access. Tracking shows saved staff updates; it does not follow a courier by GPS.</p></details>
+                <details><summary>Can I track a repair online yet?</summary><p>Yes. Ask your branch for a private tracking code, then choose Track your repair and enter the last four digits of your recorded phone number as your PIN. Your receipt number alone does not grant access. Tracking shows saved staff updates; it does not follow a courier by GPS.</p></details>
                 <details><summary>What if I cannot find the serial number?</summary><p>Tell the person accepting the device. They can record other identifying marks or specifications before issuing the intake. Do not guess a serial number.</p></details>
                 <details><summary>Is an intake reference a repair quote or payment receipt?</summary><p>No. It identifies the accepted device and intake record. Ask the branch about assessment, pricing, payment arrangements and approval before repair work. This version does not collect online payments.</p></details>
                 <details><summary>How long will the repair take?</summary><p>The branch needs to assess the fault, parts availability and workload before giving an estimate. The website does not promise a fixed turnaround time.</p></details>
