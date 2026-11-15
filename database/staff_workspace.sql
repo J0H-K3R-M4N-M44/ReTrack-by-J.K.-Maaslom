@@ -1,5 +1,7 @@
 -- Select your RepairTrack database in Workbench. Back up before migrating.
 -- MySQL 8 / compatible MariaDB; safe to rerun.
+-- Convert historical TIMESTAMP events to UTC before copying into DATETIME.
+SET time_zone = '+00:00';
 DELIMITER $$
 DROP PROCEDURE IF EXISTS migrate_staff_workspace$$
 CREATE PROCEDURE migrate_staff_workspace()

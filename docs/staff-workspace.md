@@ -47,3 +47,12 @@ Use only a disposable `repairtrack_test_*` database. Import the original demo sc
 Browser scripts use Playwright, `CHROME_PATH`, `REPAIRTRACK_TEST_URL` and `REPAIRTRACK_TEST_SITE`. Fixture scripts change data; recreate the disposable database before repeating. Do not deploy generated fixture files or screenshots.
 
 See `system-gaps.md` for unfinished quote, stock, payment and handover workflows. Validate the migration on the target MySQL installation before deploying.
+
+## Debugging pass: navigation, mobile details and timezones
+
+- Device links carry a small allowlisted list context. Back to console restores the selected view, search, status and page, including after review/save or history navigation. External return URLs are never accepted.
+- Mobile analytics details anchor to the full date row, preventing the wrapped-row tooltips from extending outside the screen. Table views explain horizontal scrolling on small screens.
+- Database connections and the migration explicitly use UTC. This keeps TIMESTAMP history consistent with UTC DATETIME repair-start values and Philippine-time display. Already populated start dates are not rewritten by the migration.
+- A history entry with no internal note says No private note; it no longer falsely claims a stage change occurred.
+
+Regression coverage includes returning from a searched history result, rejected return parameters, connection timezone, and bounds of every date tooltip at 320, 390 and 700 pixels.

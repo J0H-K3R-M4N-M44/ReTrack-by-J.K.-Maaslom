@@ -262,3 +262,28 @@
     flex-basis: 100%;
   }
 }
+
+.table-scroll-hint {
+  display: none;
+}
+@media (max-width: 700px) {
+  .table-scroll-hint {
+    display: block;
+    color: #c0ced4;
+    font-size: 0.875rem;
+  }
+  /* Anchor each mobile detail to the whole row, not a narrow date cell. */
+  .trend-days {
+    position: relative;
+  }
+  .trend-days .trend-point {
+    position: static;
+  }
+  .trend-days .trend-point .trend-tooltip {
+    left: 0;
+    right: auto;
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+  }
+}

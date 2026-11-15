@@ -94,3 +94,15 @@ function consoleCashDesk(PDO $pdo, array $user, array $input): array
         requestText($input, 'page', '1'),
     );
 }
+
+// Keep only known list parameters. Never accept an arbitrary return URL.
+function workspaceReturnQuery(array $user, string $raw): string
+{
+    parse_str($raw, $input);
+    return http_build_query([
+        'view' => consoleView($user, $input),
+        'q' => mb_substr(requestText($input, 'q'), 0, 100),
+        'status' => consoleStatusFilter($input),
+        'page' => max(1, (int) requestText($input, 'page', '1')),
+    ]);
+}

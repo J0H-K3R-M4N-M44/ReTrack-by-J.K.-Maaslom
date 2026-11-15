@@ -12,12 +12,16 @@
         <div><div class="eyebrow"><?= h($device['branch_name']) ?></div><h1><?= h(
     $device['item_code'],
 ) ?></h1><p><?= h(dashboardDeviceLabel($device)) ?></p></div>
-        <a class="secondary-btn" href="staff_home.php">Back to console</a>
+        <a class="secondary-btn" href="staff_home.php?<?= h(
+            $returnQuery,
+        ) ?>#work-list">Back to console</a>
     </header>
     <?php if ($saved): ?><p class="staff-notice" role="status">Device updated.</p><?php endif; ?>
     <?php if ($error): ?><p role="alert" class="field-error"><?= h(
     $error,
-) ?> <a href="?id=<?= $id ?>">Reload device</a></p><?php endif; ?>
+) ?> <a href="?id=<?= $id ?>&amp;return=<?= h(
+    urlencode($returnQuery),
+) ?>">Reload device</a></p><?php endif; ?>
     <section class="dashboard-card">
         <h2>Repair details</h2>
         <?php if (in_array($user['role'], ['ADMIN', 'MANAGER', 'INTAKE_AGENT'], true)): ?>
@@ -141,7 +145,9 @@
         <p>Showing <?= $eventPage['from'] ?>–<?= $eventPage['to'] ?> of <?= $eventPage[
      'total'
  ] ?> entries. Private notes stay internal. Customer updates are published separately; no SMS or email is sent.</p>
-        <form method="get" class="console-search"><input type="hidden" name="id" value="<?= $id ?>"><label for="history-search">Find a note or update<input id="history-search" name="history_q" maxlength="100" value="<?= h(
+        <form method="get" class="console-search"><input type="hidden" name="id" value="<?= $id ?>"><input type="hidden" name="return" value="<?= h(
+    $returnQuery,
+) ?>"><label for="history-search">Find a note or update<input id="history-search" name="history_q" maxlength="100" value="<?= h(
     requestText($_GET, 'history_q'),
 ) ?>"></label><button class="secondary-btn">Search history</button></form>
         <?php if (!$events): ?><p>No entries available.</p><?php endif; ?>
@@ -150,7 +156,7 @@
                 dashboardStatusLabel($event['to_status']),
             ) ?></strong> · <time><?= h(
     workspaceDate($event['created_at']),
-) ?> PH time</time><p><?= h($event['internal_note'] ?: 'Stage updated') ?></p><?php if (
+) ?> PH time</time><p><?= h($event['internal_note'] ?: 'No private note') ?></p><?php if (
     $event['public_summary']
 ): ?><p><strong>Customer update:</strong> <?= h(
     $event['public_summary'],
@@ -167,6 +173,7 @@
             <a class="secondary-btn" href="?<?= h(
                 http_build_query([
                     'id' => $id,
+                    'return' => $returnQuery,
                     'history_q' => requestText($_GET, 'history_q'),
                     'history_page' => $number,
                 ]),

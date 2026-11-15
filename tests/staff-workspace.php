@@ -35,6 +35,17 @@ $f = json_decode(
     JSON_THROW_ON_ERROR,
 );
 $tech = $f['accounts']['TECHNICIAN'];
+workspaceCheck(
+    $pdo->query('SELECT @@session.time_zone')->fetchColumn() === '+00:00',
+    'Connection timezone is not UTC',
+);
+workspaceCheck(
+    !str_contains(
+        workspaceReturnQuery($tech, 'view=cash&q[]=bad&url=https://example.test'),
+        'example',
+    ),
+    'Unsafe return data accepted',
+);
 $manager = $f['accounts']['MANAGER'];
 $device = consoleDevice($pdo, $tech, $f['device']);
 $ticket = (int) $device['ticket_id'];

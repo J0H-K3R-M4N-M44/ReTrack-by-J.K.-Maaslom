@@ -141,9 +141,9 @@
                     as $row
                 ): ?><article class="board-card"><a href="device.php?id=<?= (int) $row[
     'ticket_device_id'
-] ?>"><?= h($row['item_code']) ?></a><p><?= h(dashboardDeviceLabel($row)) ?></p><p><?= h(
-    $row['technician'] ?: 'Needs assignment',
-) ?></p><small>Repair started: <?= h(
+] ?>&amp;return=<?= h(urlencode($returnQuery)) ?>"><?= h($row['item_code']) ?></a><p><?= h(
+    dashboardDeviceLabel($row),
+) ?></p><p><?= h($row['technician'] ?: 'Needs assignment') ?></p><small>Repair started: <?= h(
     workspaceDate($row['repair_started_at']),
 ) ?></small></article><?php endforeach; ?>
                 </section>
@@ -152,6 +152,7 @@
             </div>
         <?php else: ?>
             <?php if ($view === 'drafts'): ?><div id="drafts"><?php endif; ?>
+            <p class="table-scroll-hint">Swipe or scroll sideways to see all columns.</p>
             <div class="staff-table-wrap" tabindex="0" aria-label="<?= h(
                 $listTitle,
             ) ?>, scroll sideways for more columns">
@@ -233,7 +234,9 @@
     strtolower($row['repair_status']),
 ) ?>"><?= h(dashboardStatusLabel($row['repair_status'])) ?></span></td><td><?= h(
     workspaceDate($row['repair_started_at']),
-) ?></td><td><a href="device.php?id=<?= (int) $row['ticket_device_id'] ?>">Open device</a></td>
+) ?></td><td><a href="device.php?id=<?= (int) $row['ticket_device_id'] ?>&amp;return=<?= h(
+    urlencode($returnQuery),
+) ?>">Open device</a></td>
                     <?php endif; ?>
                 </tr><?php endforeach; ?>
                 </tbody></table>

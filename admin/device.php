@@ -5,6 +5,7 @@ require_once __DIR__ . '/../app/console/repository.php';
 startAppSession();
 $user = requireRoles(['ADMIN', 'MANAGER', 'TECHNICIAN', 'INTAKE_AGENT', 'VIEWER']);
 header('Cache-Control: no-store, private');
+$returnQuery = workspaceReturnQuery($user, requestText($_GET, 'return'));
 $error = '';
 $review = false;
 $values = [
@@ -31,6 +32,7 @@ try {
             unavailablePage('This form expired or was already used.', 409);
         }
         $id = $state['id'];
+        $returnQuery = $state['return'] ?? $returnQuery;
         $device = consoleDevice($pdo, $user, $id);
         $intent = requestText($_POST, 'intent');
         if ($intent === 'review') {
@@ -47,7 +49,11 @@ try {
             consoleSave($pdo, (int) $user['user_id'], $id, $state['version'], $values);
             unset($_SESSION['device_forms'][$formKey]);
             $_SESSION['device_saved'] = true;
-            header('Location: device.php?id=' . $id, true, 303);
+            header(
+                'Location: device.php?' . http_build_query(['id' => $id, 'return' => $returnQuery]),
+                true,
+                303,
+            );
             exit();
         } else {
             throw new DomainException('Review the change before saving.');
@@ -64,6 +70,7 @@ try {
         $formKey = bin2hex(random_bytes(24));
         $_SESSION['device_forms'][$formKey] = [
             'id' => $id,
+            'return' => $returnQuery,
             'version' => consoleVersion($device),
             'expires' => time() + 1200,
         ];

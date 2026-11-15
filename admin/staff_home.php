@@ -36,6 +36,7 @@ if ($notice && !isset($_GET['view'])) {
 }
 $view = consoleView($user, $_GET);
 $_GET['view'] = $view;
+$returnQuery = workspaceReturnQuery($user, http_build_query($_GET));
 $isCourier = $role === 'COURIER';
 $canIntake = in_array($role, ['ADMIN', 'MANAGER', 'INTAKE_AGENT'], true);
 $canCash = in_array($role, ['ADMIN', 'MANAGER', 'CASHIER'], true);

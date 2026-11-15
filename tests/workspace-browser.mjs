@@ -49,6 +49,11 @@ try {
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.locator('tbody tr').filter({ hasText: 'WORK-0' }).waitFor();
   assert.equal(await page.locator('table').count(), 1);
+  await page.getByRole('link', { name: 'Open device', exact: true }).click();
+  await page.getByRole('link', { name: 'Back to console' }).click();
+  assert.equal(new URL(page.url()).searchParams.get('view'), 'history');
+  assert.equal(new URL(page.url()).searchParams.get('q'), 'WORK-0');
+  await page.locator('tbody tr').filter({ hasText: 'WORK-0' }).waitFor();
   const cashContext = await browser.newContext(),
     cash = await cashContext.newPage();
   await cash.goto(url + '/admin/login.php');
@@ -89,6 +94,21 @@ try {
       .first()
       .evaluate((el) => el.open)
   );
+  // Check every date, including the first cell of the wrapped second row.
+  for (const width of [320, 390, 700]) {
+    await touch.setViewportSize({ width, height: 900 });
+    for (const point of await touch.locator('.trend-point').all()) {
+      await touch
+        .locator('.trend-point')
+        .evaluateAll((points) => points.forEach((p) => (p.open = false)));
+      await point.locator('summary').tap();
+      const bounds = await point.locator('.trend-tooltip').boundingBox();
+      assert(
+        bounds && bounds.x >= 0 && bounds.x + bounds.width <= width,
+        'Tooltip leaves viewport'
+      );
+    }
+  }
   assert.deepEqual(errors, []);
   console.log(
     'PASS: login reveal, board/history, hover/focus/Escape/tap, cashier search/scope, PIN and mobile layouts.'
