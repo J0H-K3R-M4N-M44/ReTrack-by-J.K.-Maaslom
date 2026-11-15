@@ -13,7 +13,16 @@ BEGIN
     ALTER TABLE ticket_devices ADD COLUMN repair_started_at DATETIME NULL;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'repair_tickets' AND COLUMN_NAME = 'portal_code') THEN
-    ALTER TABLE repair_tickets ADD COLUMN portal_code CHAR(5) NULL, ADD UNIQUE KEY uq_portal_code (portal_code);
+    ALTER TABLE repair_tickets ADD COLUMN portal_code CHAR(5) NULL;
+  END IF;
+  -- A prior run may have added the column but stopped before creating its index.
+  IF NOT EXISTS (
+    SELECT INDEX_NAME FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'repair_tickets'
+    GROUP BY INDEX_NAME HAVING MAX(NON_UNIQUE) = 0 AND COUNT(*) = 1
+      AND MAX(COLUMN_NAME) = 'portal_code' AND MAX(SUB_PART) IS NULL
+  ) THEN
+    ALTER TABLE repair_tickets ADD UNIQUE KEY uq_portal_code (portal_code);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'repair_tickets' AND COLUMN_NAME = 'portal_pin_hash') THEN
     ALTER TABLE repair_tickets ADD COLUMN portal_pin_hash VARCHAR(255) NULL;

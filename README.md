@@ -17,6 +17,10 @@ From a device, choose **Open estimate** to prepare a quote and record the custom
 - PHP extensions `pdo_mysql`, `mbstring`, `ctype` and `fileinfo`
 - XAMPP or another local Apache + PHP + MySQL setup
 
+## Automatic database upgrades
+
+For an existing database, run `php tools/migrate.php` to see pending upgrades, then `php tools/migrate.php --apply` after backing up. The runner uses your local configuration and asks you to confirm the database name. See [XAMPP instructions and recovery notes](docs/migration-runner.md).
+
 ## Local setup
 
 1. In MySQL Workbench, open and run `database/schema.sql`. It creates the `repairtrack` database and starter tables. It uses `CREATE TABLE IF NOT EXISTS` and does not drop existing tables.
