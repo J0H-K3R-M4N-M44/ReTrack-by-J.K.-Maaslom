@@ -19,28 +19,39 @@ try {
             exit();
         } else {
             // Separate prefix prevents tracking attempts consuming staff login attempts.
+            $code = strtoupper(trim(requestText($_POST, 'tracking_code')));
             $address = 'tracking:' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-            if (!reserveLoginAttempt($address, $address)) {
+            if (!reserveLoginAttempt('portal-code:' . hash('sha256', $code), $address)) {
                 http_response_code(429);
                 $error = 'Too many attempts. Please try again in 15 minutes.';
             } else {
                 $token = strtolower(trim(requestText($_POST, 'tracking_code')));
-                $repair = publicRepair(getPDO(), $token);
+                $pin = trim(requestText($_POST, 'portal_pin'));
+                $repair = publicRepair(getPDO(), $token, $pin);
                 unset($_SESSION['public_tracking']);
                 if ($repair) {
-                    $_SESSION['public_tracking'] = ['token' => $token, 'expires' => time() + 1800];
+                    $_SESSION['public_tracking'] = [
+                        'token' => $token,
+                        'pin' => $pin,
+                        'expires' => time() + 1800,
+                    ];
                     header('Location: track.php', true, 303);
                     exit();
                 }
                 $error =
-                    'Tracking access could not be verified. Check your private code or ask the branch for a new one.';
+                    'Tracking access could not be verified. Check your code and PIN or ask the branch for a new one.';
             }
         }
     } elseif (isset($_SESSION['public_tracking'])) {
         $access = $_SESSION['public_tracking'];
         if ($access['expires'] > time()) {
             // Revalidate every request: replacing a code also revokes open sessions.
-            $repair = publicRepair(getPDO(), $access['token']);
+            $repair = publicRepair(
+                getPDO(),
+                $access['token'],
+                $access['pin'] ?? '',
+                requestText($_GET, 'history_page', '1'),
+            );
         }
         if (!$repair) {
             unset($_SESSION['public_tracking']);

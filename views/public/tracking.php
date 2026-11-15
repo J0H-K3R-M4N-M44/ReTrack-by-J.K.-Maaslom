@@ -16,13 +16,16 @@
     <?php if ($error): ?><p class="public-notice" role="alert"><?= h($error) ?></p><?php endif; ?>
     <?php if (!$repair): ?>
     <section class="public-card">
-        <h2>Use your private tracking code</h2>
+        <h2>Use your tracking code and PIN</h2>
         <p>Enter the code your service branch shared with you. The RT receipt number alone cannot open a repair.</p>
         <form method="post" id="tracking-form">
             <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
-            <label for="tracking-code">Private tracking code</label>
-            <input id="tracking-code" name="tracking_code" required minlength="64" maxlength="64" pattern="[a-fA-F0-9]{64}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="tracking-help">
-            <p id="tracking-help">Paste the 64-character code. Keep it private: anyone with this code can view this repair.</p>
+            <label for="tracking-code">Tracking code</label>
+            <input id="tracking-code" name="tracking_code" required minlength="5" maxlength="64" pattern="([a-fA-F0-9]{5}|[a-fA-F0-9]{64})" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="tracking-help">
+            <p id="tracking-help">Enter the five-character code from your branch (for example A3F90). Older 64-character private codes still work without a PIN.</p>
+            <label for="portal-pin">Portal PIN</label>
+            <input id="portal-pin" name="portal_pin" type="password" inputmode="numeric" minlength="4" maxlength="4" pattern="[0-9]{4}" autocomplete="off" aria-describedby="pin-help">
+            <p id="pin-help">Last four digits of the phone number recorded when your code was issued. If your number changed, ask the branch for new access.</p>
             <button class="public-button">View repair</button>
         </form>
     </section>
@@ -71,9 +74,24 @@
             </li>
         <?php endforeach; ?>
         </ol>
-        <?php if (
-            $repair['has_more_events']
-        ): ?><p>Showing the latest 50 updates. Ask the branch for older history.</p><?php endif; ?>
+        <nav class="public-toolbar" aria-label="Timeline pages"><span>Showing <?= $repair[
+            'history_page'
+        ]['from'] ?>–<?= $repair['history_page']['to'] ?> of <?= $repair['history_page'][
+     'total'
+ ] ?></span>
+        <?php foreach (
+            [
+                'Previous' => $repair['history_page']['page'] - 1,
+                'Next' => $repair['history_page']['page'] + 1,
+            ]
+            as $label => $number
+        ):
+            if ($number < 1 || $number > $repair['history_page']['pages']) {
+                continue;
+            } ?>
+            <a href="?history_page=<?= $number ?>"><?= h($label) ?></a>
+        <?php
+        endforeach; ?></nav>
     </section>
     <section class="public-card"><h2>Need help with this repair?</h2><p>Contact <?= h(
         $repair['branch_name'],

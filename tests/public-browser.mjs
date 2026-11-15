@@ -73,8 +73,8 @@ try {
     403
   );
   await page.locator('[name=confirm_share]').check();
-  await page.getByRole('button', { name: 'Create private tracking code' }).click();
-  assert.match(await page.locator('#private-code').inputValue(), /^[a-f0-9]{64}$/);
+  await page.getByRole('button', { name: 'Create tracking code and PIN' }).click();
+  assert.match(await page.locator('#private-code').inputValue(), /^[A-F0-9]{5}$/);
   await visitor.reload();
   assert(
     await visitor.locator('#tracking-code').isVisible(),

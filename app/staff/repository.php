@@ -10,6 +10,7 @@ function staffRoles(): array
         'INTAKE_AGENT' => 'Intake agent',
         'TECHNICIAN' => 'Technician',
         'COURIER' => 'Courier',
+        'CASHIER' => 'Cashier',
         'VIEWER' => 'Viewer',
     ];
 }
@@ -129,10 +130,10 @@ function staffList(PDO $pdo, int $adminId, array $input): array
     $count = $pdo->prepare('SELECT COUNT(*) FROM users u WHERE ' . $where);
     $count->execute($params);
     $total = (int) $count->fetchColumn();
-    $pages = max(1, (int) ceil($total / 12));
+    $pages = max(1, (int) ceil($total / 10));
     $rawPage = requestText($input, 'page', '1');
     $page = ctype_digit($rawPage) ? min($pages, max(1, (int) $rawPage)) : 1;
-    $offset = ($page - 1) * 12;
+    $offset = ($page - 1) * 10;
     // Fetch branch labels together. Do not run a separate query for every row.
     $query = $pdo->prepare(
         "SELECT u.user_id, u.full_name, u.email, u.role, u.is_active, u.last_login_at,
@@ -141,7 +142,7 @@ function staffList(PDO $pdo, int $adminId, array $input): array
         EXISTS (SELECT 1 FROM password_reset_tokens p WHERE p.user_id = u.user_id AND p.used_at IS NULL AND p.expires_at > UTC_TIMESTAMP()) AS has_pending_link
         FROM users u WHERE " .
             $where .
-            ' ORDER BY u.full_name, u.user_id LIMIT 12 OFFSET ' .
+            ' ORDER BY u.full_name, u.user_id LIMIT 10 OFFSET ' .
             $offset,
     );
     $query->execute($params);
@@ -151,7 +152,7 @@ function staffList(PDO $pdo, int $adminId, array $input): array
         'page' => $page,
         'pages' => $pages,
         'from' => $total ? $offset + 1 : 0,
-        'to' => min($offset + 12, $total),
+        'to' => min($offset + 10, $total),
     ];
 }
 

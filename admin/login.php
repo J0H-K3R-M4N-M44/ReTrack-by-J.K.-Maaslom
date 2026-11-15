@@ -40,7 +40,7 @@ $csrf = csrfToken();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Staff sign in | RepairTrack</title>
     
     <link rel="stylesheet" href="../css/base.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
@@ -63,7 +63,8 @@ $csrf = csrfToken();
 
             <div class="login-content">
                 <div class="login-panel" id="login-view">
-                    <h2>Login</h2>
+                    <h2>Staff sign in</h2>
+                    <p class="login-help">Use your work email. Your account opens the workspace for your assigned role.</p>
 
                     <div class="error-box" id="message-area" role="alert"<?= $errorMessage === ''
                         ? ' hidden'
@@ -84,6 +85,7 @@ $csrf = csrfToken();
                             <input type="password" id="password" name="password" placeholder="Password" autocomplete="current-password" required>
                         </div>
 
+                        <div class="password-options"><button type="button" id="show-password" aria-controls="password" aria-pressed="false" hidden>Show password</button><span id="caps-lock" role="status" hidden>Caps Lock is on</span></div>
                         <div class="meta-row login-links">
                             <!-- A fixed home link also works when login is opened directly. -->
                             <a class="login-back-link" href="../index.php">

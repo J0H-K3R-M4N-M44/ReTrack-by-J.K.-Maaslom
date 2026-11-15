@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../dashboard_data.php';
+require_once __DIR__ . '/workspace.php';
 require_once __DIR__ . '/../intake/repository.php';
 
 // Ticket scope is shared by lists, details and writes.
@@ -20,10 +21,14 @@ function consoleScope(array $user): array
 function consoleDevices(PDO $pdo, array $user, array $input): array
 {
     [$scope, $params] = consoleScope($user);
+    $scope .=
+        consoleView($user, $input) === 'history'
+            ? " AND (t.case_state <> 'OPEN' OR d.repair_status IN ('COMPLETED', 'CANCELLED'))"
+            : ' AND ' . consoleActiveSql();
     $status = consoleStatusFilter($input);
     $q = likePattern(mb_substr(trim(requestText($input, 'q')), 0, 100));
     $sql = "SELECT d.ticket_device_id, d.item_code, d.device_type_snapshot, d.make_snapshot,
-        d.model_snapshot, d.repair_status, d.updated_at, d.custody_state,
+        d.model_snapshot, d.repair_status, d.updated_at, d.custody_state, d.repair_started_at,
         t.ticket_code, b.branch_name, u.full_name AS technician
         FROM ticket_devices d JOIN repair_tickets t ON t.ticket_id = d.ticket_id
         JOIN branches b ON b.branch_id = t.accountable_branch_id
@@ -81,8 +86,11 @@ function consoleVersion(array $device): string
 
 function consoleTechnicians(PDO $pdo, int $branchId): array
 {
-    $query = $pdo->prepare("SELECT u.user_id, u.full_name FROM users u
-        JOIN user_branch_assignments a ON a.user_id = u.user_id
+    $query = $pdo->prepare("SELECT u.user_id, u.full_name,
+        (SELECT COUNT(*) FROM ticket_devices d JOIN repair_tickets t ON t.ticket_id = d.ticket_id
+            WHERE d.assigned_technician_id = u.user_id AND t.record_stage = 'ISSUED'
+            AND t.case_state = 'OPEN' AND d.repair_status NOT IN ('COMPLETED','CANCELLED')) AS active_count
+        FROM users u JOIN user_branch_assignments a ON a.user_id = u.user_id
         WHERE a.branch_id = ? AND u.role = 'TECHNICIAN' AND u.is_active = 1 ORDER BY u.full_name");
     $query->execute([$branchId]);
     return $query->fetchAll();
@@ -137,6 +145,14 @@ function consoleSave(PDO $pdo, int $actorId, int $id, string $version, array $in
             if (!$tech->fetchColumn()) {
                 throw new DomainException('Choose an active technician assigned to this branch.');
             }
+            if (
+                (int) $device['assigned_technician_id'] !== (int) $raw &&
+                technicianActiveCount($pdo, (int) $raw) >= technicianActiveLimit()
+            ) {
+                throw new DomainException(
+                    'This technician is at the active-device limit. Choose another technician or finish an existing repair.',
+                );
+            }
             $pdo->prepare(
                 'UPDATE ticket_devices SET assigned_technician_id = ? WHERE ticket_device_id = ?',
             )->execute([(int) $raw, $id]);
@@ -183,8 +199,11 @@ function consoleSave(PDO $pdo, int $actorId, int $id, string $version, array $in
                 }
             }
             $pdo->prepare(
-                'UPDATE ticket_devices SET repair_status = ? WHERE ticket_device_id = ?',
-            )->execute([$status, $id]);
+                "UPDATE ticket_devices SET repair_status = ?,
+                    repair_started_at = CASE WHEN ? = 'IN_PROGRESS' AND ? <> 'IN_PROGRESS'
+                    THEN COALESCE(repair_started_at, UTC_TIMESTAMP()) ELSE repair_started_at END
+                    WHERE ticket_device_id = ?",
+            )->execute([$status, $status, $device['repair_status'], $id]);
             $pdo->prepare(
                 "INSERT INTO ticket_status_events
                 (ticket_device_id, from_status, to_status, actor_type, actor_user_id, internal_note, public_summary, is_customer_visible, created_at)
@@ -238,6 +257,10 @@ function consoleTransfers(PDO $pdo, array $user, array $input): array
         WHERE EXISTS (SELECT 1 FROM user_branch_assignments a JOIN branches active ON active.branch_id = a.branch_id
             WHERE a.user_id = ? AND active.is_active = 1 AND a.branch_id IN (t.from_branch_id, t.to_branch_id))
         AND t.transfer_code LIKE ? ESCAPE '!'";
+    $sql .=
+        consoleView($user, $input) === 'history'
+            ? " AND x.item_status IN ('RECEIVED', 'CANCELLED')"
+            : " AND x.item_status IN ('IN_TRANSIT', 'EXCEPTION')";
     return dashboardPage(
         $pdo,
         $sql,
@@ -255,8 +278,9 @@ function consoleDrafts(PDO $pdo, int $userId, array $input): array
         FROM repair_tickets t JOIN branches b ON b.branch_id = t.intake_branch_id
         LEFT JOIN customers c ON c.customer_id = t.customer_id
         WHERE t.record_stage = 'DRAFT' AND b.is_active = 1
-        AND EXISTS (SELECT 1 FROM user_branch_assignments a WHERE a.user_id = ? AND a.branch_id = b.branch_id)",
-        [$userId],
+        AND EXISTS (SELECT 1 FROM user_branch_assignments a WHERE a.user_id = ? AND a.branch_id = b.branch_id)
+        AND (c.full_name LIKE ? ESCAPE '!' OR CAST(t.ticket_id AS CHAR) LIKE ? ESCAPE '!')",
+        [$userId, likePattern(requestText($input, 'q')), likePattern(requestText($input, 'q'))],
         'created_at DESC, ticket_id DESC',
         requestText($input, 'draft_page', '1'),
     );
@@ -288,6 +312,7 @@ function consoleStatusFilter(array $input): string
 function consolePageUrl(array $input, string $key, int $page, string $anchor): string
 {
     $query = [
+        'view' => requestText($input, 'view', 'queue'),
         'q' => mb_substr(requestText($input, 'q'), 0, 100),
         'status' => consoleStatusFilter($input),
         'page' => max(1, (int) requestText($input, 'page', '1')),

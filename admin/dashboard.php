@@ -43,6 +43,23 @@ $customers = $dashboardData['customers'];
 $drafts = $dashboardData['drafts'];
 $statusCounts = $dashboardData['status_counts'];
 
+function renderMetricDetail(string $key, int $value, bool $available): void
+{
+    $snapshot = (new DateTimeImmutable('now', new DateTimeZone('Asia/Manila')))->format(
+        'M j, Y · g:i a',
+    );
+    $text = $available
+        ? number_format($value) . ' · ' . $snapshot . ' Philippine time. Assigned branch scope.'
+        : 'Data unavailable; no current count.';
+    echo '<details class="trend-point metric-tip"><summary aria-describedby="metric-' .
+        h($key) .
+        '">Date and count</summary><span role="tooltip" class="trend-tooltip" id="metric-' .
+        h($key) .
+        '">' .
+        h($text) .
+        '</span></details>';
+}
+
 function renderDashboardPager(array $page, string $key, string $tab): void
 {
     echo '<nav class="list-pager" aria-label="' . h($key) . ' pages">';
@@ -70,6 +87,7 @@ function renderDashboardPager(array $page, string $key, string $tab): void
     <link rel="stylesheet" href="../css/base.css">
     <link rel="stylesheet" href="../css/dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="../css/workspace.css">
 </head>
 <body class="dashboard-body page-fade">
     <div class="dashboard-shell">
@@ -81,7 +99,8 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                 </div>
 
                 <nav class="dashboard-nav">
-                    <a class="nav-item" href="staff_home.php">Repair operations</a>
+                    <a class="nav-item" href="staff_home.php">Staff workspace</a>
+                    <a class="nav-item" href="staff_home.php?view=cash">Cash desk</a>
                     <a class="nav-item" href="staff.php"><span class="nav-icon" aria-hidden="true">＋</span><span>Staff management</span></a>
                     <a class="nav-item<?= $tab === 'overview'
                         ? ' is-active'
@@ -190,6 +209,11 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                         <small><?php echo $metricsAvailable
                             ? 'Not completed or cancelled'
                             : 'Database query unavailable'; ?></small>
+                        <?php renderMetricDetail(
+                            'activeRepairs',
+                            (int) $metrics['activeRepairs'],
+                            $metricsAvailable,
+                        ); ?>
                     </article>
                     <article class="dashboard-card metric-card">
                         <div class="card-heading"><span>Active technicians</span><i class="fa-solid fa-user-check" aria-hidden="true"></i></div>
@@ -199,6 +223,11 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                         <small><?php echo $metricsAvailable
                             ? 'Enabled technician accounts'
                             : 'Database query unavailable'; ?></small>
+                        <?php renderMetricDetail(
+                            'technicians',
+                            (int) $metrics['technicians'],
+                            $metricsAvailable,
+                        ); ?>
                     </article>
                     <article class="dashboard-card metric-card">
                         <div class="card-heading"><span>Pending intake</span><i class="fa-solid fa-clipboard-question" aria-hidden="true"></i></div>
@@ -208,6 +237,11 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                         <small><?php echo $metricsAvailable
                             ? 'Draft tickets not yet issued'
                             : 'Database query unavailable'; ?></small>
+                        <?php renderMetricDetail(
+                            'pendingIntake',
+                            (int) $metrics['pendingIntake'],
+                            $metricsAvailable,
+                        ); ?>
                     </article>
                     <article class="dashboard-card metric-card">
                         <div class="card-heading"><span>Tickets issued today</span><i class="fa-solid fa-circle-check" aria-hidden="true"></i></div>
@@ -217,6 +251,11 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                         <small><?php echo $metricsAvailable
                             ? 'Issued today, Asia/Manila time'
                             : 'Database query unavailable'; ?></small>
+                        <?php renderMetricDetail(
+                            'ticketsIssuedToday',
+                            (int) $metrics['ticketsIssuedToday'],
+                            $metricsAvailable,
+                        ); ?>
                     </article>
                 </section>
 
@@ -420,6 +459,7 @@ function renderDashboardPager(array $page, string $key, string $tab): void
     </div>
 
     <script src="../js/trans.js"></script>
+    <script src="../js/workspace.js"></script>
 </body>
 </html>
 

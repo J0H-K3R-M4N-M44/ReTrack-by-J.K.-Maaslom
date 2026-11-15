@@ -36,7 +36,7 @@ function intakeSearchCustomers(PDO $pdo, string $term): array
             OR (cc.contact_type = 'PHONE' AND REPLACE(cc.normalized_value, '+', '') LIKE ?)
          GROUP BY c.customer_id, c.full_name, c.updated_at
          ORDER BY c.updated_at DESC
-         LIMIT 20",
+         LIMIT 10",
     );
     $customerQuery->execute([$searchTerm, $searchTerm, $searchTerm, $phoneTerm]);
     return $customerQuery->fetchAll();

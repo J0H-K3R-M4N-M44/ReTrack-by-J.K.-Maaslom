@@ -26,6 +26,9 @@
             ] ?>">Receipt and customer tracking access</a></p>
         <?php endif; ?>
         <dl class="staff-review">
+            <div><dt>Repair started (Philippine time)</dt><dd><?= h(
+                workspaceDate($device['repair_started_at']),
+            ) ?></dd></div>
             <div><dt>Status</dt><dd><?= h(
                 dashboardStatusLabel($device['repair_status']),
             ) ?></dd></div>
@@ -86,14 +89,20 @@
                     <select id="technician" name="technician" required>
                         <option value="">Choose technician</option>
                         <?php foreach ($technicians as $tech): ?>
-                        <option value="<?= (int) $tech['user_id'] ?>" <?= $values['technician'] ===
-(string) $tech['user_id']
+                        <option <?= (int) $tech['active_count'] >= technicianActiveLimit() &&
+                        (int) $device['assigned_technician_id'] !== (int) $tech['user_id']
+                            ? 'disabled'
+                            : '' ?> value="<?= (int) $tech['user_id'] ?>" <?= $values[
+    'technician'
+] === (string) $tech['user_id']
     ? 'selected'
-    : '' ?>><?= h($tech['full_name']) ?></option>
+    : '' ?>><?= h($tech['full_name']) ?> · <?= (int) $tech[
+     'active_count'
+ ] ?>/<?= technicianActiveLimit() ?> active</option>
                         <?php endforeach; ?>
                     </select>
                 </label>
-                <p>Assignments are limited to active technicians assigned to this branch.</p>
+                <p>Choose an active technician in this branch. The limit is <?= technicianActiveLimit() ?> active devices across all branches. Closed, completed and cancelled work does not count.</p>
                 <button name="intent" value="review" class="logout-btn">Review assignment</button>
             <?php else: ?>
                 <input type="hidden" name="action" value="progress">
@@ -129,15 +138,41 @@
     <?php if (in_array($user['role'], ['ADMIN', 'TECHNICIAN'], true)): ?>
     <section class="dashboard-card">
         <h2><?= $user['role'] === 'ADMIN' ? 'Internal repair history' : 'Your repair notes' ?></h2>
-        <p>Latest 20 entries. Private notes stay internal. Customer updates are published separately; no SMS or email is sent.</p>
+        <p>Showing <?= $eventPage['from'] ?>–<?= $eventPage['to'] ?> of <?= $eventPage[
+     'total'
+ ] ?> entries. Private notes stay internal. Customer updates are published separately; no SMS or email is sent.</p>
+        <form method="get" class="console-search"><input type="hidden" name="id" value="<?= $id ?>"><label for="history-search">Find a note or update<input id="history-search" name="history_q" maxlength="100" value="<?= h(
+    requestText($_GET, 'history_q'),
+) ?>"></label><button class="secondary-btn">Search history</button></form>
         <?php if (!$events): ?><p>No entries available.</p><?php endif; ?>
         <?php foreach ($events as $event): ?>
             <article class="console-event"><strong><?= h(
                 dashboardStatusLabel($event['to_status']),
-            ) ?></strong> · <time><?= h($event['created_at']) ?> UTC</time><p><?= h(
-     $event['internal_note'] ?: 'Stage updated',
- ) ?></p></article>
+            ) ?></strong> · <time><?= h(
+    workspaceDate($event['created_at']),
+) ?> PH time</time><p><?= h($event['internal_note'] ?: 'Stage updated') ?></p><?php if (
+    $event['public_summary']
+): ?><p><strong>Customer update:</strong> <?= h(
+    $event['public_summary'],
+) ?></p><?php endif; ?></article>
         <?php endforeach; ?>
+        <nav class="staff-actions" aria-label="History pages">
+        <?php foreach (
+            ['Previous' => $eventPage['page'] - 1, 'Next' => $eventPage['page'] + 1]
+            as $label => $number
+        ):
+            if ($number < 1 || $number > $eventPage['pages']) {
+                continue;
+            } ?>
+            <a class="secondary-btn" href="?<?= h(
+                http_build_query([
+                    'id' => $id,
+                    'history_q' => requestText($_GET, 'history_q'),
+                    'history_page' => $number,
+                ]),
+            ) ?>"><?= h($label) ?></a>
+        <?php
+        endforeach; ?></nav>
     </section>
     <?php endif; ?>
 </main>

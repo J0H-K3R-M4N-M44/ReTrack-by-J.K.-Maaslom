@@ -5,7 +5,7 @@
   if (!code) return;
   history.replaceState(null, '', location.pathname);
   const input = document.querySelector('#tracking-code');
-  if (input && /^[a-f0-9]{64}$/i.test(code)) {
+  if (input && /^(?:[a-f0-9]{5}|[a-f0-9]{64})$/i.test(code)) {
     input.value = code;
     input.focus();
   }

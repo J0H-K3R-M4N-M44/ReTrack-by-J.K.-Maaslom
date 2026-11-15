@@ -22,21 +22,45 @@ $descriptions = [
         'Work on your assigned devices and record repair progress.',
     ],
     'COURIER' => ['Courier console', 'Check transfer manifests for your assigned branches.'],
+    'CASHIER' => [
+        'Cash desk',
+        'Find bills by ticket code. Confirm cash collection using your branch process.',
+    ],
     'VIEWER' => ['Viewer console', 'Read repair status for your assigned branches.'],
 ];
 [$title, $description] = $descriptions[$role];
+$notice = $_SESSION['intake_saved'] ?? false;
+unset($_SESSION['intake_saved']);
+if ($notice && !isset($_GET['view'])) {
+    $_GET['view'] = 'drafts';
+}
+$view = consoleView($user, $_GET);
+$_GET['view'] = $view;
+$isCourier = $role === 'COURIER';
+$canIntake = in_array($role, ['ADMIN', 'MANAGER', 'INTAKE_AGENT'], true);
+$canCash = in_array($role, ['ADMIN', 'MANAGER', 'CASHIER'], true);
 try {
     $pdo = getPDO();
     $branches = intakeBranches($pdo, (int) $user['user_id']);
-    $isCourier = $role === 'COURIER';
-    $data = $isCourier ? null : consoleDevices($pdo, $user, $_GET);
-    $page = $isCourier ? consoleTransfers($pdo, $user, $_GET) : $data['page'];
-    $canIntake = in_array($role, ['ADMIN', 'MANAGER', 'INTAKE_AGENT'], true);
-    $drafts = $canIntake ? consoleDrafts($pdo, (int) $user['user_id'], $_GET) : null;
+    $data = null;
+    $trend = [];
+    if ($view === 'cash') {
+        $page = consoleCashDesk($pdo, $user, $_GET);
+    } elseif ($view === 'drafts') {
+        $page = consoleDrafts($pdo, (int) $user['user_id'], $_GET);
+    } elseif ($isCourier) {
+        $page = consoleTransfers($pdo, $user, $_GET);
+    } else {
+        $data = consoleDevices($pdo, $user, $_GET);
+        $page = $data['page'];
+        $trend = consoleStartTrend($pdo, $user);
+    }
+    $activeLoad =
+        $role === 'TECHNICIAN' ? technicianActiveCount($pdo, (int) $user['user_id']) : null;
 } catch (Throwable $error) {
     error_log('RepairTrack console: ' . $error->getMessage());
-    unavailablePage('Your workspace is temporarily unavailable. Please try again.');
+    unavailablePage(
+        'Your workspace is temporarily unavailable. Ask your administrator to check the staff workspace migration.',
+    );
 }
-$notice = $_SESSION['intake_saved'] ?? false;
-unset($_SESSION['intake_saved']);
 require __DIR__ . '/../views/console/home.php';

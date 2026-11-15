@@ -86,15 +86,26 @@ try {
         ? consoleTechnicians($pdo, (int) $device['accountable_branch_id'])
         : [];
     $events = [];
+    $eventPage = null;
     if (in_array($user['role'], ['ADMIN', 'TECHNICIAN'], true)) {
-        $query = $pdo->prepare(
-            "SELECT to_status, internal_note, created_at FROM ticket_status_events
-            WHERE ticket_device_id = ?" .
-                ($user['role'] === 'TECHNICIAN' ? ' AND actor_user_id = ?' : '') .
-                ' ORDER BY status_event_id DESC LIMIT 20',
+        $historySql = "SELECT status_event_id, to_status, internal_note, public_summary, created_at
+            FROM ticket_status_events WHERE ticket_device_id = ?";
+        $historyParams = [$id];
+        if ($user['role'] === 'TECHNICIAN') {
+            $historySql .= ' AND actor_user_id = ?';
+            $historyParams[] = $user['user_id'];
+        }
+        $historySql .=
+            " AND (COALESCE(internal_note, '') LIKE ? ESCAPE '!' OR COALESCE(public_summary, '') LIKE ? ESCAPE '!')";
+        $term = likePattern(mb_substr(requestText($_GET, 'history_q'), 0, 100));
+        $eventPage = dashboardPage(
+            $pdo,
+            $historySql,
+            [...$historyParams, $term, $term],
+            'status_event_id DESC',
+            requestText($_GET, 'history_page', '1'),
         );
-        $query->execute($user['role'] === 'TECHNICIAN' ? [$id, $user['user_id']] : [$id]);
-        $events = $query->fetchAll();
+        $events = $eventPage['rows'];
     }
 } catch (Throwable $problem) {
     error_log('RepairTrack device details: ' . $problem->getMessage());

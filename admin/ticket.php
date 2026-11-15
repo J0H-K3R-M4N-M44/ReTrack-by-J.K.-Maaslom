@@ -42,6 +42,7 @@ try {
                     (int) $admin['user_id'],
                     (int) $id,
                     requestText($_POST, 'tracking_version'),
+                    true,
                 );
                 $_SESSION['tracking_receipt'] = [
                     'id' => (int) $id,
@@ -89,12 +90,12 @@ try {
     <p>Only give this code to the customer or an authorized representative. It shows repair status and customer updates, never private work notes.</p>
     <?php if ($trackingError): ?><p role="alert"><?= h($trackingError) ?></p><?php endif; ?>
     <?php if ($trackingCode): ?>
-        <p role="status">New private code created. The previous code no longer works. Copy or print this code now; it is shown only once.</p>
-        <label for="private-code">Private tracking code</label>
-        <textarea id="private-code" readonly rows="3" class="tracking-code"><?= h(
+        <p role="status">New five-character tracking code created. The previous code no longer works. Copy or print this code now; it is shown only once.</p>
+        <label for="private-code">Tracking code</label>
+        <textarea id="private-code" readonly rows="1" class="tracking-code"><?= h(
             $trackingCode,
         ) ?></textarea>
-        <p>Enter this code on the public home page under Track your repair.</p>
+        <p>Enter this code under Track your repair. The Portal PIN is the last four digits of the phone number recorded when this code was created. Keep both private.</p>
         <a href="../track.php#code=<?= h(
             $trackingCode,
         ) ?>" class="secondary-btn no-print">Preview customer tracking</a>
@@ -105,7 +106,7 @@ try {
                 $ticket['tracking_token_hash'],
             ) ?>">
             <label><input type="checkbox" name="confirm_share" value="1" required> Create a new private code and invalidate any previous code.</label>
-            <p><button class="secondary-btn">Create private tracking code</button></p>
+            <p><button class="secondary-btn">Create tracking code and PIN</button></p>
         </form>
     <?php endif; ?>
 </section>

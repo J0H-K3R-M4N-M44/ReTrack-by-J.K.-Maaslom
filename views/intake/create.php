@@ -165,7 +165,7 @@
                                 <p class="form-help" >
                                     <?php echo count($customerResults)
                                         ? count($customerResults) .
-                                            ' matching customer(s) shown (up to 20). Choose one, or narrow your search.'
+                                            ' matching customer(s) shown (up to 10). Choose one, or narrow your search.'
                                         : 'No matches found. Start a new customer record below.'; ?>
                                 </p>
                             <?php endif; ?>
