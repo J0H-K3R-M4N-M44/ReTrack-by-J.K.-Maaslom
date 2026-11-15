@@ -4,7 +4,7 @@
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= h($device['item_code']) ?> | RepairTrack</title>
     <link rel="stylesheet" href="../css/base.css"><link rel="stylesheet" href="../css/dashboard.css">
-    <link rel="stylesheet" href="../css/staff.css"><link rel="stylesheet" href="../css/console.css">
+    <link rel="stylesheet" href="../css/staff.css"><link rel="stylesheet" href="../css/console.css"><link rel="stylesheet" href="../css/workspace.css">
 </head>
 <body class="dashboard-body">
 <main class="staff-page">
@@ -47,6 +47,17 @@
             <?php endif; ?>
         </dl>
     </section>
+    <?php if (quoteCanPrepare($user) || quoteCanRecord($user)): ?>
+    <section class="dashboard-card next-action"><div class="section-heading"><h2>Estimate and approval</h2><span class="workspace-status"><?= h(
+        str_replace('_', ' ', $quote['quote_status'] ?? 'NOT PREPARED'),
+    ) ?></span></div>
+    <p><?= $quote && $quote['quote_status'] === 'APPROVED'
+        ? 'The current estimate is approved. The technician can continue with the permitted repair steps.'
+        : 'Review the proposed work and charges before repair starts. A new revision requires fresh customer approval.' ?></p>
+    <a class="secondary-btn" href="quote.php?id=<?= $id ?>&amp;return=<?= h(
+    urlencode($returnQuery),
+) ?>">Open estimate</a></section>
+    <?php endif; ?>
     <?php
     $canAssign = in_array($user['role'], ['ADMIN', 'MANAGER'], true);
     $canProgress = $user['role'] === 'TECHNICIAN';
@@ -133,7 +144,7 @@
                     ) ?></textarea>
                 </label>
                 <p>Customer updates and stage changes appear in private tracking. Never include passwords, private diagnostics or other customers' information.</p>
-                <p>Only you and administrators can see the private work note. Starting repair requires an approved quote; quote approval and customer handover are not performed here.</p>
+                <p>Only you and administrators can see the private work note. Starting repair requires an approved quote. Use Open estimate for the quote workflow; customer handover remains a separate step.</p>
                 <button name="intent" value="review" class="logout-btn">Review progress</button>
             <?php endif; ?>
         </form>

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../app/auth.php';
-require_once __DIR__ . '/../app/console/repository.php';
+require_once __DIR__ . '/../app/quotes/repository.php';
 startAppSession();
 $user = requireRoles(['ADMIN', 'MANAGER', 'TECHNICIAN', 'INTAKE_AGENT', 'VIEWER']);
 header('Cache-Control: no-store, private');
@@ -92,6 +92,7 @@ try {
     $technicians = in_array($user['role'], ['ADMIN', 'MANAGER'], true)
         ? consoleTechnicians($pdo, (int) $device['accountable_branch_id'])
         : [];
+    $quote = quoteCanPrepare($user) || quoteCanRecord($user) ? quoteLatest($pdo, $id) : null;
     $events = [];
     $eventPage = null;
     if (in_array($user['role'], ['ADMIN', 'TECHNICIAN'], true)) {

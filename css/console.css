@@ -117,3 +117,39 @@
   background: var(--steel-900);
   color: var(--gold-300);
 }
+
+/* Shared visual rhythm for staff lists, device work and estimate forms. */
+.staff-page .staff-heading {
+  padding-bottom: 20px;
+  border-bottom: 1px solid #526771;
+}
+.staff-page .dashboard-card {
+  border: 1px solid #526771;
+  border-radius: 16px;
+  box-shadow: none;
+}
+.staff-page button,
+.staff-page .secondary-btn {
+  min-height: 44px;
+}
+.staff-page button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.staff-page .field-error {
+  padding: 16px;
+  border: 1px solid #e7a09b;
+  border-radius: 12px;
+  background: #442b30;
+  color: #ffe2df;
+  margin: 16px 0;
+}
+.staff-page .console-search > label {
+  margin-bottom: 0;
+}
+.staff-page .console-search > a {
+  padding: 12px 0;
+}
+.staff-page .dashboard-card h2 {
+  margin-top: 0;
+}

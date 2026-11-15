@@ -287,3 +287,112 @@
     box-sizing: border-box;
   }
 }
+
+.section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.section-heading h2 {
+  margin: 0;
+}
+.next-action {
+  border-left: 4px solid var(--gold-300) !important;
+}
+.quote-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+.quote-steps li {
+  padding: 10px 14px;
+  border: 1px solid #526771;
+  border-radius: 8px;
+  color: #d4dfe4;
+}
+.quote-form {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 20px;
+}
+.quote-form > label {
+  display: grid !important;
+  gap: 8px;
+  margin: 0 !important;
+  align-content: start;
+}
+.quote-form textarea {
+  margin: 0;
+}
+.quote-form .confirmation-check,
+.confirmation-check {
+  display: flex !important;
+  align-items: start;
+  gap: 10px;
+}
+.confirmation-check input {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+.quote-breakdown {
+  margin: 0;
+}
+.quote-breakdown > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid #526771;
+}
+.quote-breakdown dt {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.quote-breakdown dt small {
+  display: block;
+  color: #c0ced4;
+  margin-top: 8px;
+}
+.quote-breakdown dd {
+  white-space: nowrap;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.quote-total {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 1.2rem;
+}
+.quote-total strong {
+  color: var(--gold-300);
+}
+.quote-editor {
+  margin-bottom: 24px;
+}
+.quote-editor > summary {
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 4px 0;
+}
+@media (max-width: 700px) {
+  .quote-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .quote-steps {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .quote-breakdown > div {
+    flex-wrap: wrap;
+  }
+}
