@@ -396,3 +396,10 @@
     flex-wrap: wrap;
   }
 }
+
+.quote-steps [aria-current='step'] {
+  border-color: var(--gold-300);
+  color: var(--gold-300);
+  background: #2c3b3f;
+  font-weight: bold;
+}

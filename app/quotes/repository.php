@@ -206,7 +206,18 @@ function quoteSave(
                 $decision,
                 $quoteId,
             ]);
-            // Rejection never cancels or releases the device automatically.
+            // The response ends the waiting state, but does not start or cancel repair.
+            $summary =
+                $decision === 'APPROVED'
+                    ? 'The estimate was approved. The technician can schedule the repair.'
+                    : 'The estimate was declined. Please contact the branch about next steps.';
+            $pdo->prepare(
+                "UPDATE ticket_devices SET repair_status = 'DIAGNOSING' WHERE ticket_device_id = ?",
+            )->execute([$id]);
+            $pdo->prepare(
+                "INSERT INTO ticket_status_events (ticket_device_id, from_status, to_status, actor_type, actor_user_id, public_summary, is_customer_visible, created_at)
+                VALUES (?, ?, 'DIAGNOSING', 'USER', ?, ?, 1, UTC_TIMESTAMP())",
+            )->execute([$id, $device['repair_status'], $actorId, $summary]);
         } else {
             throw new DomainException('Your role cannot perform this quote action.');
         }

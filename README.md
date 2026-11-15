@@ -6,6 +6,10 @@ RepairTrack is a PHP and MySQL learning project for tracking computer repairs ac
 
 Before using this branch with an existing database, select that database and run `database/staff_workspace.sql`. See [staff workflow and upgrade instructions](docs/staff-workspace.md) for role-specific queues, workload limits, history, cash-desk lookup and short-code/PIN tracking. Fresh schemas already include the changes.
 
+## Quote and approval update
+
+From a device, choose **Open estimate** to prepare a quote and record the customer response. See [the workflow, permissions and tests](docs/quote-and-approval.md). This branch includes Staff-Workspace and needs no further schema migration.
+
 ## Requirements
 
 - PHP 8.1 or newer

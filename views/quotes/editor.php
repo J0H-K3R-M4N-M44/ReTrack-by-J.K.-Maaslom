@@ -23,7 +23,19 @@ $deviceUrl = 'device.php?' . http_build_query(['id' => $id, 'return' => $returnQ
  ) ?></p><h1>Repair estimate</h1><p><?= h(dashboardDeviceLabel($device)) ?> · <?= h(
      $device['ticket_code'],
  ) ?></p></div><a class="secondary-btn" href="<?= h($deviceUrl) ?>">Back to device</a></header>
-<ol class="quote-steps" aria-label="Estimate workflow"><li>1. Prepare draft</li><li>2. Share estimate</li><li>3. Record response</li><li>4. Start repair</li></ol>
+<?php
+$activeStep = $expired ? 1 : match ($latest['quote_status'] ?? '') {
+    'DRAFT' => 2,
+    'AWAITING_CUSTOMER' => 3,
+    'APPROVED' => 4,
+    default => 1,
+};
+?>
+<ol class="quote-steps" aria-label="Estimate workflow">
+<?php foreach ([1 => 'Prepare draft', 2 => 'Share estimate', 3 => 'Record response', 4 => 'Start repair'] as $step => $label): ?>
+    <li <?= $step === $activeStep ? 'aria-current="step"' : '' ?>><?= $step ?>. <?= h($label) ?></li>
+<?php endforeach; ?>
+</ol>
 <?php if ($saved): ?><p class="staff-notice" role="status"><?= h($saved) ?></p><?php endif; ?>
 <?php if (
     $error
@@ -41,10 +53,10 @@ $deviceUrl = 'device.php?' . http_build_query(['id' => $id, 'return' => $returnQ
 <?php if (
     !$latest
 ): ?><p>No estimate yet. Begin diagnosis, then describe the work and proposed charges.</p><?php else: ?>
-<p>Revision <?= (int) $latest['version_no'] ?> · Prepared <?=
- h(workspaceDate($latest['created_at']))
- if ($latest['expires_at']): ?> · Response due <?= h(workspaceDate($latest['expires_at']))endif;
- ?></p>
+<p>Revision <?= (int) $latest['version_no'] ?> · Prepared <?= h(workspaceDate($latest['created_at'])) ?></p>
+<?php if ($latest['expires_at']): ?>
+<p>Response due <?= h(workspaceDate($latest['expires_at'])) ?></p>
+<?php endif; ?>
 <dl class="quote-breakdown"><?php foreach ($items as $item): ?><div><dt><?= h(
     $item['description'],
 ) ?><small><?= h($item['item_type']) ?> · Qty <?= h($item['quantity']) ?> × <?= h(
@@ -160,7 +172,7 @@ elseif ($values['action'] === 'share'): ?><p>Mark revision <?= (int) $latest[
     'from'
 ] ?>–<?= $history['to'] ?> of <?= $history[
      'total'
- ] ?> · 10 per page. Earlier responses stay recorded.</p>
+ ] ?> · 10 per page. Earlier responses stay recorded.</p><p class="table-scroll-hint">Swipe or scroll sideways to see all columns.</p>
 <?php if (
     !$history['rows']
 ): ?><p>No revisions yet.</p><?php else: ?><div class="staff-table-wrap" tabindex="0" aria-label="Quote revisions, scroll sideways for more columns"><table class="staff-table workspace-table"><thead><tr><th>Revision</th><th>Status</th><th>Recorded response</th><th class="numeric">Estimate</th><th>Prepared (PH)</th></tr></thead><tbody><?php foreach (

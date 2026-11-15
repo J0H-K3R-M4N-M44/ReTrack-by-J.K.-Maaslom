@@ -153,3 +153,9 @@
 .staff-page .dashboard-card h2 {
   margin-top: 0;
 }
+
+.staff-page input::placeholder,
+.staff-page textarea::placeholder {
+  color: #b5c2c9;
+  opacity: 1;
+}

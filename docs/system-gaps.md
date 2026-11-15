@@ -10,7 +10,7 @@ Shared login and password recovery; branch-scoped staff accounts; reviewed intak
 
 | Priority | Missing workflow | Why it matters |
 | --- | --- | --- |
-| 1 | Quote preparation, revisions and customer approval UI | Technicians cannot start repair without an approved latest quote. Demo SQL currently provides approvals; normal staff need a real workflow. |
+| 1 | Customer self-approval, proof attachments and change orders | Staff can now prepare/revise estimates and record customer decisions. Public self-approval and changes after repair starts remain unfinished. |
 | 2 | Parts requests, reservation, issue/return and stock adjustments | Existing tables and demo rows do not implement stock operations. Prevent negative stock and record who approved each change. |
 | 3 | Cashier/COD records, billing and final handover | CASHIER now has scoped bill lookup, but cannot record payment. Completion/cancellation must synchronize payment rules, device custody and ticket closure. |
 | 4 | Transfer dispatch, receiving and exceptions | Courier screens currently display manifests only. A handover must update device location, transfer items and custody history together. |

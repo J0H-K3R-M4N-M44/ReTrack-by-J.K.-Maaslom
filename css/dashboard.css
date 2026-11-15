@@ -229,7 +229,7 @@
 }
 
 .dashboard-card:hover {
-  transform: translateY(-3px);
+  /* Data cards stay still so controls do not move under the pointer. */
   border-color: rgba(212, 175, 102, 0.32);
   background: rgba(255, 255, 255, 0.09);
 }
@@ -324,11 +324,12 @@
 .welcome-panel,
 .dashboard-card {
   border: 1px solid rgba(223, 231, 234, 0.15);
-  background: rgba(255, 255, 255, 0.07);
+  background: #24363f;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     0 24px 45px rgba(10, 16, 20, 0.22);
-  backdrop-filter: blur(14px);
+  /* Opaque surfaces avoid expensive blur layers on long mobile work pages. */
+  backdrop-filter: none;
 }
 
 .dashboard-card {
