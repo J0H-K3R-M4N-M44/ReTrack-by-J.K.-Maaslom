@@ -1,6 +1,6 @@
 # RepairTrack branch map
 
-Updated: 2026-11-13. All development stays off `main`.
+Current release: 2026-11-15. The tested application through Database-Migrations is integrated into main. See [release notes](main-release.md). The branch descriptions below retain the earlier consolidation history; references to main being unchanged describe that earlier milestone.
 
 `Simplified-System` is the integration branch. The category branches below start from the same tested, consolidated application. They are work areas for future changes, not separate applications or completed backend implementations. Existing features depend on shared authentication, database and UI files, so those files remain available in every branch.
 
