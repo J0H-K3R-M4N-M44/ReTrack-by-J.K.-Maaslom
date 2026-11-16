@@ -21,12 +21,35 @@ function branchMapPanel(branches, options = {}) {
 
   const mapId = options.id || 'repairtrack-branch-map';
   const encodedBranches = visibleBranches.map(encodeURIComponent).join(',');
-  return `<div class="repairtrack-map map-canvas" id="${esc(mapId)}"
-    data-branches="${encodedBranches}"
-    data-current="${esc(options.current || '')}"
-    data-destination="${esc(options.destination || '')}"
-    data-in-transit="${options.inTransit ? 'true' : 'false'}"
-    aria-label="Map showing branch locations"></div>`;
+  const current = options.current || '';
+  const destination = options.destination || '';
+  const hasTransfer = Boolean(current && destination && options.inTransit);
+  const mapLabel = hasTransfer
+    ? `Map showing last confirmed location at ${current} and destination ${destination}`
+    : `Map showing ${visibleBranches.join(' and ')}`;
+  const locationList = visibleBranches.map((branch) => {
+    const place = branchPlaces[branch];
+    const isCurrent = branch === current;
+    const isDestination = hasTransfer && branch === destination;
+    const status = isCurrent ? 'Last confirmed' : isDestination ? 'Destination' : 'Branch';
+    const statusClass = isCurrent ? 'is-current' : isDestination ? 'is-destination' : '';
+
+    return `<li class="map-location ${statusClass}">
+      <span class="map-location-dot" aria-hidden="true"></span>
+      <span><strong>${esc(status)} · ${esc(branch)}</strong><small>${esc(place.name)}</small></span>
+    </li>`;
+  }).join('');
+
+  return `<div class="map-widget">
+    <div class="repairtrack-map map-canvas" id="${esc(mapId)}"
+      data-branches="${encodedBranches}"
+      data-current="${esc(current)}"
+      data-destination="${esc(destination)}"
+      data-in-transit="${options.inTransit ? 'true' : 'false'}"
+      role="region" tabindex="0" aria-label="${esc(mapLabel)}"></div>
+    ${visibleBranches.length > 1 ? `<ul class="map-location-list" aria-label="Map location key">${locationList}</ul>` : ''}
+    <p class="map-disclaimer">Pins show shop locations and confirmed handoffs. They do not show live GPS.</p>
+  </div>`;
 }
 
 // Keep a Google Maps link available even when no API key has been configured.
@@ -102,9 +125,13 @@ function initRepairTrackMaps() {
           center: places[0].position,
           zoom: 14,
           mapId: config.mapId || 'DEMO_MAP_ID',
+          // Let the page scroll naturally on touch screens; keep keyboard use available.
+          gestureHandling: 'cooperative',
+          keyboardShortcuts: true,
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: true,
+          clickableIcons: false,
         });
         const bounds = new google.maps.LatLngBounds();
         const info = new InfoWindow();
@@ -122,8 +149,9 @@ function initRepairTrackMaps() {
             position: place.position,
             title: `${markerLabel}: ${place.branchName} · ${place.name}`,
             content: markerContent,
+            gmpClickable: true,
           });
-          marker.addListener('click', () => {
+          marker.addEventListener('gmp-click', () => {
             const details = document.createElement('div');
             details.className = 'map-info';
             const title = document.createElement('strong');
