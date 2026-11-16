@@ -44,6 +44,7 @@ try {
       `Board overflow ${width}`
     );
   }
+  await page.getByRole('button', { name: 'Workspace menu' }).click();
   await page.getByRole('link', { name: 'History', exact: true }).click();
   await page.locator('#queue-search').fill('WORK-0');
   await page.getByRole('button', { name: 'Search', exact: true }).click();

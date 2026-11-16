@@ -88,13 +88,14 @@ function renderDashboardPager(array $page, string $key, string $tab): void
     <link rel="stylesheet" href="../css/dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="../css/workspace.css">
+<link rel="stylesheet" href="../css/navigation.css">
 </head>
 <body class="dashboard-body page-fade">
     <div class="dashboard-shell">
-        <aside class="dashboard-sidebar" aria-label="Admin navigation">
+        <aside id="admin-navigation" class="dashboard-sidebar" aria-label="Admin navigation" data-navigation="sidebar">
             <div>
                 <div class="dashboard-brand">
-                    <span class="brand-mark"><i class="fa-solid fa-microchip" aria-hidden="true"></i></span>
+                    <span class="brand-mark" aria-hidden="true">R</span>
                     <span>RepairTrack <strong>Admin</strong></span>
                 </div>
 
@@ -147,6 +148,7 @@ function renderDashboardPager(array $page, string $key, string $tab): void
 
         <main class="dashboard-main">
             <header class="dashboard-topbar">
+                <button type="button" class="secondary-btn navigation-toggle" data-navigation-toggle="admin-navigation" aria-controls="admin-navigation" aria-expanded="true" hidden>Navigation</button>
                 <div>
                     <div class="eyebrow">Computer repair operations</div>
                     <h1>Admin dashboard</h1>
@@ -155,14 +157,11 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                     <span class="system-status"><span class="status-dot" aria-hidden="true"></span><?= $metricsAvailable
                         ? 'Dashboard data loaded'
                         : 'Dashboard data unavailable' ?></span>
-                    <span class="welcome-seal" aria-hidden="true"><i class="fa-solid fa-user-shield"></i></span>
-                    <span>
-                        <strong><?php echo $admin_username; ?></strong>
-                        <small>Administrator</small>
-                    </span>
-                    <form action="logout.php" method="post"><input type="hidden" name="csrf_token" value="<?= h(
-                        csrfToken(),
-                    ) ?>"><button class="logout-btn" type="submit">Log out</button></form>
+                    <details class="console-account admin-account">
+                        <summary><span class="account-symbol" aria-hidden="true">●</span> <?= $admin_username ?> · Account</summary>
+                        <div class="account-actions"><p>Administrator</p><a href="../index.php">Public home</a>
+                        <form action="logout.php" method="post"><input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>"><button class="secondary-btn" type="submit">Log out</button></form></div>
+                    </details>
                 </div>
             </header>
 
@@ -173,7 +172,7 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                     <label for="list-search">Search <?= $tab === 'customers'
                         ? 'customers'
                         : 'tickets and drafts' ?></label>
-                    <input id="list-search" name="q" value="<?= h(
+                    <input id="list-search" type="search" name="q" value="<?= h(
                         requestText($_GET, 'q'),
                     ) ?>" maxlength="190">
                     <button class="secondary-btn" type="submit">Search</button>
@@ -191,9 +190,9 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                             ? 'Review current service data using the workspace links.'
                             : 'Dashboard queries failed. Please try again later.' ?></p>
                     </div>
-                    <div class="construction-mark" aria-label="Data modules under construction">
-                        <i class="fa-solid fa-hammer" aria-hidden="true"></i>
-                        <span>Under construction</span>
+                    <div class="overview-actions" aria-label="Common actions">
+                        <a class="secondary-btn" href="intake_create.php">New device intake</a>
+                        <a class="secondary-btn" href="staff_home.php">Review repair queue</a>
                     </div>
                 </section>
 
@@ -283,7 +282,7 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                     </article>
                     <article class="dashboard-card construction-card">
                         <div class="card-heading">
-                            <div><div class="eyebrow">Activity feed</div><h2>Recent operations</h2></div>
+                            <div><div class="eyebrow">Recent work</div><h2>Recently updated devices</h2></div>
                             <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
                         </div>
                         <?php if (!$metricsAvailable): ?>
@@ -460,6 +459,7 @@ function renderDashboardPager(array $page, string $key, string $tab): void
 
     <script src="../js/trans.js"></script>
     <script src="../js/workspace.js"></script>
+    <script src="../js/navigation.js"></script>
 </body>
 </html>
 

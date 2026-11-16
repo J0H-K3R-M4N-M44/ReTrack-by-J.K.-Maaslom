@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="../css/base.css"><link rel="stylesheet" href="../css/dashboard.css">
     <link rel="stylesheet" href="../css/staff.css"><link rel="stylesheet" href="../css/console.css">
     <link rel="stylesheet" href="../css/workspace.css">
+    <link rel="stylesheet" href="../css/navigation.css">
 </head>
 <body class="dashboard-body">
 <a class="skip-link" href="#work-list">Skip to work list</a>
@@ -40,7 +41,8 @@
             $isCourier
         ): ?><p>Branch manifests only. Confirm handover changes with your manager; dispatch and receipt actions are not available here.</p><?php endif; ?>
     </div>
-    <nav class="workspace-tabs" aria-label="Workspace sections">
+    <button type="button" class="secondary-btn navigation-toggle" data-navigation-toggle="workspace-navigation" aria-controls="workspace-navigation" aria-expanded="true" hidden>Workspace menu</button>
+    <nav id="workspace-navigation" class="workspace-tabs" aria-label="Workspace sections" data-navigation="sections">
         <?php if ($role !== 'CASHIER'): ?>
             <a href="?view=queue" <?= $view === 'queue'
                 ? 'aria-current="page"'
@@ -116,11 +118,19 @@
                 $view,
             ) ?>">Clear filters</a>
         </form>
+        <?php if (trim(requestText($_GET, 'q')) !== '' || ($data && consoleStatusFilter($_GET) !== '')): ?>
+        <div class="active-filters" aria-label="Active filters">
+            <span>Filtered results</span>
+            <?php if (trim(requestText($_GET, 'q')) !== ''): ?><span class="filter-chip">Search: <?= h(requestText($_GET, 'q')) ?></span><?php endif; ?>
+            <?php if ($data && consoleStatusFilter($_GET) !== ''): ?><span class="filter-chip">Status: <?= h(dashboardStatusLabel(consoleStatusFilter($_GET))) ?></span><?php endif; ?>
+        </div>
+        <?php endif; ?>
         <p class="workspace-count">Showing <?= $page['from'] ?>–<?= $page['to'] ?> of <?= $page[
      'total'
  ] ?> · maximum 10 per page</p>
         <?php if (!$page['rows']): ?>
-            <div class="workspace-empty"><h3>No matching records</h3><p>Try clearing your filters or searching with a shorter term.</p></div>
+            <div class="workspace-empty"><h3>No matching records</h3><p><?= trim(requestText($_GET, 'q')) !== '' || consoleStatusFilter($_GET) !== '' ? 'Try a shorter search or clear the filters to see the full list.' : 'There are no records in this section for your assigned branches yet.' ?></p>
+            <?php if (trim(requestText($_GET, 'q')) !== '' || consoleStatusFilter($_GET) !== ''): ?><a class="secondary-btn" href="?view=<?= h($view) ?>">Show all records</a><?php elseif ($view === 'drafts' && $canIntake): ?><a class="secondary-btn" href="intake_create.php">Start device intake</a><?php endif; ?></div>
         <?php elseif ($view === 'board'): ?>
             <p>Cards show this page of filtered results. Active queue shows the same records as a table.</p>
             <div class="status-board">
@@ -265,5 +275,5 @@
             endforeach; ?>
         </nav>
     </section>
-</main><script src="../js/workspace.js"></script>
+</main><script src="../js/workspace.js"></script><script src="../js/navigation.js"></script>
 </body></html>

@@ -403,3 +403,27 @@
   background: #2c3b3f;
   font-weight: bold;
 }
+
+/* Filters stay visible after a server-side search, including empty results. */
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  color: #c0ced4;
+}
+.filter-chip {
+  padding: 6px 10px;
+  border: 1px solid #647983;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.workspace-table tbody tr:focus-within {
+  background: #ffffff10;
+}
+.staff-table-wrap:focus-visible {
+  outline: 3px solid var(--gold-300);
+  outline-offset: 4px;
+}
