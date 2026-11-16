@@ -29,7 +29,8 @@
   color: var(--steel-900);
 }
 .site-header {
-  position: absolute;
+  position: fixed;
+  background: rgba(17, 27, 34, 0.96);
   z-index: 10;
   top: 0;
   left: 0;
@@ -761,4 +762,28 @@
   html:not(.landing-enhanced) .menu-toggle {
     display: none;
   }
+}
+
+/* Keep section headings clear of the stationary navigation. */
+.landing-body section[id] {
+  scroll-margin-top: 110px;
+}
+@media (max-width: 600px) {
+  .site-header {
+    padding: 14px 20px;
+  }
+}
+/* Service cards sit on a dark section, unlike the light process cards below. */
+#services .process-card {
+  background: var(--steel-800);
+  color: var(--soft-white);
+  border-color: var(--steel-600);
+}
+#services .process-card p,
+#services .section-heading > p:not(.eyebrow) {
+  color: var(--mist);
+}
+#services .eyebrow,
+#services .process-card a {
+  color: var(--gold-300);
 }

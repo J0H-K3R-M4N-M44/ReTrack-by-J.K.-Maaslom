@@ -164,10 +164,10 @@ function dashboardPage(
     $count = $pdo->prepare('SELECT COUNT(*) FROM (' . $sql . ') AS records');
     $count->execute($parameters);
     $total = (int) $count->fetchColumn();
-    $pages = max(1, (int) ceil($total / 12));
+    $pages = max(1, (int) ceil($total / 10));
     $page = ctype_digit($requestedPage) ? min($pages, max(1, (int) $requestedPage)) : 1;
-    $offset = ($page - 1) * 12;
-    $query = $pdo->prepare($sql . ' ORDER BY ' . $order . ' LIMIT 12 OFFSET ' . $offset);
+    $offset = ($page - 1) * 10;
+    $query = $pdo->prepare($sql . ' ORDER BY ' . $order . ' LIMIT 10 OFFSET ' . $offset);
     $query->execute($parameters);
     return [
         'rows' => $query->fetchAll(),
@@ -175,6 +175,6 @@ function dashboardPage(
         'page' => $page,
         'pages' => $pages,
         'from' => $total ? $offset + 1 : 0,
-        'to' => min($offset + 12, $total),
+        'to' => min($offset + 10, $total),
     ];
 }

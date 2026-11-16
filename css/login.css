@@ -332,3 +332,29 @@ form {
 body {
   overflow-y: auto;
 }
+
+.login-help {
+  color: #d6e1e6;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+.password-options {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 12px 0 20px;
+}
+.password-options button {
+  border: 0;
+  padding: 6px 0;
+  background: none;
+  color: var(--gold-300);
+  text-decoration: underline;
+  font: inherit;
+  cursor: pointer;
+}
+#caps-lock {
+  color: var(--gold-300);
+  align-self: center;
+}

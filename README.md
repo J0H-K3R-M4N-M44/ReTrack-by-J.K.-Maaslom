@@ -6,12 +6,28 @@ This branch preserves the standalone prototype and provides an expanded disposab
 
 RepairTrack is a PHP and MySQL learning project for tracking computer repairs across one or more store branches. The current `Dashboard` screen keeps the existing dark interface and uses database-backed staff login with administrator-only management.
 
+## Main release — 15 November 2026
+
+Main now includes the tested simplified application, staff workspaces, customer tracking, quotes and approval, and the migration runner. See [release and upgrade notes](docs/main-release.md). Demo-System and Google-Maps-Tracking remain separate.
+
+## Staff workspace update
+
+Before using this branch with an existing database, select that database and run `database/staff_workspace.sql`. See [staff workflow and upgrade instructions](docs/staff-workspace.md) for role-specific queues, workload limits, history, cash-desk lookup and short-code/PIN tracking. Fresh schemas already include the changes.
+
+## Quote and approval update
+
+From a device, choose **Open estimate** to prepare a quote and record the customer response. See [the workflow, permissions and tests](docs/quote-and-approval.md). This branch includes Staff-Workspace and needs no further schema migration.
+
 ## Requirements
 
 - PHP 8.1 or newer
 - MySQL 8.0.16 or newer
 - PHP extensions `pdo_mysql`, `mbstring`, `ctype` and `fileinfo`
 - XAMPP or another local Apache + PHP + MySQL setup
+
+## Automatic database upgrades
+
+For an existing database, run `php tools/migrate.php` to see pending upgrades, then `php tools/migrate.php --apply` after backing up. The runner uses your local configuration and asks you to confirm the database name. See [XAMPP instructions and recovery notes](docs/migration-runner.md).
 
 ## Local setup
 
@@ -47,11 +63,11 @@ If you use XAMPP locally, PHP mail delivery is not enabled automatically. Config
 - A public landing page with the existing MP4 hero background, scroll navigation, responsive sections, and reduced-motion support
 - A role-based page wireframe for customer, counter officer, technician, and branch administrator workflows
 
-Single-device ticket issuance now captures accessories, a condition photo, customer-signed paperwork and a branch storage location. Quote approval screens, parts, billing, transfer handovers and repair completion remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
+Single-device ticket issuance now captures accessories, a condition photo, customer-signed paperwork and a branch storage location. Staff-recorded quote approval is available. Parts operations, payment recording, transfer handovers and final repair closure remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
 
 ## Development branches
 
-Use [the branch map](docs/branch-map.md) to choose the feature category. Tested category work merges into `Simplified-System`; `main` is unchanged. See [consolidation checks](docs/consolidation-checks.md) for fixes, tests and limitations.
+Use [the branch map](docs/branch-map.md) to choose the feature category. The tested application through `Database-Migrations` is now in `main`. Start new work from the updated main branch; older feature branches remain historical work areas. See [consolidation checks](docs/consolidation-checks.md) for fixes, tests and limitations.
 
 ## Sample database and integrity tests
 
@@ -71,3 +87,11 @@ See [Ticket issuance setup and workflow](docs/ticket-issuance.md) before issuing
 Administrators can add, edit and deactivate staff with branch-scoped permissions and a reviewed activation-link workflow. See [staff account setup and limits](docs/staff-management.md). No database migration is required. See [staff consoles and quick intake](docs/staff-consoles.md) for the available role-specific tools and their limits.
 
 See [home content notes](docs/home-content.md) for the preparation guide, FAQ and current-versus-planned feature explanations.
+
+## Demo separation
+
+The standalone prototype and expanded classroom seeder now live on [Demo-System](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/tree/Demo-System). This branch keeps the working PHP application and original SQL regression fixtures. See [remaining workflows](docs/system-gaps.md) and [pending legacy branch cleanup](docs/branch-cleanup.md).
+
+## Customer portal and console improvements
+
+Private customer tracking, revocable access codes, customer-safe technician updates and queue filters now reuse the existing database. See [the workflow and tests](docs/customer-tracking.md). Existing databases should use the migration runner described above.

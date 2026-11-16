@@ -45,7 +45,7 @@ try {
   await tech.goto(url + '/admin/device.php?id=' + fixture.device);
   await tech.locator('#repair-note').fill('Browser private repair note');
   await tech.getByRole('button', { name: 'Review progress' }).click();
-  const replay = await tech.locator('form').evaluate((f) => Object.fromEntries(new FormData(f)));
+  const replay = await tech.locator('form:has([name=form_key])').evaluate((f) => Object.fromEntries(new FormData(f)));
   await tech.getByRole('button', { name: 'Confirm change' }).click();
   assert(await tech.getByText('Browser private repair note', { exact: true }).isVisible());
   assert.equal(

@@ -38,5 +38,8 @@ function getPDO(): PDO
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
 
+    // TIMESTAMP values must match the UTC dates used by repair events and reports.
+    $pdo->exec("SET time_zone = '+00:00'");
+
     return $pdo;
 }

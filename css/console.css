@@ -84,3 +84,78 @@
     padding: 18px;
   }
 }
+
+/* Keep long names and narrow filters from stretching a mobile console. */
+.staff-page .staff-heading > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.console-search label {
+  min-width: min(200px, 100%);
+}
+.console-search select {
+  width: 100%;
+}
+.console-scope-note {
+  color: var(--mist);
+  line-height: 1.5;
+}
+.staff-page :focus-visible {
+  outline: 3px solid var(--gold-300);
+  outline-offset: 3px;
+}
+.skip-link:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.skip-link:focus {
+  display: inline-block;
+  padding: 12px;
+  background: var(--steel-900);
+  color: var(--gold-300);
+}
+
+/* Shared visual rhythm for staff lists, device work and estimate forms. */
+.staff-page .staff-heading {
+  padding-bottom: 20px;
+  border-bottom: 1px solid #526771;
+}
+.staff-page .dashboard-card {
+  border: 1px solid #526771;
+  border-radius: 16px;
+  box-shadow: none;
+}
+.staff-page button,
+.staff-page .secondary-btn {
+  min-height: 44px;
+}
+.staff-page button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.staff-page .field-error {
+  padding: 16px;
+  border: 1px solid #e7a09b;
+  border-radius: 12px;
+  background: #442b30;
+  color: #ffe2df;
+  margin: 16px 0;
+}
+.staff-page .console-search > label {
+  margin-bottom: 0;
+}
+.staff-page .console-search > a {
+  padding: 12px 0;
+}
+.staff-page .dashboard-card h2 {
+  margin-top: 0;
+}
+
+.staff-page input::placeholder,
+.staff-page textarea::placeholder {
+  color: #b5c2c9;
+  opacity: 1;
+}

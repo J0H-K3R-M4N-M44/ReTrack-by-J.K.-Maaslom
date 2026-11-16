@@ -12,6 +12,14 @@
       menuButton.setAttribute('aria-expanded', String(isOpen));
       menuButton.querySelector('[aria-hidden]').textContent = isOpen ? '×' : '☰';
     });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && menu.classList.contains('is-open')) {
+        menu.classList.remove('is-open');
+        menuButton.setAttribute('aria-expanded', 'false');
+        menuButton.querySelector('[aria-hidden]').textContent = '☰';
+        menuButton.focus();
+      }
+    });
     menu.querySelectorAll('a').forEach((link) => {
       link.addEventListener('click', () => {
         menu.classList.remove('is-open');

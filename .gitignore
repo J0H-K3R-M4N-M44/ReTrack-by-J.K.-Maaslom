@@ -2,3 +2,7 @@
 /storage/*
 !/storage/.gitkeep
 /demo-prototype/maps-config.js
+
+# Local test screenshots and generated access fixtures.
+/*.png
+/tests/*-fixture.json

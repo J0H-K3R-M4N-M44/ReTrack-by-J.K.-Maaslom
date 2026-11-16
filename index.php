@@ -22,6 +22,7 @@
             <span aria-hidden="true">☰</span>
         </button>
         <nav class="site-nav" id="site-nav" aria-label="Main navigation">
+            <a href="track.php">Track a repair</a>
             <a href="#how-it-works">How it works</a>
             <a href="#prepare">Before your visit</a>
             <a href="#questions">Questions</a>
@@ -40,16 +41,25 @@
             <div class="hero-content">
                 <p class="eyebrow"><span></span> One repair, one clear record</p>
                 <h1 id="hero-title">Know where every repair stands.</h1>
-                <p class="hero-lede">A calmer check-in for customers. A clearer work queue for the people who repair their devices.</p>
+                <p class="hero-lede">Follow your device from check-in to collection. View the latest repair stage, confirmed custody and updates from your service team.</p>
                 <div class="hero-actions">
-                    <a class="button button-primary" href="#how-it-works">See how it works <i class="fa-solid fa-arrow-down" aria-hidden="true"></i></a>
-                    <a class="button button-quiet" href="admin/login.php">Staff sign in</a>
+                    <a class="button button-primary" href="track.php">Track your repair <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+                    <a class="button button-quiet" href="#prepare">Before your visit</a>
                 </div>
                 <div class="hero-meta"><span class="live-dot"></span> Built for repair teams with one shop or many</div>
             </div>
             <a class="scroll-cue" href="#how-it-works" aria-label="Scroll to how it works"><span></span></a>
         </section>
 
+        <section class="section" id="services" aria-labelledby="services-title">
+            <div class="section-heading"><p class="eyebrow">Help for your everyday devices</p><h2 id="services-title">Start with the problem. We help with the next step.</h2><p>Bring your device for assessment. Availability, parts and final costs are confirmed by your branch.</p></div>
+            <div class="process-grid">
+                <article class="process-card"><h3>Laptops and desktops</h3><p>Power problems, slow performance, startup failures and overheating.</p></article>
+                <article class="process-card"><h3>Device diagnostics</h3><p>Describe the symptoms and let the technician inspect the cause.</p></article>
+                <article class="process-card"><h3>Parts and upgrades</h3><p>Ask about compatible memory, storage and replacement components.</p></article>
+                <article class="process-card"><h3>Repair updates</h3><p>Use your tracking code and phone PIN to check progress and messages from the service team.</p><a href="track.php">Open tracking →</a></article>
+            </div>
+        </section>
         <section class="section process-section" id="how-it-works" aria-labelledby="process-title">
             <div class="section-heading reveal">
                 <p class="eyebrow">A simple service path</p>
@@ -143,15 +153,15 @@
         <section class="section capability-section" id="available" aria-labelledby="available-title">
             <div class="section-heading reveal"><p class="eyebrow">What this version supports</p><h2 id="available-title">Clear expectations, from the start.</h2></div>
             <div class="capability-grid">
-                <article class="capability-card reveal"><h3>Available now</h3><ul><li>Authorized staff intake, quick menus, review and draft editing.</li><li>Issued intake references and printable records.</li><li>Private intake evidence and recorded storage locations.</li><li>Staff account creation, activation and branch assignments.</li><li>Role-specific queues, technician assignments and repair-stage updates.</li><li>Searchable workbench, customer summaries and status totals.</li></ul></article>
-                <article class="capability-card reveal"><h3>Still being built</h3><ul><li>Public tracking by code or QR.</li><li>Automated SMS/email repair alerts and customer chat.</li><li>Quotes, cashier/COD records and inventory actions.</li></ul><p>For a repair update, contact the branch handling your device and give your intake reference.</p></article>
+                <article class="capability-card reveal"><h3>Available now</h3><ul><li>Private customer tracking with repair status, custody and published updates.</li><li>Authorized staff intake, quick menus, review and draft editing.</li><li>Issued intake references and printable records.</li><li>Private intake evidence and recorded storage locations.</li><li>Staff account creation, activation and branch assignments.</li><li>Role-specific queues, technician assignments and repair-stage updates.</li><li>Searchable workbench, customer summaries and status totals.</li></ul></article>
+                <article class="capability-card reveal"><h3>Still being built</h3><ul><li>QR scanning and customer requests.</li><li>Automated SMS/email repair alerts and customer chat.</li><li>Quotes, cashier/COD records and inventory actions.</li></ul><p>Use private tracking for saved repair updates. Contact the branch for appointments, estimates, collection and payment questions.</p></article>
             </div>
         </section>
         <section class="section faq-section" id="questions" aria-labelledby="questions-title">
             <div class="section-heading reveal"><p class="eyebrow">Common questions</p><h2 id="questions-title">Know what happens next.</h2></div>
             <div class="faq-list">
                 <details><summary>Do I need an account to bring in a device?</summary><p>No customer account is needed for the current counter-intake workflow. An administrator records your details and links your device to the intake.</p></details>
-                <details><summary>Can I track a repair online yet?</summary><p>Public code/QR tracking is not available in this version. Keep your issued intake reference and contact the branch for an update. Staff sign-in is for authorized team members.</p></details>
+                <details><summary>Can I track a repair online yet?</summary><p>Yes. Ask your branch for a private tracking code, then choose Track your repair and enter the last four digits of your recorded phone number as your PIN. Your receipt number alone does not grant access. Tracking shows saved staff updates; it does not follow a courier by GPS.</p></details>
                 <details><summary>What if I cannot find the serial number?</summary><p>Tell the person accepting the device. They can record other identifying marks or specifications before issuing the intake. Do not guess a serial number.</p></details>
                 <details><summary>Is an intake reference a repair quote or payment receipt?</summary><p>No. It identifies the accepted device and intake record. Ask the branch about assessment, pricing, payment arrangements and approval before repair work. This version does not collect online payments.</p></details>
                 <details><summary>How long will the repair take?</summary><p>The branch needs to assess the fault, parts availability and workload before giving an estimate. The website does not promise a fixed turnaround time.</p></details>
@@ -163,9 +173,9 @@
         <section class="closing-cta reveal" aria-labelledby="closing-title">
             <div>
                 <p class="eyebrow">Repair work, made easier to follow</p>
-                <h2 id="closing-title">Ready to open the workbench?</h2>
+                <h2 id="closing-title">Ready to check your repair?</h2>
             </div>
-            <a class="button button-primary" href="admin/login.php">Sign in to RepairTrack <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+            <a class="button button-primary" href="track.php">Track your repair <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
         </section>
     </main>
 
