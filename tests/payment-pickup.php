@@ -46,11 +46,14 @@ $branch = insertFixture($pdo, 'INSERT INTO branches (branch_code,branch_name) VA
 $location = insertFixture($pdo,
     "INSERT INTO storage_locations (branch_id,location_code,location_name) VALUES (?,'BENCH','Bench')", [$branch]);
 
+$browserFixture = in_array('--browser-fixture', $argv, true);
+$password = $browserFixture ? bin2hex(random_bytes(20)) : '';
+$hash = $browserFixture ? password_hash($password, PASSWORD_DEFAULT) : 'unused';
 $staff = [];
 foreach (['MANAGER', 'CASHIER', 'CASHIER'] as $index => $role) {
     $id = insertFixture($pdo,
         'INSERT INTO users (full_name,email,password_hash,role) VALUES (?,?,?,?)',
-        ['Test ' . $role, "$run-$index@example.test", 'unused', $role]);
+        ['Test ' . $role, "$run-$index@example.test", $hash, $role]);
     $pdo->prepare('INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)')->execute([$id,$branch]);
     $staff[] = ['user_id' => $id, 'role' => $role];
 }
@@ -73,6 +76,17 @@ $quote = insertFixture($pdo,
      VALUES (?,1,'APPROVED',100,100,?)", [$device,$manager['user_id']]);
 $pdo->prepare("INSERT INTO repair_quote_items (quote_id,item_type,description,quantity,unit_price,line_total)
     VALUES (?,'LABOR','Charging repair',1,100,100)")->execute([$quote]);
+
+// Stream these temporary credentials to the browser runner, outside the web root.
+if ($browserFixture) {
+    echo json_encode([
+        'manager' => "$run-0@example.test",
+        'cashier' => "$run-1@example.test",
+        'password' => $password,
+        'ticket' => $run,
+    ], JSON_THROW_ON_ERROR);
+    exit();
+}
 
 $version = cashTicketVersion(cashPageTicket($pdo,$manager,$ticket));
 $bill = cashIssueFinalBill($pdo,$manager['user_id'],$ticket,$version);
