@@ -1,0 +1,41 @@
+name: Payment and pickup
+on:
+  push:
+    branches: [Workspace-Design]
+    paths:
+      - '.github/workflows/payment-pickup.yml'
+      - 'tests/payment-pickup.php'
+      - 'app/**'
+      - 'database/schema.sql'
+      - 'admin/cash.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  payment-pickup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare disposable MySQL database
+        env:
+          MYSQL_PWD: root
+        run: |
+          sudo systemctl start mysql
+          sed -e 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_pickup/' \
+              -e 's/^USE repairtrack;$/USE repairtrack_test_pickup;/' database/schema.sql | mysql -h 127.0.0.1 -u root
+      - name: Run PHP payment and pickup check
+        run: |
+          php -r 'foreach (["pdo_mysql","mbstring"] as $extension) { if (!extension_loaded($extension)) { exit(1); } }'
+          cat > config/config.php <<'PHP'
+          <?php
+          return [
+              'host' => '127.0.0.1',
+              'database' => 'repairtrack_test_pickup',
+              'username' => 'root',
+              'password' => 'root',
+          ];
+          PHP
+          php tests/payment-pickup.php
