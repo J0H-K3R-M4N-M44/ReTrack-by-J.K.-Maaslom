@@ -71,3 +71,21 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
 }
 @media (prefers-reduced-transparency:reduce) { .rt-top { backdrop-filter:none; background:var(--rt-panel); } }
 @media (prefers-reduced-motion:reduce) { .rt-layout * { scroll-behavior:auto !important; transition:none !important; animation:none !important; } }
+
+/* A fixed sidebar occupies no layout space. Reserve its current width for the queue. */
+@media (min-width: 768px) {
+  .rt-layout { padding-inline-start: var(--rt-sidebar); }
+  .rt-layout .rt-top { margin-inline-start: 0; }
+}
+.rt-dock svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (max-width: 767px) {
+  .rt-dock { grid-auto-flow: column; grid-auto-columns: 1fr; grid-template-columns: none; }
+}
