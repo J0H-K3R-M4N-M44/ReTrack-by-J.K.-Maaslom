@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../app/auth.php';
 require_once __DIR__ . '/../app/payments/repository.php';
-require_once __DIR__ . '/../app/console/workspace.php';
+require_once __DIR__ . '/../app/staff/repository.php';
 startAppSession();
 $user = requireRoles(['ADMIN', 'MANAGER', 'CASHIER']);
 header('Cache-Control: no-store, private');
@@ -54,6 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $review = true;
         } elseif ($intent === 'edit' && isset($formState['values'])) {
             $formValues = $formState['values'];
+            // Editing cancels the old approval until the new values pass review.
+            unset($_SESSION['cash_forms'][$formKey]['values'], $formState['values']);
         } elseif ($intent === 'save' && isset($formState['values'])) {
             $formValues = $formState['values'];
             if ($pageAction === 'issue') {
@@ -164,12 +166,12 @@ if ($formState && $pageAction !== '') {
         ? cashTicketVersion($ticket)
         : $bill['version'];
     if (!hash_equals($formState['version'], $currentVersion)) {
-        $error = 'This record changed while you were reviewing it. Check the latest details and review again.';
         unset($_SESSION['cash_forms'][$formKey]);
-        $formKey = cashStartForm($pageAction, $pageId, $currentVersion);
-        $formState = $_SESSION['cash_forms'][$formKey];
-        $formValues = [];
-        $review = false;
+        $_SESSION['cash_saved'] = 'Another staff member updated this record. Check the latest details.';
+        // The balance may now be zero or the ticket closed. Reopen its current step.
+        $parameter = $pageAction === 'issue' ? 'ticket_id' : 'bill_id';
+        header('Location: cash.php?' . $parameter . '=' . $pageId, true, 303);
+        exit();
     }
 }
 
