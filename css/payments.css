@@ -1,0 +1,111 @@
+.payments-page {
+  display: grid;
+  gap: 20px;
+}
+.payments-page .staff-heading {
+  align-items: flex-start;
+}
+.payments-page .staff-heading h1,
+.payments-page .staff-heading p {
+  margin-bottom: 8px;
+}
+.payments-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.payments-heading-row h2 {
+  margin-bottom: 0;
+}
+.payments-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0 12px;
+}
+.payments-summary > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line, #34434f);
+  border-radius: 12px;
+  background: var(--raised, #202e38);
+}
+.payments-summary span,
+.payments-note {
+  color: var(--muted, #abb9c4);
+}
+.payments-summary strong {
+  font-size: clamp(18px, 2vw, 25px);
+  overflow-wrap: anywhere;
+}
+.payments-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line, #34434f);
+  border-radius: 12px;
+}
+.payments-table-wrap .staff-table {
+  min-width: 680px;
+  margin: 0;
+}
+.payments-table-wrap small {
+  display: block;
+  color: var(--muted, #abb9c4);
+}
+.payments-note {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--accent, #eab766);
+  background: var(--raised, #202e38);
+}
+.payments-action {
+  display: grid;
+  gap: 12px;
+  max-width: 720px;
+  margin-top: 16px;
+}
+.payments-action input:not([type="checkbox"]),
+.payments-action select {
+  width: 100%;
+  min-height: 44px;
+}
+.payments-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 6px 0;
+}
+.payments-check input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+.payments-review {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid var(--line, #34434f);
+  border-radius: 12px;
+  background: var(--raised, #202e38);
+}
+.payments-review .staff-actions,
+.payments-next-action .staff-actions {
+  margin-top: 16px;
+}
+.payments-next-action {
+  border-color: color-mix(in srgb, var(--accent, #eab766) 50%, var(--line, #34434f));
+}
+@media (max-width: 700px) {
+  .payments-summary {
+    grid-template-columns: 1fr;
+  }
+  .payments-heading-row {
+    flex-direction: column;
+  }
+  .payments-page .staff-heading {
+    flex-direction: column;
+  }
+}

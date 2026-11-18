@@ -37,6 +37,7 @@ $users = $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
 $tickets = $pdo->query('SELECT COUNT(*) FROM repair_tickets')->fetchColumn();
 // Simulate the pre-workspace schema only inside the disposable fixture database.
 $pdo->exec('DROP TABLE IF EXISTS password_reset_tokens');
+$pdo->exec('DROP TABLE IF EXISTS repair_bill_payments');
 $pdo->exec(
     'ALTER TABLE repair_tickets DROP INDEX uq_portal_code, DROP COLUMN portal_code, DROP COLUMN portal_pin_hash',
 );

@@ -23,7 +23,10 @@ function migrationHasColumn(PDO $pdo, string $table, string $column): bool
 }
 function migrationPreflight(PDO $pdo): void
 {
-    foreach (['users', 'repair_tickets', 'ticket_devices', 'ticket_status_events'] as $table) {
+    foreach (
+        ['users', 'repair_tickets', 'ticket_devices', 'ticket_status_events', 'repair_bills']
+        as $table
+    ) {
         if (!migrationHasTable($pdo, $table)) {
             throw new RuntimeException(
                 "Missing $table. Select an existing RepairTrack database in config/config.php. This runner does not install a fresh database.",
@@ -67,16 +70,22 @@ function migrationPending(PDO $pdo): array
     if ($missing) {
         $pending[] = 'staff_workspace.sql';
     }
+    if (!migrationHasTable($pdo, 'repair_bill_payments')) {
+        $pending[] = 'payment_handover.sql';
+    }
     return $pending;
 }
 function migrationPrintStatus(array $pending): void
 {
-    foreach (['password_reset.sql', 'staff_workspace.sql'] as $filename) {
+    foreach (
+        ['password_reset.sql', 'staff_workspace.sql', 'payment_handover.sql']
+        as $filename
+    ) {
         echo (in_array($filename, $pending, true) ? '[pending] ' : '[ready]   ') . $filename . "\n";
     }
 }
 
-// These are the two trusted, line-delimited project migrations, not arbitrary uploads.
+// These are the trusted, line-delimited project migrations, not arbitrary uploads.
 // DELIMITER is a Workbench command, so strip it and send each SQL statement to PDO.
 function migrationRunFile(PDO $pdo, string $path): void
 {

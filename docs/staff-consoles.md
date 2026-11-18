@@ -11,7 +11,7 @@
 | Courier | Read-only item-level transfer manifests for assigned origin/destination branches, with route, destination storage and handover condition notes. |
 | Viewer | Read-only device status and location for assigned branches. No customer contact, intake descriptions, signatures or private notes. |
 
-There is no Cashier role in the current schema. The courier manifest is branch-wide because the existing transfer schema has no personal courier-assignment field. Transfer creation and receipt confirmation remain pending; this page does not claim to complete a handover.
+Cashiers can search bills, record counter cash and finish a paid counter pickup. Managers and administrators can issue a final bill after every device on the ticket is ready and has an approved estimate. COD, courier handover, transfer dispatch and transfer receipt remain pending.
 
 ## Screen layout and workflow
 
@@ -44,7 +44,7 @@ Allowed repair paths are deliberately limited:
 - In repair → Awaiting parts or Testing.
 - Testing → In repair or Ready for pickup.
 
-Starting In repair requires the latest quote to be approved, except a return from Testing. Devices must be physically at a location for a stage change. Quote preparation/approval UI is still pending. Completion, cancellation and customer handover are excluded because they require their own evidence and payment rules. A private note can be saved without changing stage.
+Starting In repair requires the latest quote to be approved, except a return from Testing. Devices must be physically at a location for a stage change. Staff can prepare an estimate and record the customer's decision. Completion is available only after a final bill is fully paid and staff confirms the customer or authorized representative checked the devices and accessories. Cancellation, refunds, digital signatures and courier delivery are still excluded.
 
 Forms use CSRF protection, expiring one-use review keys, version checks, prepared queries and transactional status/history/audit updates. Failed writes roll back. Older displayed forms cannot silently overwrite newer progress.
 

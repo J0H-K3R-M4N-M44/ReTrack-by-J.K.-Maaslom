@@ -8,7 +8,7 @@ Main now includes the tested simplified application, staff workspaces, customer 
 
 ## Staff workspace update
 
-Before using this branch with an existing database, select that database and run `database/staff_workspace.sql`. See [staff workflow and upgrade instructions](docs/staff-workspace.md) for role-specific queues, workload limits, history, cash-desk lookup and short-code/PIN tracking. Fresh schemas already include the changes.
+For an existing database, back it up and run `php tools/migrate.php --apply` to add the staff workspace and cash-payment table. See [staff workflow and upgrade instructions](docs/staff-workspace.md) for role-specific queues, workload limits, history, cash collection and handover. Fresh schemas already include the changes.
 
 ## Quote and approval update
 
@@ -47,6 +47,10 @@ If you use XAMPP locally, PHP mail delivery is not enabled automatically. Config
 
 `app/db.php` creates a PDO connection using a MySQL DSN and prepared statements. Keep your real `config/config.php` out of Git; only the example template is committed.
 
+## Payments and customer pickup on Payments-Inventory
+
+Managers can issue one final bill for a ticket after every device is ready and has a current approved estimate. Cashiers can record counter cash, then confirm who received the devices and that the device/accessory check happened. The ticket closes after handover. This feature records no COD, online payment, refund, tax, discount, or digital signature.
+
 ## Current scope
 
 - Shared staff login with administrator-only protected screens against the `users` table using `password_verify()`
@@ -59,7 +63,7 @@ If you use XAMPP locally, PHP mail delivery is not enabled automatically. Config
 - A public landing page with the existing MP4 hero background, scroll navigation, responsive sections, and reduced-motion support
 - A role-based page wireframe for customer, counter officer, technician, and branch administrator workflows
 
-Single-device ticket issuance now captures accessories, a condition photo, customer-signed paperwork and a branch storage location. Staff-recorded quote approval is available. Parts operations, payment recording, transfer handovers and final repair closure remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
+Single-device ticket issuance captures accessories, condition photos, signed intake paperwork and branch storage. Staff-recorded quote approval and counter-cash customer pickup are available on Payments-Inventory. Parts operations, COD delivery, refunds and public self-approval remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
 
 ## Development branches
 

@@ -90,7 +90,7 @@
         ): ?><p>Finished, cancelled or closed records stay here for reference. Nothing is deleted.</p><?php endif; ?>
         <?php if (
             $view === 'cash'
-        ): ?><p>Issued and voided bills only. Amounts are bill totals, not cash received. Payment recording and receipt issuance are not implemented yet.</p><?php endif; ?>
+        ): ?><p>Search a bill to record counter cash or complete a paid customer pickup. COD and online payments are not available.</p><?php endif; ?>
         <form class="console-search" method="get">
             <input type="hidden" name="view" value="<?= h($view) ?>">
             <label for="queue-search"><?= h(
@@ -169,6 +169,9 @@
                             'Issued (PH time)',
                             'Status',
                             'Bill total',
+                            'Cash received',
+                            'Balance',
+                            'Action',
                         ],
                         $view === 'drafts' => [
                             'Draft',
@@ -193,8 +196,11 @@
                             'Action',
                         ],
                     };
-                    foreach ($columns as $column): ?><th scope="col" class="<?= $column ===
-'Bill total'
+                    foreach ($columns as $column): ?><th scope="col" class="<?= in_array($column, [
+    'Bill total',
+    'Cash received',
+    'Balance',
+], true)
     ? 'numeric'
     : '' ?>"><?= h($column) ?></th><?php endforeach;
                     ?>
@@ -210,7 +216,13 @@
 ) ?></td><td class="numeric"><?= h($row['currency']) ?> <?= number_format(
      (float) $row['total_amount'],
      2,
- ) ?></td>
+ ) ?></td><td class="numeric"><?= h($row['currency']) ?> <?= number_format(
+     (float) $row['amount_paid'],
+     2,
+ ) ?></td><td class="numeric"><?= h($row['currency']) ?> <?= number_format(
+     max(0, (float) $row['total_amount'] - (float) $row['amount_paid']),
+     2,
+ ) ?></td><td><a href="cash.php?bill_id=<?= (int) $row['bill_id'] ?>">Open cash record</a></td>
                     <?php elseif ($view === 'drafts'): ?>
                         <td>#<?= (int) $row['ticket_id'] ?></td><td><?= h(
     $row['customer_name'] ?? 'Not recorded',

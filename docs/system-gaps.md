@@ -1,6 +1,6 @@
 # RepairTrack: what is still missing
 
-Reviewed against the current PHP implementation on 2026-11-15. Prototype buttons and seeded records do not count as implemented features.
+Reviewed against `Payments-Inventory` on 2026-11-18. Prototype buttons and seeded records do not count as implemented features. The payments feature is not yet in `main`.
 
 ## Implemented foundation
 
@@ -12,7 +12,7 @@ Shared login and password recovery; branch-scoped staff accounts; reviewed intak
 | --- | --- | --- |
 | 1 | Customer self-approval, proof attachments and change orders | Staff can now prepare/revise estimates and record customer decisions. Public self-approval and changes after repair starts remain unfinished. |
 | 2 | Parts requests, reservation, issue/return and stock adjustments | Existing tables and demo rows do not implement stock operations. Prevent negative stock and record who approved each change. |
-| 3 | Cashier/COD records, billing and final handover | CASHIER now has scoped bill lookup, but cannot record payment. Completion/cancellation must synchronize payment rules, device custody and ticket closure. |
+| 3 | COD, refunds and bill correction | Counter-cash payment, final bill and paid counter pickup now work on this branch. COD delivery, refunds, void/reissue UI and cancellation need their own permissions and audit rules. |
 | 4 | Transfer dispatch, receiving and exceptions | Courier screens currently display manifests only. A handover must update device location, transfer items and custody history together. |
 | 5 | QR convenience and richer customer actions | Private-code tracking now works. QR generation/scanning and customer approval/request actions remain. Receipt numbers alone never open a repair. |
 | 6 | Customer consultation and requests | Technician/customer messages, upgrades, cancellations and approval responses need real storage, permissions and audited decisions. |
@@ -23,9 +23,9 @@ Shared login and password recovery; branch-scoped staff accounts; reviewed intak
 
 ## Recommended next milestone
 
-Finish **quote → approval → repair → testing → customer handover** for one branch before adding more analytics or tables. Reuse the existing quotes, decisions, bills, status and custody tables. Keep payment limited to cashier/COD as planned.
+Finish **quote → approval → repair → testing → counter cash → customer pickup** for one branch before adding more analytics. The counter-cash branch uses one new `repair_bill_payments` table because the schema had no payment history. It reuses existing bill, status, audit and custody records. COD, refunds, stock operations, customer self-approval and notification delivery remain out of scope.
 
-The staff workspace adds three columns and the CASHIER enum value, with no new tables. Do not add tables simply because an unfinished menu needs a screen.
+Use `php tools/migrate.php --apply` on an existing database to add the payment table. Fresh schema scripts include it. Keep new tables tied to durable records the current schema cannot safely represent.
 
 ## Demo separation
 

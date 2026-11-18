@@ -34,4 +34,4 @@ Tests cover exact totals, invalid amounts, role/branch boundaries, stale edits, 
 
 ## Next work
 
-Finish testing/quality checks and the cash payment → handover → closure workflow. Keep stock reservation, customer self-approval and change orders separate from this milestone.
+On `Payments-Inventory`, a manager can issue the final bill after every device is ready with an approved estimate. Cashiers record counter cash and confirm a paid counter pickup. COD, refunds, stock reservation, customer self-approval and change orders remain separate work.

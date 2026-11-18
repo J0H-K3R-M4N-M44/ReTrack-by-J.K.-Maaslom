@@ -4,7 +4,7 @@ This branch extends the PHP application. Main is unchanged. It uses the prototyp
 
 ## Upgrade an existing installation
 
-Back up the database. Select your application database in MySQL Workbench, then run `database/staff_workspace.sql`. The migration can run again safely. It adds three nullable columns and the CASHIER role; it adds no tables. Fresh installations already include these fields in `database/schema.sql`.
+Back up the database. For an existing installation, run `php tools/migrate.php` and then `php tools/migrate.php --apply`. The runner applies the staff workspace and counter-cash migrations safely. Fresh installations include both in `database/schema.sql`.
 
 Set `technician_active_limit` in your local `config/config.php` if needed; the default is 5. Keep this file untracked. Existing ticket references and old tracking links are preserved.
 
@@ -16,7 +16,7 @@ Set `technician_active_limit` in your local `config/config.php` if needed; the d
 - The status board groups the current page of devices by repair stage. It is not a total of every matching device. Queue and board show the same filtered data in different layouts.
 - History contains completed/cancelled devices and closed tickets. Records remain stored; this is not deletion. Couriers have separate active and historical manifest views.
 - Intake agents and managers can open Saved drafts or start intake. Only the selected section loads its list.
-- Cashiers can search issued/void bills by ticket reference, five-character tracking code or bill number. This is read-only bill lookup: it does not record payment, calculate outstanding balances, or authorize handover. Administrators/managers can also access it.
+- Cashiers can search issued/void bills by ticket reference, five-character tracking code or bill number. They can record counter cash and complete pickup after the full balance is paid. Administrators/managers can also access these actions; only they can issue the final bill.
 
 ## Dates, tables and analytics
 
@@ -46,7 +46,7 @@ Use only a disposable `repairtrack_test_*` database. Import the original demo sc
 
 Browser scripts use Playwright, `CHROME_PATH`, `REPAIRTRACK_TEST_URL` and `REPAIRTRACK_TEST_SITE`. Fixture scripts change data; recreate the disposable database before repeating. Do not deploy generated fixture files or screenshots.
 
-See `system-gaps.md` for unfinished quote, stock, payment and handover workflows. Validate the migration on the target MySQL installation before deploying.
+Counter cash is recorded as append-only payment rows. COD, online payments, refunds, bill voiding, and digital signatures are not part of this milestone. See `system-gaps.md` for the remaining work. Validate the migration on the target MySQL installation before deploying.
 
 ## Debugging pass: navigation, mobile details and timezones
 
