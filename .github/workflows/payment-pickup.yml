@@ -52,3 +52,11 @@ jobs:
           trap 'kill $!; rm -f "$PICKUP_FIXTURE"' EXIT
           curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
           node tests/payment-browser.mjs
+      - name: Save staff workspace screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staff-workspace-screens
+          path: ${{ runner.temp }}/workspace-screens/
+          retention-days: 7
+          if-no-files-found: ignore

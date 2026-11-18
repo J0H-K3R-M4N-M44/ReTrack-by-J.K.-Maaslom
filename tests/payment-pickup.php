@@ -50,7 +50,13 @@ $browserFixture = in_array('--browser-fixture', $argv, true);
 $password = $browserFixture ? bin2hex(random_bytes(20)) : '';
 $hash = $browserFixture ? password_hash($password, PASSWORD_DEFAULT) : 'unused';
 $staff = [];
-foreach (['MANAGER', 'CASHIER', 'CASHIER'] as $index => $role) {
+$roles = ['MANAGER', 'CASHIER', 'CASHIER'];
+if ($browserFixture) {
+    $roles = array_merge($roles, ['ADMIN', 'INTAKE_AGENT', 'TECHNICIAN', 'COURIER', 'VIEWER']);
+}
+$emails = [];
+foreach ($roles as $index => $role) {
+    $emails[strtolower($role)] ??= "$run-$index@example.test";
     $id = insertFixture($pdo,
         'INSERT INTO users (full_name,email,password_hash,role) VALUES (?,?,?,?)',
         ['Test ' . $role, "$run-$index@example.test", $hash, $role]);
@@ -79,9 +85,7 @@ $pdo->prepare("INSERT INTO repair_quote_items (quote_id,item_type,description,qu
 
 // Stream these temporary credentials to the browser runner, outside the web root.
 if ($browserFixture) {
-    echo json_encode([
-        'manager' => "$run-0@example.test",
-        'cashier' => "$run-1@example.test",
+    echo json_encode($emails + [
         'password' => $password,
         'ticket' => $run,
     ], JSON_THROW_ON_ERROR);

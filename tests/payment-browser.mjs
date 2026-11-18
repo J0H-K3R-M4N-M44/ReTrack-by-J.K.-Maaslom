@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 const base = 'http://127.0.0.1:8742';
@@ -16,7 +16,7 @@ async function login(role, width) {
   await page.locator('#email').fill(fixture[role]);
   await page.locator('#password').fill(fixture.password);
   await press(page, 'Login');
-  await page.waitForURL('**/staff_home.php');
+  await page.waitForURL(role === 'admin' ? '**/dashboard.php' : '**/staff_home.php');
   return page;
 }
 
@@ -27,6 +27,28 @@ async function press(page, name) {
 async function checkWidth(page) {
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
     'Page exceeds viewport: ' + page.url());
+}
+
+async function checkRole(role, destination) {
+  const page = await login(role, 1440);
+  if (role === 'admin') {
+    await page.getByRole('link', { name: 'Staff workspace', exact: true }).click();
+  }
+  const screenshots = process.env.RUNNER_TEMP + '/workspace-screens';
+  mkdirSync(screenshots, { recursive: true });
+  for (const width of [1440, 360]) {
+    await page.setViewportSize({ width, height: 900 });
+    await checkWidth(page);
+    const nav = page.locator(width === 1440 ? '.rt-side' : '#rt-menu nav');
+    if (width === 360) await page.locator('#rt-more').click();
+    const cashLink = page.locator('#rt-menu nav a[href$="view=cash"]');
+    assert.equal(await cashLink.count(), role === 'admin' ? 1 : 0);
+    await nav.getByRole('link', { name: destination, exact: true }).click();
+    await page.locator('#work-list').waitFor();
+    await checkWidth(page);
+    await page.screenshot({ path: screenshots + '/' + role + '-' + width + '.png' });
+  }
+  await page.context().close();
 }
 
 try {
@@ -61,6 +83,13 @@ try {
   await cashier.getByRole('heading', { name: 'Ticket closed' }).waitFor();
   await checkWidth(cashier);
   console.log('PASS: manager billing at 1440px, cashier search, payment and pickup at 360px.');
+  for (const [role, destination] of Object.entries({
+    admin: 'Repair queue', intake_agent: 'Saved drafts', technician: 'Status board',
+    courier: 'History', viewer: 'Status board',
+  })) {
+    await checkRole(role, destination);
+    console.log('PASS: desktop and mobile navigation for ' + role);
+  }
 } finally {
   await browser.close();
 }
