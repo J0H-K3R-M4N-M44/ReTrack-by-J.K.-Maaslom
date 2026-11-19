@@ -1,0 +1,23 @@
+name: Primary database seed
+on:
+  push:
+    branches: [Primary-Seed, main]
+    paths: ['tools/seed_primary.php', '.github/workflows/primary-seed.yml', 'database/schema.sql']
+permissions:
+  contents: read
+jobs:
+  seed:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Seed a disposable copy of the primary schema twice
+        env:
+          MYSQL_PWD: root
+        run: |
+          sudo systemctl start mysql
+          mysql -h 127.0.0.1 -u root < database/schema.sql
+          echo "<?php return ['host'=>'127.0.0.1','database'=>'repairtrack','username'=>'root','password'=>'root'];" > config/config.php
+          php tools/seed_primary.php BR-A
+          php tools/seed_primary.php BR-A | grep -F 'Added 0 sample tickets'
+          count=$(mysql -h 127.0.0.1 -u root -N repairtrack -e "SELECT COUNT(*) FROM ticket_devices WHERE item_code LIKE 'S-%'")
+          test "$count" = 24
