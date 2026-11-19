@@ -66,7 +66,7 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
   .rt-page-head { align-items:flex-start; padding:18px; }
   .rt-dock { position:fixed; z-index:8; inset:auto 0 0; min-height:68px; padding:8px 8px calc(8px + env(safe-area-inset-bottom)); display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; border-top:1px solid var(--rt-line); background:var(--rt-panel); }
   .rt-dock a { display:grid; place-content:center; justify-items:center; gap:3px; min-height:48px; border-radius:12px; color:var(--rt-muted); text-decoration:none; font-size:11px; }
-  .rt-dock a[aria-current="page"] { color:var(--rt-accent); background:var(--rt-soft); }
+  .rt-dock a[aria-current] { color:var(--rt-accent); background:var(--rt-soft); }
   .rt-dock a::first-letter { font-size:18px; }
   .rt-layout .workspace-list { padding:14px; }
 }
@@ -110,3 +110,6 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
   background: var(--rt-panel);
   border-color: var(--rt-line);
 }
+
+/* Separate the task list from the secondary seven-day trend. */
+.rt-layout .workspace-list + .workspace-trends { margin-top: 24px; }

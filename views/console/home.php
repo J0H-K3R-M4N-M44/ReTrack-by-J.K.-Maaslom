@@ -17,9 +17,9 @@ require __DIR__ . '/../workspace/navigation.php';
 ?>
 <main id="rt-main" class="staff-page workspace rt-content" tabindex="-1">
     <header class="staff-heading rt-page-head">
-        <div><p class="eyebrow">RepairTrack · <?= h(staffRoles()[$role] ?? 'Staff') ?></p>
+        <div><p class="eyebrow">RepairTrack · <?= h(staffRoles()[$role] ?? 'Administrator') ?></p>
             <h1><?= h($title) ?></h1><p><?= h($description) ?></p></div>
-        <?php if ($canIntake): ?><a class="primary-btn" href="intake_create.php">＋ New intake</a><?php endif; ?>
+        <?php if ($canIntake): ?><a class="primary-btn" href="intake_create.php">New intake</a><?php endif; ?>
     </header>
     <?php if (
         $notice
@@ -39,22 +39,6 @@ require __DIR__ . '/../workspace/navigation.php';
             $isCourier
         ): ?><p>Branch manifests only. Confirm handover changes with your manager; dispatch and receipt actions are not available here.</p><?php endif; ?>
     </div>
-    <?php if ($trend && $view !== 'history'): ?>
-    <section class="workspace-trends" aria-labelledby="trend-heading">
-        <h2 id="trend-heading">Repairs started · last 7 days</h2><p>Philippine time · your assigned scope. Hover, focus or tap a date for its count.</p>
-        <div class="trend-days">
-        <?php foreach ($trend as $index => $day): ?>
-            <details class="trend-point"><summary aria-describedby="trend-<?= $index ?>"><span><?= h(
-    $day['label'],
-) ?></span><strong><?= $day[
-    'total'
-] ?></strong></summary><span class="trend-tooltip" id="trend-<?= $index ?>" role="tooltip"><?= h(
-    $day['date'],
-) ?> · <?= $day['total'] ?> repairs started</span></details>
-        <?php endforeach; ?>
-        </div>
-    </section>
-    <?php endif; ?>
     <section id="work-list" class="dashboard-card workspace-list rt-card">
         <?php $listTitle = match ($view) {
             'cash' => 'Cash desk bill lookup',
@@ -256,5 +240,21 @@ require __DIR__ . '/../workspace/navigation.php';
             endforeach; ?>
         </nav>
     </section>
+    <?php if ($trend && $view !== 'history'): ?>
+    <section class="workspace-trends" aria-labelledby="trend-heading">
+        <h2 id="trend-heading">Repairs started · last 7 days</h2><p>Philippine time · your assigned scope. Hover, focus or tap a date for its count.</p>
+        <div class="trend-days">
+        <?php foreach ($trend as $index => $day): ?>
+            <details class="trend-point"><summary aria-describedby="trend-<?= $index ?>"><span><?= h(
+    $day['label'],
+) ?></span><strong><?= $day[
+    'total'
+] ?></strong></summary><span class="trend-tooltip" id="trend-<?= $index ?>" role="tooltip"><?= h(
+    $day['date'],
+) ?> · <?= $day['total'] ?> repairs started</span></details>
+        <?php endforeach; ?>
+        </div>
+    </section>
+    <?php endif; ?>
 </main><script src="../js/workspace.js"></script>
 </body></html>

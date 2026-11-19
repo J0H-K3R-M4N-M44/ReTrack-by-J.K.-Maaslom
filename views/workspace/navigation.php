@@ -49,11 +49,8 @@ if (!in_array($currentSection, $sidebarKeys, true) && isset($navigation[$current
     $sidebarKeys[] = $currentSection;
 }
 $shortcuts = array_slice($keys, 0, 3);
-// Keep the current screen visible in the dock even for secondary destinations.
-if (!in_array($currentSection, $shortcuts, true) && isset($navigation[$currentSection])) {
-    array_pop($shortcuts);
-    $shortcuts[] = $currentSection;
-}
+// Keep dock destinations in a consistent position as staff move between pages.
+$inMore = !in_array($currentSection, $shortcuts, true);
 ?>
 <a class="rt-skip" href="#rt-main">Skip to content</a>
 <aside class="rt-side">
@@ -89,5 +86,5 @@ if (!in_array($currentSection, $shortcuts, true) && isset($navigation[$currentSe
 </header>
 <nav class="rt-dock" aria-label="Mobile shortcuts">
     <?php foreach ($shortcuts as $key) { $showLink($key); } ?>
-    <a href="#rt-menu" id="rt-more">••• <span>More</span></a>
+    <a href="#rt-menu" id="rt-more" <?= $inMore ? 'aria-current="location"' : '' ?>>••• <span>More</span></a>
 </nav>
