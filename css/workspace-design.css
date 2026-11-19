@@ -9,14 +9,15 @@
   --rt-line: #655e58;
   --rt-soft: #292624;
   --rt-sidebar: 264px;
+  --rt-on-accent: #25180b;
 }
 :root[data-theme="tide"] { --rt-bg:#0b0f1a; --rt-panel:#121828; --rt-glass:rgb(18 24 40 / .8); --rt-text:#eaf0ff; --rt-muted:#b9c5dd; --rt-accent:#7fa6ff; --rt-line:#52627c; --rt-soft:#202c41; }
-:root[data-theme="linen"] { --rt-bg:#fbe7da; --rt-panel:#fffdf9; --rt-glass:rgb(255 255 255 / .78); --rt-text:#14202b; --rt-muted:#455763; --rt-accent:#1f7a8c; --rt-line:#839197; --rt-soft:#e6efed; color-scheme:light; }
+:root[data-theme="linen"] { --rt-bg:#fbe7da; --rt-panel:#fffdf9; --rt-glass:rgb(255 255 255 / .78); --rt-text:#14202b; --rt-muted:#455763; --rt-accent:#1f7a8c; --rt-line:#839197; --rt-soft:#e6efed; color-scheme:light; --rt-on-accent:white; }
 :root[data-surface="solid"] { --rt-glass:var(--rt-panel); }
 body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradient(135deg,var(--rt-bg),color-mix(in srgb,var(--rt-bg),var(--rt-accent) 9%)); }
 .rt-side { position:fixed; z-index:8; inset:0 auto 0 0; width:var(--rt-sidebar); padding:22px 16px; display:flex; flex-direction:column; gap:20px; background:var(--rt-panel); border-right:1px solid var(--rt-line); overflow:auto; }
 .rt-brand { display:flex; align-items:center; gap:12px; padding:4px 8px 12px; font-size:18px; font-weight:700; }
-.rt-brand b { display:grid; place-items:center; width:38px; height:38px; border-radius:12px; color:#25180b; background:var(--rt-accent); }
+.rt-brand b { display:grid; place-items:center; width:38px; height:38px; border-radius:12px; color:var(--rt-on-accent); background:var(--rt-accent); }
 .rt-side nav,.rt-menu-body nav { display:grid; gap:4px; }
 .rt-side nav a,.rt-menu-body nav a { display:flex; align-items:center; gap:12px; min-height:44px; padding:8px 12px; border-radius:10px; color:var(--rt-text); text-decoration:none; }
 .rt-menu-body a[hidden] { display:none !important; }
@@ -48,7 +49,7 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
 .rt-layout .workspace-list h2 { margin:0 0 12px; }
 .rt-layout .workspace-list a,.rt-layout .staff-page a { color:var(--rt-accent); }
 .rt-layout .workspace-list button,.rt-layout .workspace-context a,.rt-layout .rt-page-head .primary-btn { min-height:44px; }
-.rt-page-head .primary-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 16px; border:0; border-radius:10px; color:#25180b !important; background:var(--rt-accent); font-weight:700; text-decoration:none; }
+.rt-page-head .primary-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 16px; border:0; border-radius:10px; color:var(--rt-on-accent) !important; background:var(--rt-accent); font-weight:700; text-decoration:none; }
 .rt-layout .workspace-pagination { margin-top:16px; }
 .rt-skip { position:fixed; z-index:20; top:-80px; left:12px; padding:12px 16px; color:var(--rt-text); background:var(--rt-panel); border-radius:8px; }
 .rt-skip:focus { top:12px; }
@@ -88,4 +89,24 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
 }
 @media (max-width: 767px) {
   .rt-dock { grid-auto-flow: column; grid-auto-columns: 1fr; grid-template-columns: none; }
+}
+
+/* Keep operational lists readable as the selected theme is applied on navigation. */
+.rt-layout .workspace-list {
+  background: var(--rt-panel);
+  transition: none;
+}
+.rt-layout .workspace-trends .trend-point strong,
+.rt-layout .workspace-list .secondary-btn {
+  color: var(--rt-accent);
+}
+.rt-layout .workspace-list .secondary-btn {
+  background: var(--rt-panel);
+  border-color: var(--rt-line);
+}
+.rt-layout .console-search input,
+.rt-layout .console-search select {
+  color: var(--rt-text);
+  background: var(--rt-panel);
+  border-color: var(--rt-line);
 }
