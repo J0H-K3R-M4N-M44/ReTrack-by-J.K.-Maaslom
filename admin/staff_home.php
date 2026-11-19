@@ -24,7 +24,7 @@ $descriptions = [
     'COURIER' => ['Courier console', 'Check transfer manifests for your assigned branches.'],
     'CASHIER' => [
         'Cash desk',
-        'Find bills by ticket code. Confirm cash collection using your branch process.',
+        'Record counter cash and complete paid customer pickups in your assigned branches.',
     ],
     'VIEWER' => ['Viewer console', 'Read repair status for your assigned branches.'],
 ];

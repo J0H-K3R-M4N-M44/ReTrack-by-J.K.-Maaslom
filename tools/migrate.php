@@ -78,7 +78,7 @@ try {
         );
     }
     echo "\nUpgrade verified. Existing accounts and repair records were preserved.\n";
-    echo "No additional migration is required for Quote-and-Approval.\n";
+    echo "Quote-and-Approval uses existing tables. Counter-cash payments use repair_bill_payments.\n";
 } catch (Throwable $error) {
     fwrite(STDERR, "\nMigration stopped: " . $error->getMessage() . "\n");
     $failed = true;

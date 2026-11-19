@@ -6,21 +6,20 @@
     <link rel="stylesheet" href="../css/base.css"><link rel="stylesheet" href="../css/dashboard.css">
     <link rel="stylesheet" href="../css/staff.css"><link rel="stylesheet" href="../css/console.css">
     <link rel="stylesheet" href="../css/workspace.css">
+    <link rel="stylesheet" href="../css/workspace-design.css">
+    <script src="../js/workspace-design.js" defer></script>
 </head>
-<body class="dashboard-body">
-<a class="skip-link" href="#work-list">Skip to work list</a>
-<main class="staff-page workspace">
-    <header class="staff-heading">
-        <div><p class="eyebrow">RepairTrack · <?= h(
-            staffRoles()[$role] ?? 'Administrator',
-        ) ?></p><h1><?= h($title) ?></h1><p><?= h($description) ?></p></div>
-        <details class="console-account"><summary><?= h(
-            $user['full_name'],
-        ) ?> · Account</summary><p><?= h(
-     $user['email'],
- ) ?></p><a href="../index.php">Public home</a><form action="logout.php" method="post"><input type="hidden" name="csrf_token" value="<?= h(
-    csrfToken(),
-) ?>"><button class="secondary-btn">Log out</button></form></details>
+<body class="dashboard-body rt-layout">
+<?php
+$workspaceUser = $user;
+$currentSection = $view;
+require __DIR__ . '/../workspace/navigation.php';
+?>
+<main id="rt-main" class="staff-page workspace rt-content" tabindex="-1">
+    <header class="staff-heading rt-page-head">
+        <div><p class="eyebrow">RepairTrack · <?= h(staffRoles()[$role] ?? 'Administrator') ?></p>
+            <h1><?= h($title) ?></h1><p><?= h($description) ?></p></div>
+        <?php if ($canIntake): ?><a class="primary-btn" href="intake_create.php">New intake</a><?php endif; ?>
     </header>
     <?php if (
         $notice
@@ -40,43 +39,7 @@
             $isCourier
         ): ?><p>Branch manifests only. Confirm handover changes with your manager; dispatch and receipt actions are not available here.</p><?php endif; ?>
     </div>
-    <nav class="workspace-tabs" aria-label="Workspace sections">
-        <?php if ($role !== 'CASHIER'): ?>
-            <a href="?view=queue" <?= $view === 'queue'
-                ? 'aria-current="page"'
-                : '' ?>><?= $isCourier ? 'Open transfers' : 'Active queue' ?></a>
-            <?php if (!$isCourier): ?><a href="?view=board" <?= $view === 'board'
-    ? 'aria-current="page"'
-    : '' ?>>Status board</a><?php endif; ?>
-            <a href="?view=history" <?= $view === 'history'
-                ? 'aria-current="page"'
-                : '' ?>>History</a>
-        <?php endif; ?>
-        <?php if ($canIntake): ?><a href="?view=drafts" <?= $view === 'drafts'
-    ? 'aria-current="page"'
-    : '' ?>>Saved drafts</a><a href="intake_create.php">New device intake</a><?php endif; ?>
-        <?php if ($canCash): ?><a href="?view=cash" <?= $view === 'cash'
-    ? 'aria-current="page"'
-    : '' ?>>Cash desk</a><?php endif; ?>
-        <?php if ($role === 'ADMIN'): ?><a href="dashboard.php">Admin dashboard</a><?php endif; ?>
-    </nav>
-    <?php if ($trend && $view !== 'history'): ?>
-    <section class="workspace-trends" aria-labelledby="trend-heading">
-        <h2 id="trend-heading">Repairs started · last 7 days</h2><p>Philippine time · your assigned scope. Hover, focus or tap a date for its count.</p>
-        <div class="trend-days">
-        <?php foreach ($trend as $index => $day): ?>
-            <details class="trend-point"><summary aria-describedby="trend-<?= $index ?>"><span><?= h(
-    $day['label'],
-) ?></span><strong><?= $day[
-    'total'
-] ?></strong></summary><span class="trend-tooltip" id="trend-<?= $index ?>" role="tooltip"><?= h(
-    $day['date'],
-) ?> · <?= $day['total'] ?> repairs started</span></details>
-        <?php endforeach; ?>
-        </div>
-    </section>
-    <?php endif; ?>
-    <section id="work-list" class="dashboard-card workspace-list">
+    <section id="work-list" class="dashboard-card workspace-list rt-card">
         <?php $listTitle = match ($view) {
             'cash' => 'Cash desk bill lookup',
             'drafts' => 'Saved intake drafts',
@@ -90,7 +53,7 @@
         ): ?><p>Finished, cancelled or closed records stay here for reference. Nothing is deleted.</p><?php endif; ?>
         <?php if (
             $view === 'cash'
-        ): ?><p>Issued and voided bills only. Amounts are bill totals, not cash received. Payment recording and receipt issuance are not implemented yet.</p><?php endif; ?>
+        ): ?><p>Search a bill to record counter cash or complete a paid customer pickup. COD and online payments are not available.</p><?php endif; ?>
         <form class="console-search" method="get">
             <input type="hidden" name="view" value="<?= h($view) ?>">
             <label for="queue-search"><?= h(
@@ -169,6 +132,9 @@
                             'Issued (PH time)',
                             'Status',
                             'Bill total',
+                            'Cash received',
+                            'Balance',
+                            'Action',
                         ],
                         $view === 'drafts' => [
                             'Draft',
@@ -193,8 +159,11 @@
                             'Action',
                         ],
                     };
-                    foreach ($columns as $column): ?><th scope="col" class="<?= $column ===
-'Bill total'
+                    foreach ($columns as $column): ?><th scope="col" class="<?= in_array($column, [
+    'Bill total',
+    'Cash received',
+    'Balance',
+], true)
     ? 'numeric'
     : '' ?>"><?= h($column) ?></th><?php endforeach;
                     ?>
@@ -210,7 +179,13 @@
 ) ?></td><td class="numeric"><?= h($row['currency']) ?> <?= number_format(
      (float) $row['total_amount'],
      2,
- ) ?></td>
+ ) ?></td><td class="numeric"><?= h($row['currency']) ?> <?= number_format(
+     (float) $row['amount_paid'],
+     2,
+ ) ?></td><td class="numeric"><?= h($row['currency']) ?> <?= number_format(
+     max(0, (float) $row['total_amount'] - (float) $row['amount_paid']),
+     2,
+ ) ?></td><td><a href="cash.php?bill_id=<?= (int) $row['bill_id'] ?>">Open cash record</a></td>
                     <?php elseif ($view === 'drafts'): ?>
                         <td>#<?= (int) $row['ticket_id'] ?></td><td><?= h(
     $row['customer_name'] ?? 'Not recorded',
@@ -265,5 +240,21 @@
             endforeach; ?>
         </nav>
     </section>
+    <?php if ($trend && $view !== 'history'): ?>
+    <section class="workspace-trends" aria-labelledby="trend-heading">
+        <h2 id="trend-heading">Repairs started · last 7 days</h2><p>Philippine time · your assigned scope. Hover, focus or tap a date for its count.</p>
+        <div class="trend-days">
+        <?php foreach ($trend as $index => $day): ?>
+            <details class="trend-point"><summary aria-describedby="trend-<?= $index ?>"><span><?= h(
+    $day['label'],
+) ?></span><strong><?= $day[
+    'total'
+] ?></strong></summary><span class="trend-tooltip" id="trend-<?= $index ?>" role="tooltip"><?= h(
+    $day['date'],
+) ?> · <?= $day['total'] ?> repairs started</span></details>
+        <?php endforeach; ?>
+        </div>
+    </section>
+    <?php endif; ?>
 </main><script src="../js/workspace.js"></script>
 </body></html>

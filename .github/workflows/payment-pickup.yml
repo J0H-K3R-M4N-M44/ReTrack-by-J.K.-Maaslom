@@ -1,0 +1,62 @@
+name: Payment and pickup
+on:
+  push:
+    branches: [Workspace-Design]
+    paths:
+      - '.github/workflows/payment-pickup.yml'
+      - 'tests/payment-pickup.php'
+      - 'app/**'
+      - 'database/schema.sql'
+      - 'admin/**'
+      - 'views/**'
+      - 'css/**'
+      - 'js/**'
+      - 'tests/payment-browser.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  payment-pickup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare disposable MySQL database
+        env:
+          MYSQL_PWD: root
+        run: |
+          sudo systemctl start mysql
+          sed -e 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_pickup/' \
+              -e 's/^USE repairtrack;$/USE repairtrack_test_pickup;/' database/schema.sql | mysql -h 127.0.0.1 -u root
+      - name: Run PHP payment and pickup check
+        run: |
+          php -r 'foreach (["pdo_mysql","mbstring"] as $extension) { if (!extension_loaded($extension)) { exit(1); } }'
+          cat > config/config.php <<'PHP'
+          <?php
+          return [
+              'host' => '127.0.0.1',
+              'database' => 'repairtrack_test_pickup',
+              'username' => 'root',
+              'password' => 'root',
+          ];
+          PHP
+          php tests/payment-pickup.php
+      - name: Walk through billing and pickup in Chrome
+        run: |
+          npm install --no-save --package-lock=false playwright-core@1.56.1
+          export PICKUP_FIXTURE="$RUNNER_TEMP/pickup.json"
+          php tests/payment-pickup.php --browser-fixture > "$PICKUP_FIXTURE"
+          php -S 127.0.0.1:8742 > "$RUNNER_TEMP/php-server.log" 2>&1 &
+          trap 'kill $!; rm -f "$PICKUP_FIXTURE"' EXIT
+          curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
+          node tests/payment-browser.mjs
+      - name: Save staff workspace screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staff-workspace-screens
+          path: ${{ runner.temp }}/workspace-screens/
+          retention-days: 7
+          if-no-files-found: ignore

@@ -23,8 +23,9 @@ The runner applies the supported pending migrations in order:
 
 1. `database/password_reset.sql` — password recovery token storage, if missing.
 2. `database/staff_workspace.sql` — repair start time/backfill, short-code/PIN fields, unique code index and CASHIER role.
+3. `database/payment_handover.sql` — counter-cash payment history for existing issued bills.
 
-It checks the resulting schema and reports success. Already-applied steps are skipped; manual Workbench upgrades are recognized too. No new migration-history table is required. Quote-and-Approval requires no extra migration.
+It checks the resulting schema and reports success. Already-applied steps are skipped; manual Workbench upgrades are recognized too. No new migration-history table is required. Quote-and-Approval uses existing tables.
 
 ## Options
 
@@ -45,7 +46,7 @@ MySQL DDL commits immediately. The runner does not promise all-or-nothing rollba
 
 Only one runner can upgrade the same database at a time using a MySQL advisory lock. That lock does not pause normal application requests. The database account needs the privileges required by the supplied scripts, including CREATE/ALTER and CREATE ROUTINE/ALTER ROUTINE/EXECUTE for the workspace procedure. A missing core schema stops the runner; fresh installations still use `database/schema.sql`.
 
-The statement reader supports the two bundled SQL files, including their DELIMITER commands. It is not a general SQL importer. Future migrations need an explicit pending-state check and an entry in the ordered list. Status checks verify these supported upgrade markers, not every possible schema modification.
+The statement reader supports the three bundled SQL files, including their DELIMITER commands. It is not a general SQL importer. Future migrations need an explicit pending-state check and an entry in the ordered list. Status checks verify these supported upgrade markers, not every possible schema modification.
 
 ## Regression test
 

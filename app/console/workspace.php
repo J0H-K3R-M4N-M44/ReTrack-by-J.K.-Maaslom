@@ -72,7 +72,6 @@ function consoleStartTrend(PDO $pdo, array $user): array
     }
     return $days;
 }
-// Bill lookup only: a bill is not proof of cash collection.
 function consoleCashDesk(PDO $pdo, array $user, array $input): array
 {
     if (!in_array($user['role'], ['ADMIN', 'MANAGER', 'CASHIER'], true)) {
@@ -80,7 +79,8 @@ function consoleCashDesk(PDO $pdo, array $user, array $input): array
     }
     $term = likePattern(mb_substr(trim(requestText($input, 'q')), 0, 100));
     $sql = "SELECT rb.bill_id, rb.bill_number, rb.bill_status, rb.total_amount, rb.currency,
-        rb.issued_at, t.ticket_code, t.portal_code, b.branch_name
+        rb.issued_at, t.ticket_code, t.portal_code, b.branch_name,
+        COALESCE((SELECT SUM(p.amount) FROM repair_bill_payments p WHERE p.bill_id = rb.bill_id), 0) AS amount_paid
         FROM repair_bills rb JOIN repair_tickets t ON t.ticket_id = rb.ticket_id
         JOIN branches b ON b.branch_id = t.accountable_branch_id AND b.is_active = 1
         WHERE t.record_stage = 'ISSUED' AND rb.bill_status <> 'DRAFT'
