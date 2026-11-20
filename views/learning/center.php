@@ -67,7 +67,7 @@ else: ?>
                     <?php endforeach; ?>
                     <button type="submit"><?= h($action) ?></button>
                 </form>
-                <p class="practice-result" hidden><?= h($result) ?></p>
+                <p class="practice-result" tabindex="-1" hidden><?= h($result) ?></p>
             <?php else: ?>
             <div class="practice-choices">
                 <?php foreach ($index % 2 === 0 ? [[$correct, true], [$other, false]] : [[$other, false], [$correct, true]] as [$choice, $isCorrect]): ?>

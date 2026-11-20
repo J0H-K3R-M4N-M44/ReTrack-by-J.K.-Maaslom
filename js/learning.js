@@ -48,8 +48,8 @@ practice.addEventListener('submit', (event) => {
   const correct = [...form.querySelectorAll('[data-expected]')].every((control) => {
     const value = control.value.trim();
     if (control.inputMode === 'decimal') {
-      return /^[0-9]+(?:[.,][0-9]{1,2})?$/.test(value) &&
-        Number(value.replace(',', '.')) === Number(control.dataset.expected);
+      return /^[0-9]+(?:[.][0-9]{1,2})?$/.test(value) &&
+        Number(value) === Number(control.dataset.expected);
     }
     return value.toUpperCase() === control.dataset.expected.toUpperCase();
   });
@@ -58,7 +58,7 @@ practice.addEventListener('submit', (event) => {
     const result = step.querySelector('.practice-result');
     result.hidden = false;
     for (const control of form.elements) control.disabled = true;
-    step.querySelector('.practice-next').focus();
+    result.focus();
   }
 });
 

@@ -8,12 +8,12 @@ return [
         ['Portal PIN', 'text', '2468', 'numeric'],
     ], 'View sample repair', 'Laptop · Ready for pickup. Desktop · Testing.'],
     'ADMIN' => [0, 'New staff request · Jamie Lee · Counter cash only · Central Branch', [
-        ['Role', ['Administrator', 'Cashier', 'Technician'], 'Cashier'],
+        ['Role', ['Manager', 'Cashier', 'Technician'], 'Cashier'],
         ['Branch', ['Central Branch', 'North Branch', 'All branches'], 'Central Branch'],
-    ], 'Review sample access', 'Jamie Lee can open Cash Desk at Central Branch.'],
+    ], 'Check sample access', 'Jamie Lee can open Cash Desk at Central Branch.'],
     'MANAGER' => [0, 'Sample queue · RT-1042-01 · Central Branch · Unassigned', [
         ['Technician', ['Sam Cruz · North Branch', 'Mika Reyes · Central Branch · Available'], 'Mika Reyes · Central Branch · Available'],
-    ], 'Review sample assignment', 'RT-1042-01 is assigned to Mika Reyes.'],
+    ], 'Check sample assignment', 'RT-1042-01 is assigned to Mika Reyes.'],
     'INTAKE_AGENT' => [0, 'Customer at counter · Alex Cruz · Phone ending in 1234', [
         ['Existing customer', ['Alex Cruz · 9876', 'Alex Cruz · 1234', 'Create another customer'], 'Alex Cruz · 1234'],
     ], 'Use sample customer', 'The intake draft is linked to the matching customer.'],
