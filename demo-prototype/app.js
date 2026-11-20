@@ -43,13 +43,40 @@ function now() {
   });
 }
 // Save one workflow event to the demo history, notifications and optional ticket.
-function record(text, ticket = null, isPublic = false) {
-  const event = { at: now(), text, public: isPublic };
-  state.audit.unshift({ ...event, role });
-  state.alerts.unshift({ text, read: false });
+const feedGroups = ['Repairs', 'Conversations', 'Cash desk', 'Collections', 'Administration'];
+const feedSelection = { alerts: 'All', audit: 'All' };
+
+function record(text, ticket = null, isPublic = false, group = 'Repairs', branch = state.branch) {
+  const event = { at: now(), text, public: isPublic, role, group,
+    ticketId: ticket?.id, branch: ticket?.branch || branch };
+  state.audit.unshift(event);
+  // Keep routine updates in history. Notify only for a handoff or a conversation.
+  if (['Conversations', 'Cash desk', 'Collections'].includes(group) || group === 'Repairs' && role === 'Customer') {
+    state.alerts.unshift({ ...event, readBy: [] });
+  }
   if (ticket) ticket.events.unshift(event);
   saveDemo();
 }
+
+function visibleEvent(event) {
+  if (state.branch !== 'All branches' && event.branch !== state.branch) return false;
+  if (role === 'Admin') return true;
+  if (!event.group || !event.branch) return false;
+  if (role === 'Cashier') return event.group === 'Cash desk';
+  if (role === 'Collector') return event.group === 'Collections';
+  const assigned = state.tickets.find((t) => t.id === event.ticketId)?.assigned;
+  return role === 'Technician' && assigned === 'Mika Reyes' &&
+    ['Repairs', 'Conversations'].includes(event.group);
+}
+
+function inbox() {
+  return state.alerts.filter((event) => visibleEvent(event) && event.role !== role);
+}
+
+function isUnread(event) {
+  return !event.read && !event.readBy?.includes(role);
+}
+
 function ticket() {
   return state.tickets.find((t) => t.id === activeTicket) || state.tickets[0];
 }
@@ -125,6 +152,8 @@ function go(route) {
   else location.hash = route;
 }
 function setRole(next) {
+  feedSelection.alerts = 'All';
+  feedSelection.audit = 'All';
   role = next;
   verified = false;
   tick();
@@ -184,7 +213,7 @@ function navigation(route) {
     .join('');
 }
 function shell(route, html) {
-  return `<div class="mobile-nav"><details><summary>Menu · ${esc(role)} · ${esc(state.branch)}</summary><nav aria-label="Mobile workspace">${navigation(route)}</nav>${btn('Sign out', 'logout', '', 'quiet')}</details></div><div class="shell"><aside class="sidebar"><a class="brand" href="#${ROLE_HOME[role]}"><span class="brand-mark">R</span>RepairTrack</a><p class="eyebrow">${esc(role)} console</p><nav class="side-nav" aria-label="Main navigation">${navigation(route)}</nav><div class="sidebar-footer">${btn('Sign out', 'logout', '', 'quiet')}</div></aside><div class="workspace"><header class="topbar"><div><strong>${role === 'Technician' ? 'Mika Reyes' : role === 'Collector' ? 'Taylor · Collector' : 'RepairTrack staff'}</strong><small> / ${esc(role)}</small></div><div class="row"><label class="check">Branch<select id="branch-picker">${(state.singleStore ? [BRANCHES[0]] : role === 'Admin' ? ['All branches', ...BRANCHES] : BRANCHES).map((b) => `<option ${state.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>${link('Alerts ' + state.alerts.filter((a) => !a.read).length, 'alerts', 'button quiet')}</div></header><main id="content" tabindex="-1" class="content">${html}</main></div></div>`;
+  return `<div class="mobile-nav"><details><summary>Menu · ${esc(role)} · ${esc(state.branch)}</summary><nav aria-label="Mobile workspace">${navigation(route)}</nav>${btn('Sign out', 'logout', '', 'quiet')}</details></div><div class="shell"><aside class="sidebar"><a class="brand" href="#${ROLE_HOME[role]}"><span class="brand-mark">R</span>RepairTrack</a><p class="eyebrow">${esc(role)} console</p><nav class="side-nav" aria-label="Main navigation">${navigation(route)}</nav><div class="sidebar-footer">${btn('Sign out', 'logout', '', 'quiet')}</div></aside><div class="workspace"><header class="topbar"><div><strong>${role === 'Technician' ? 'Mika Reyes' : role === 'Collector' ? 'Taylor · Collector' : 'RepairTrack staff'}</strong><small> / ${esc(role)}</small></div><div class="row"><label class="check">Branch<select id="branch-picker">${(state.singleStore ? [BRANCHES[0]] : role === 'Admin' ? ['All branches', ...BRANCHES] : BRANCHES).map((b) => `<option ${state.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>${link('Alerts ' + inbox().filter(isUnread).length, 'alerts', 'button quiet')}</div></header><main id="content" tabindex="-1" class="content">${html}</main></div></div>`;
 }
 function publicNav() {
   const links = ['Home', 'About', 'FAQ', 'Contacts', 'Services']
@@ -269,7 +298,7 @@ function overview() {
       .map((t) => ticketCard(t))
       .join(
         ''
-      )}</div></section><section class="card"><h2>Recent activity</h2>${timeline(state.audit.slice(0, 5))}${state.audit.length ? '' : empty('Your demo actions will appear here.')}<div class="actions">${link('View all repairs', 'repairs')}</div></section></div>`
+      )}</div></section><section class="card"><h2>Recent activity</h2>${timeline(state.audit.filter(visibleEvent).slice(0, 5))}${state.audit.some(visibleEvent) ? '' : empty('Your demo actions will appear here.')}<div class="actions">${link('View activity history', 'audit')}</div></section></div>`
   );
 }
 function ticketCard(t) {
@@ -331,7 +360,7 @@ function repairDetail() {
         : 'Draft intake. Complete the issue checks before sharing tracking access.',
       link('Back to repairs', 'repairs', 'button quiet')
     ) +
-    `${!t.issued ? `<div class="notice">Draft: customer tracking is unavailable. ${btn('Review & issue', 'issue')}</div>` : ''}<div class="row card"><label style="flex:1">Device<select id="device-picker">${t.devices.map((x, i) => `<option value="${i}" ${i === activeDevice ? 'selected' : ''}>${i + 1}. ${esc(x.name)}</option>`).join('')}</select></label>${badge(d.status)}${btn('Add device', 'add-device')}${t.issued ? btn('Tracking receipt', 'receipt') : ''}</div><div class="grid section"><section class="card"><p class="eyebrow">Device overview</p><h2>${esc(d.name)}</h2><dl class="summary"><div><dt>Reported problem</dt><dd>${esc(d.problem)}</dd></div><div><dt>Confirmed location</dt><dd>${esc(t.location)} · ${esc(t.custody)}</dd></div><div><dt>Visible condition</dt><dd>${esc(t.condition)}</dd></div><div><dt>Accessories</dt><dd>${esc(t.accessories)}</dd></div><div><dt>Assigned technician</dt><dd>${esc(t.assigned || 'Unassigned')}</dd></div><div><dt>Diagnosis</dt><dd>${esc(d.diagnosis || 'Not recorded')}</dd></div></dl><div class="actions">${role === 'Admin' ? btn('Assign technician', 'assign') : ''}${btn('Record diagnosis', 'diagnose')}${btn('Update status', 'status', '', 'primary')}</div></section><section class="card"><h2>Work and costs</h2><p class="muted">Choose catalog parts and services. A changed quote needs fresh approval.</p><div class="stack">${btn('Build quotation', 'quote')}${btn('Request parts', 'request-part')}${btn('Record test results', 'test')}${btn('Publish customer update', 'publish')}</div><small>Ready for pickup requires passed tests. Cash collection remains a separate action.</small></section></div><div class="grid section"><section class="card"><h2>Quotations</h2>${quotesHTML(t, false)}</section><section class="card"><h2>Device history</h2>${timeline(t.events.slice(0, 7))}<div class="actions">${btn('Internal note', 'note')}${role !== 'Technician' ? btn('Transfer / delivery', 'transfer') : ''}</div>${t.notes.length ? `<details><summary>Internal notes (${t.notes.length})</summary>${t.notes.map((n) => `<p>${esc(n)}</p>`).join('')}</details>` : ''}</section></div><section class="card section"><h2>Customer requests</h2>${requestsHTML(t, false)}</section>`
+    `${!t.issued ? `<div class="notice">Draft: customer tracking is unavailable. ${btn('Review & issue', 'issue')}</div>` : ''}<div class="row card"><label style="flex:1">Device<select id="device-picker">${t.devices.map((x, i) => `<option value="${i}" ${i === activeDevice ? 'selected' : ''}>${i + 1}. ${esc(x.name)}</option>`).join('')}</select></label>${badge(d.status)}${btn('Add device', 'add-device')}${t.issued ? btn('Tracking receipt', 'receipt') : ''}</div><div class="grid section"><section class="card"><p class="eyebrow">Device overview</p><h2>${esc(d.name)}</h2><dl class="summary"><div><dt>Reported problem</dt><dd>${esc(d.problem)}</dd></div><div><dt>Confirmed location</dt><dd>${esc(t.location)} · ${esc(t.custody)}</dd></div><div><dt>Visible condition</dt><dd>${esc(t.condition)}</dd></div><div><dt>Accessories</dt><dd>${esc(t.accessories)}</dd></div><div><dt>Assigned technician</dt><dd>${esc(t.assigned || 'Unassigned')}</dd></div><div><dt>Diagnosis</dt><dd>${esc(d.diagnosis || 'Not recorded')}</dd></div></dl><div class="actions">${role === 'Admin' ? btn('Assign technician', 'assign') : ''}${btn('Record diagnosis', 'diagnose')}${btn('Update status', 'status', '', 'primary')}</div></section><section class="card"><h2>Work and costs</h2><p class="muted">Choose catalog parts and services. A changed quote needs fresh approval.</p><div class="stack">${btn('Build quotation', 'quote')}${btn('Request parts', 'request-part')}${btn('Record test results', 'test')}${btn('Publish customer update', 'publish')}</div><small>Ready for pickup requires passed tests. Cash collection remains a separate action.</small></section></div><div class="grid section"><section class="card"><h2>Quotations</h2>${quotesHTML(t, false)}</section><section class="card"><h2>Device history</h2>${timeline(t.events.filter((event) => event.public || visibleEvent(event)).slice(0, 7))}<div class="actions">${btn('Internal note', 'note')}${role !== 'Technician' ? btn('Transfer / delivery', 'transfer') : ''}</div>${t.notes.length && (role === 'Admin' || role === 'Technician' && t.assigned === 'Mika Reyes') ? `<details><summary>Internal notes (${t.notes.length})</summary>${t.notes.map((n) => `<p>${esc(n)}</p>`).join('')}</details>` : ''}</section></div><section class="card section"><h2>Customer requests</h2>${requestsHTML(t, false)}</section>`
   );
 }
 function quotesHTML(t, customer) {
@@ -381,6 +410,10 @@ function chatHTML(t, customer) {
   return `<section class="card"><h2>${customer ? 'Your repair team' : 'Ticket conversation'} · ${esc(t.id)}</h2><div class="chat">${t.messages.map((m) => `<div class="bubble ${m.by === 'Customer' ? 'customer' : ''}"><small>${esc(m.by)}</small><p>${esc(m.text)}</p></div>`).join('') || empty('No messages yet.')}</div><form data-form="message" class="stack">${area('Message', 'message')}<button class="primary">Send demo message</button></form><small>Messages stay in this browser. No SMS or email is sent.</small></section>`;
 }
 function messages() {
+  if (!['Admin', 'Technician'].includes(role)) return header('Messages', 'Conversations are available to the assigned repair team.');
+  const tickets = scope();
+  if (!tickets.length) return header('Messages', 'No assigned repairs in this branch.');
+  if (!tickets.some((item) => item.id === activeTicket)) activeTicket = tickets[0].id;
   return (
     header('Messages', 'Conversations stay with the ticket when staff change.') +
     `<div class="row section">${select(
@@ -516,21 +549,35 @@ function settings() {
     `<div class="grid"><section class="card"><h2>Store setup</h2><form data-form="settings" class="stack">${select('Business setup', 'setup', ['Multiple stores', 'Single store'], state.singleStore ? 'Single store' : 'Multiple stores')}<label class="check"><input type="checkbox" name="photos" ${state.settings.photosRequired ? 'checked' : ''}>Require a condition photo label before issuance</label><p class="muted">Inactive sessions expire after 60 minutes. Background rendering never resets the activity timer.</p><button class="primary">Save demo settings</button></form></section><section class="card"><h2>Branch directory</h2>${(state.singleStore ? [BRANCHES[0]] : BRANCHES).map((b) => `<h3>${b}</h3><p class="muted">Configured service area · Counter cash and COD</p>`).join('')}<p class="notice">Demo PINs and role switching demonstrate the workflow. Production requires server authentication, branch checks and protected tracking credentials.</p></section></div>`
   );
 }
+function feedRows(kind) {
+  const rows = kind === 'alerts' ? inbox() : state.audit.filter(visibleEvent);
+  const selected = feedSelection[kind];
+  return rows.filter((event) => role !== 'Admin' || selected === 'All' ||
+    (event.group || 'Administration') === selected);
+}
+
+function activitySection(kind) {
+  const notifications = kind === 'alerts';
+  const rows = feedRows(kind);
+  const filter = role === 'Admin' ? select('Activity type', 'feed-group',
+    ['All', ...feedGroups], feedSelection[kind]) : '';
+  const mark = notifications && rows.some(isUnread)
+    ? btn('Mark all matching as read', 'read-alerts') : '';
+  const pageCount = Math.max(1, Math.ceil(rows.length / 10));
+  const requestedPage = Number(location.hash.split('/')[1]);
+  const page = Number.isInteger(requestedPage) ? Math.max(1, Math.min(requestedPage, pageCount)) : 1;
+  const paging = pageCount > 1 ? `<nav class="actions" aria-label="Activity pages">${page > 1 ? link('Previous', kind + '/' + (page - 1)) : ''}<span>Page ${page} of ${pageCount}</span>${page < pageCount ? link('Next', kind + '/' + (page + 1)) : ''}</nav>` : '';
+  const items = rows.slice((page - 1) * 10, page * 10).map((event) => `<article class="list-item"><div><small>${esc(event.group || 'Earlier activity')} · ${esc(event.at || '')}</small><p>${esc(event.text)}</p></div>${notifications ? badge(isUnread(event) ? 'New' : 'Read') : ''}</article>`).join('');
+  return header(notifications ? 'Notifications' : 'Activity history',
+    notifications ? 'Messages and handoffs for your workspace.' : 'Changes recorded in the selected branch.', mark) +
+    `<section class="card">${filter}<div class="list section">${items || empty(notifications ? 'No notifications in this view.' : 'No activity in this view.')}</div>${paging}</section>`;
+}
+
 function alerts() {
-  return (
-    header(
-      'Notifications',
-      'Demo updates stay inside this application.',
-      btn('Mark all read', 'read-alerts')
-    ) +
-    `<section class="list">${state.alerts.map((a) => `<article class="list-item"><p>${esc(a.text)}</p>${badge(a.read ? 'Read' : 'New')}</article>`).join('') || empty('No notifications.')}</section>`
-  );
+  return activitySection('alerts');
 }
 function audit() {
-  return (
-    header('Activity history', 'A record of decisions, status changes and handoffs.') +
-    `<section class="card">${timeline(state.audit)}${state.audit.length ? '' : empty('No demo activity yet.')}</section>`
-  );
+  return activitySection('audit');
 }
 // Choose the page for the current URL hash and rebuild its visible content.
 function render() {
@@ -879,7 +926,7 @@ function action(name, el) {
       {
         const s = state.staff.find((s) => s.name === el.dataset.name);
         s.active = !s.active;
-        record(`${s.name} ${s.active ? 'activated' : 'deactivated'}`);
+        record(`${s.name} ${s.active ? 'activated' : 'deactivated'}`, null, false, 'Administration', s.branch);
         render();
       }
       break;
@@ -970,7 +1017,7 @@ function action(name, el) {
           break;
         }
         target.bill = { total };
-        record(`${target.id}: final bill ${money(total)}`, target, true);
+        record(`${target.id}: final bill ${money(total)}`, target, true, 'Cash desk');
         render();
       }
       break;
@@ -1014,7 +1061,9 @@ function action(name, el) {
       );
       break;
     case 'read-alerts':
-      state.alerts.forEach((a) => (a.read = true));
+      feedRows('alerts').filter(isUnread).forEach((event) => {
+        event.readBy = [...(event.readBy || []), role];
+      });
       saveDemo();
       render();
       break;
@@ -1087,7 +1136,7 @@ function submit(kind, form) {
       case 'pickup': {
         const id = 'PU-' + (101 + state.pickups.length);
         state.pickups.push({ ...v, id, status: 'Requested', collector: 'Unassigned', fee: 150 });
-        record(`${id}: pickup request awaiting staff confirmation`);
+        record(`${id}: pickup request awaiting staff confirmation`, null, false, 'Collections', v.branch);
         modal(
           'Pickup request received',
           `<h2>${id}</h2><p>Your request awaits coverage, fee and schedule confirmation. The device is not yet in branch custody.</p>${btn('Return home', 'close')}`
@@ -1306,7 +1355,7 @@ function submit(kind, form) {
         break;
       case 'note':
         t.notes.push(v.text);
-        record(`${t.id}: internal note added`, t);
+        record(`${t.id}: internal note added`, t, false, 'Conversations');
         break;
       case 'message': {
         const target = ticket();
@@ -1315,7 +1364,7 @@ function submit(kind, form) {
           by: role === 'Customer' ? 'Customer' : 'Repair team',
           text: v.message,
         });
-        record(`${target.id}: new message`, target);
+        record(`${target.id}: new message`, target, false, 'Conversations');
         render();
         toast('Demo message added. No external message sent.');
         return;
@@ -1363,7 +1412,7 @@ function submit(kind, form) {
           status: 'In transit',
         });
         t.custody = 'In transit';
-        record(`${t.id}: dispatched from ${t.location}; in transit`, t, true);
+        record(`${t.id}: dispatched from ${t.location}; in transit`, t, true, 'Collections');
         break;
       case 'receive-transfer': {
         const x = state.transfers[context.index],
@@ -1383,7 +1432,7 @@ function submit(kind, form) {
         target.location = x.to;
         x.status = 'Received';
         x.evidence = v.evidence;
-        record(`${target.id}: handoff confirmed at ${x.to}`, target, true);
+        record(`${target.id}: handoff confirmed at ${x.to}`, target, true, 'Collections');
         break;
       }
       case 'add-staff':
@@ -1392,7 +1441,7 @@ function submit(kind, form) {
           'That sample staff name already exists.'
         );
         state.staff.push({ ...v, active: true });
-        record(`Staff added: ${v.name}`);
+        record(`Staff added: ${v.name}`, null, false, 'Administration', v.branch);
         break;
       case 'receive-stock':
       case 'stock-transfer': {
@@ -1408,7 +1457,7 @@ function submit(kind, form) {
         } else source.qty += qty;
         const text = `${kind === 'stock-transfer' ? 'Transferred' : 'Received'} ${qty} ${part.name}. ${v.reason}`;
         state.stockLog.unshift({ at: now(), text });
-        record(text);
+        record(text, null, false, 'Administration', v.branch);
         break;
       }
       case 'pickup-confirm': {
@@ -1417,7 +1466,7 @@ function submit(kind, form) {
         p.status = 'Confirmed';
         p.collector = v.collector;
         p.fee = Number(v.fee);
-        record(`${p.id}: coverage, fee and schedule confirmed`);
+        record(`${p.id}: coverage, fee and schedule confirmed`, null, false, 'Collections', p.branch);
         break;
       }
       case 'pickup-collect': {
@@ -1425,14 +1474,14 @@ function submit(kind, form) {
         p.status = 'Collected';
         p.condition = v.condition;
         p.evidence = v.evidence;
-        record(`${p.id}: collector received the device`);
+        record(`${p.id}: collector received the device`, null, false, 'Collections', p.branch);
         break;
       }
       case 'pickup-fail': {
         const p = state.pickups.find((p) => p.id === context.id);
         p.status = v.status;
         p.reason = v.reason;
-        record(`${p.id}: ${v.status}. ${v.reason}`);
+        record(`${p.id}: ${v.status}. ${v.reason}`, null, false, 'Collections', p.branch);
         break;
       }
       case 'cash': {
@@ -1448,14 +1497,14 @@ function submit(kind, form) {
           remitted: v.method !== 'COD',
           at: now(),
         });
-        record(`${t.id}: ${money(amount)} cash received by ${v.method}`, t, true);
+        record(`${t.id}: ${money(amount)} cash received by ${v.method}`, t, true, 'Cash desk');
         break;
       }
       case 'refund': {
         const amount = Number(v.amount);
         requireGate(amount > 0 && amount <= paid(t), 'Refund must not exceed net cash received.');
         t.refunds.push({ amount, reason: v.reason, at: now() });
-        record(`${t.id}: physical refund ${money(amount)}. ${v.reason}`, t, true);
+        record(`${t.id}: physical refund ${money(amount)}. ${v.reason}`, t, true, 'Cash desk');
         break;
       }
       case 'release':
@@ -1471,7 +1520,7 @@ function submit(kind, form) {
         t.devices.forEach((d) => (d.status = 'Returned'));
         t.location = 'Customer';
         t.custody = 'Returned';
-        record(`${t.id}: devices returned. ${v.evidence}`, t, true);
+        record(`${t.id}: devices returned. ${v.evidence}`, t, true, 'Cash desk');
         break;
       case 'remit':
         requireGate(
@@ -1479,13 +1528,13 @@ function submit(kind, form) {
           'A cashier or administrator confirms cash remittance.'
         );
         t.payments.filter((p) => p.method === 'COD').forEach((p) => (p.remitted = true));
-        record(`${t.id}: COD remittance confirmed. ${v.evidence}`, t);
+        record(`${t.id}: COD remittance confirmed. ${v.evidence}`, t, false, 'Cash desk');
         break;
       case 'settings':
         state.singleStore = v.setup === 'Single store';
         state.settings.photosRequired = v.photos === 'on';
         if (state.singleStore) state.branch = BRANCHES[0];
-        record('Demo branch settings updated');
+        record('Demo branch settings updated', null, false, 'Administration', state.branch);
         break;
     }
     closeModal();
@@ -1613,6 +1662,12 @@ document.addEventListener('change', (e) => {
       f.elements.customer.value = c.name;
       f.elements.contact.value = c.contact;
     }
+  }
+  if (e.target.name === 'feed-group') {
+    const kind = location.hash.split('/')[0] === '#alerts' ? 'alerts' : 'audit';
+    feedSelection[kind] = e.target.value;
+    render();
+    document.querySelector('[name="feed-group"]')?.focus();
   }
   if (e.target.id === 'repair-filter') filterRepairs();
 });
