@@ -154,6 +154,7 @@ function go(route) {
 function setRole(next) {
   feedSelection.alerts = 'All';
   feedSelection.audit = 'All';
+  repairReturn = null;
   role = next;
   if (role !== 'Admin' && state.branch === 'All branches') state.branch = BRANCHES[0];
   verified = false;
@@ -163,14 +164,15 @@ function setRole(next) {
 }
 function renderBar() {
   document.body.classList.toggle('wireframe', wireframe);
+  const controlsOpen = $('#demo-bar details')?.open;
   $('#demo-bar').innerHTML =
-    `<strong class="demo-label">INTERACTIVE DEMO · Sample data only</strong><div class="demo-tools"><label>Explore as <select id="role-picker">${Object.keys(
+    `<details ${controlsOpen ? 'open' : ''}><summary>Demo controls</summary><div class="demo-tools"><label>Explore as <select id="role-picker">${Object.keys(
       ROLE_HOME
     )
       .map((r) => `<option ${r === role ? 'selected' : ''}>${r}</option>`)
       .join(
         ''
-      )}</select></label>${btn(wireframe ? 'Visual design' : 'Wireframe view', 'wireframe')}<a href="responsive.html" class="button quiet" style="min-height:32px;padding:5px 10px;font-size:12px">Screen sizes</a>${btn('Demo guide', 'guide')}${btn('Reset demo', 'reset', '', 'quiet')}</div>`;
+      )}</select></label>${btn('Demo guide', 'guide')}${btn('Reset demo', 'reset', '', 'quiet')}</div></details>`;
 }
 const navs = {
   Admin: [
@@ -270,56 +272,68 @@ function login() {
 function pickup() {
   return `${publicNav()}<main id="content" tabindex="-1" class="container narrow">${header('Request device pickup', 'Your branch will confirm the location, schedule and collection fee.')}<form data-form="pickup" class="card form-grid">${field('Your name', 'name')}${field('Phone or email', 'contact')}${field('Device', 'device')}${select('Service area', 'area', ['Within service area', 'Nearby meeting point', 'Outside service area'])}<div class="wide">${area('What did you notice?', 'problem')}</div><div class="wide">${area('Address and landmark', 'address')}</div>${field('Preferred date', 'date', '', 'date')}${select('Preferred branch', 'branch', state.singleStore ? [BRANCHES[0]] : BRANCHES)}<div class="notice wide">Map and coverage are simulated. No live location is collected.</div><label class="check wide"><input type="checkbox" required>I agree that staff must confirm the fee and schedule.</label><div class="actions wide"><button class="primary">Send demo pickup request</button></div></form></main>`;
 }
+function workGroups() {
+  const tickets = scope();
+  const issued = tickets.filter((t) => t.issued);
+  const deviceTasks = (matches, label) => issued.flatMap((t) =>
+    t.devices.flatMap((d, index) => matches(d, t)
+      ? [{ label, detail: t.id + ' · ' + d.name, ticket: t.id, index }]
+      : []));
+  const ticketTasks = (matches, label, destination) => tickets.filter(matches)
+    .map((t) => ({ label, detail: t.id + ' · ' + t.customer, destination: destination(t) }));
+  const pickupTasks = (status, label) => state.pickups
+    .filter((p) => p.branch === state.branch && p.status === status)
+    .map((p) => ({ label, detail: p.id + ' · ' + p.device, destination: 'logistics/job/' + encodeURIComponent(p.id) }));
+  switch (role) {
+    case 'Admin':
+      return [
+        ['Needs assignment', deviceTasks((d, t) => !t.assigned && d.status !== 'Returned', 'Assign technician')],
+        ['Pending quotes', deviceTasks((d, t) => deviceQuote(t, t.devices.indexOf(d))?.status === 'Pending', 'Review quote status')],
+      ];
+    case 'Technician':
+      return [
+        ['Ready to work', deviceTasks((d) => ['Received', 'Diagnosing', 'Repairing', 'Testing'].includes(d.status), 'Open assigned device')],
+        ['Waiting for approval or parts', deviceTasks((d) => ['Awaiting approval', 'Awaiting parts'].includes(d.status), 'Check blocker')],
+      ];
+    case 'Cashier':
+      return [
+        ['Unpaid bills', ticketTasks((t) => t.issued && t.bill && balance(t) > 0, 'Collect payment', (t) => 'finance/ticket/' + encodeURIComponent(t.id))],
+        ['Ready for release', ticketTasks(canRelease, 'Release device', (t) => 'finance/ticket/' + encodeURIComponent(t.id))],
+        ['Draft intakes', tickets.filter((t) => !t.issued).map((t) => ({ label: 'Review draft', detail: t.id + ' · ' + t.customer, ticket: t.id, index: 0 }))],
+      ];
+    case 'Collector':
+      return [
+        ['Ready to collect', pickupTasks('Confirmed', 'Open pickup')],
+        ['Awaiting handoff', pickupTasks('Collected', 'Open handoff')],
+        ['Awaiting confirmation', pickupTasks('Requested', 'Review pickup request')],
+      ];
+    default:
+      return [];
+  }
+}
+
+function workRow(task) {
+  const action = task.ticket
+    ? btn('Open device', 'open-ticket', `data-id="${esc(task.ticket)}" data-device="${task.index}"`)
+    : link(task.label, task.destination);
+  return `<article class="list-item"><div><strong>${esc(task.label)}</strong><p>${esc(task.detail)}</p></div>${action}</article>`;
+}
+
 function overview() {
-  const ts = scope();
-  const issued = ts.filter((t) => t.issued);
-  const devices = issued.flatMap((t) => t.devices);
-  const pickups = state.pickups.filter((p) => p.branch === state.branch);
-  const ready = devices.filter((d) => d.status === 'Ready for pickup').length;
-  const metrics = {
-    Admin: [
-      ['Open devices', devices.filter((d) => d.status !== 'Returned').length],
-      ['Draft intakes', ts.length - issued.length],
-      ['Quotes awaiting approval', issued.flatMap((t) => t.quotes).filter((q) => q.status === 'Pending').length],
-      ['Ready for pickup', ready],
-    ],
-    Technician: REPAIR_STAGES.filter((stage) => stage !== 'Returned')
-      .map((stage) => [stage, devices.filter((d) => d.status === stage).length]),
-    Cashier: [
-      ['Draft intakes', ts.length - issued.length],
-      ['Unpaid bills', issued.filter((t) => t.bill && balance(t) > 0).length],
-      ['Ready for pickup', ready],
-    ],
-    Collector: [
-      ['Awaiting confirmation', pickups.filter((p) => p.status === 'Requested').length],
-      ['Ready to collect', pickups.filter((p) => p.status === 'Confirmed').length],
-      ['Collected', pickups.filter((p) => p.status === 'Collected').length],
-    ],
-  };
-  const primary = role === 'Technician' ? link('Open my repairs', 'repairs', 'button primary')
-    : role === 'Collector' ? link('Open collections', 'logistics', 'button primary')
-    : link('New intake', 'intake', 'button primary');
-  return (
-    header(
-      role + ' overview',
-      'Start with the records that need a decision.',
-      primary
-    ) +
-    `<div class="grid four">${(metrics[role] || [])
-      .map(
-        ([l, n]) =>
-          `<section class="card"><small>${l}</small><div class="metric">${n}</div><span class="muted">Current branch selection</span></section>`
-      )
-      .join(
-        ''
-      )}</div><div class="grid section"><section class="card"><h2>Next actions</h2><div class="list">${role === 'Collector' ? link('View pickups and handoffs', 'logistics') : (ts
-      .filter((t) => !t.issued || t.devices.some((d) => d.status !== 'Returned'))
-      .slice(0, 4)
-      .map((t) => ticketCard(t))
-      .join(
-        ''
-      ) || empty('No open repairs in this view.'))}</div></section><section class="card"><h2>Recent activity</h2>${timeline(state.audit.filter(visibleEvent).slice(0, 5))}${state.audit.some(visibleEvent) ? '' : empty('Your demo actions will appear here.')}<div class="actions">${link('View activity history', 'audit')}</div></section></div>`
-  );
+  const groups = workGroups();
+  const section = location.hash.split('/')[1];
+  if (section && groups[Number(section.slice(1))] && /^g[0-9]+$/.test(section)) {
+    const [label, tasks] = groups[Number(section.slice(1))];
+    return header(label, esc(state.branch), link('Back to overview', 'overview')) +
+      `<section class="list">${pageOf(tasks, 'overview/' + section, workRow, 'All caught up.')}</section>`;
+  }
+  const preview = groups.flatMap(([, tasks]) => tasks).slice(0, 4);
+  const updates = state.audit.filter(visibleEvent).slice(0, 5);
+  return header(role + ' overview', esc(state.branch)) +
+    `<div class="grid three">${groups.map(([label, tasks], index) =>
+      `<a class="card" href="#overview/g${index}"><strong>${esc(label)}</strong><div class="metric">${tasks.length}</div></a>`).join('')}</div>
+    <div class="grid section"><section class="card"><h2>Needs attention</h2><div class="list">${preview.map(workRow).join('') || empty('All caught up.')}</div></section>
+    <section class="card"><h2>Recent activity</h2>${updates.length ? timeline(updates) : empty('No recent activity.')}${link('View activity history', 'audit')}</section></div>`;
 }
 function ticketCard(t) {
   return `<article class="list-item"><div><h3>${esc(t.id)} · ${esc(t.devices[0].name)}</h3><p>${esc(t.customer)} · ${esc(t.branch)}</p>${t.issued ? [...new Set(t.devices.map((device) => device.status))].map(badge).join(' ') : badge('Draft')} <small>${t.devices.length} device${t.devices.length > 1 ? 's' : ''}</small></div>${btn('Open', 'open-ticket', `data-id="${t.id}"`)}</article>`;
@@ -334,7 +348,7 @@ function pageOf(rows, route, draw, emptyMessage, requested) {
   const page = Math.max(1, Math.min(Number.isInteger(requested) ? requested : 1, pages));
   const start = (page - 1) * size;
   if (!rows.length) return empty(emptyMessage);
-  const control = (label, target) => ['repairs', 'customers'].includes(route)
+  const control = (label, target) => ['repairs', 'customers', 'finance'].includes(route)
     ? btn(label, 'list-page', `data-page="${target}"`)
     : link(label, route + '/' + target);
   return rows.slice(start, start + size).map(draw).join('') +
@@ -390,18 +404,26 @@ function intake() {
   );
 }
 // Ticket screen: status, custody and payment are deliberately independent.
+let repairBack = 'repairs';
 function repairDetail() {
   const t = ticket(),
     d = t.devices[activeDevice] || t.devices[0];
+  const stageActions = {
+    Received: ['Record diagnosis', 'diagnose'],
+    Diagnosing: ['Record diagnosis', 'diagnose'],
+    Repairing: ['Update repair status', 'status'],
+    Testing: ['Record test results', 'test'],
+  };
+  const next = t.issued && stageActions[d.status];
   return (
     header(
       t.id + ' · ' + esc(t.customer),
       t.issued
         ? 'Manage the device, publish progress and record the next action.'
         : 'Draft intake. Complete the issue checks before sharing tracking access.',
-      link('Back to repairs', 'repairs', 'button quiet')
+      link('Back to queue', repairBack, 'button quiet')
     ) +
-    `${!t.issued ? `<div class="notice">Draft: customer tracking is unavailable. ${btn('Review & issue', 'issue')}</div>` : ''}<div class="row card"><label style="flex:1">Device<select id="device-picker">${t.devices.map((x, i) => `<option value="${i}" ${i === activeDevice ? 'selected' : ''}>${i + 1}. ${esc(x.name)}</option>`).join('')}</select></label>${badge(d.status)}${btn('Add device', 'add-device')}${t.issued ? btn('Tracking receipt', 'receipt') : ''}</div><div class="grid section"><section class="card"><p class="eyebrow">Device overview</p><h2>${esc(d.name)}</h2><dl class="summary"><div><dt>Reported problem</dt><dd>${esc(d.problem)}</dd></div><div><dt>Confirmed location</dt><dd>${esc(t.location)} · ${esc(t.custody)}</dd></div><div><dt>Visible condition</dt><dd>${esc(t.condition)}</dd></div><div><dt>Accessories</dt><dd>${esc(t.accessories)}</dd></div><div><dt>Assigned technician</dt><dd>${esc(t.assigned || 'Unassigned')}</dd></div><div><dt>Diagnosis</dt><dd>${esc(d.diagnosis || 'Not recorded')}</dd></div></dl><div class="actions">${role === 'Admin' ? btn('Assign technician', 'assign') : ''}${btn('Record diagnosis', 'diagnose')}${btn('Update status', 'status', '', 'primary')}</div></section><section class="card"><h2>Work and costs</h2><p class="muted">Choose catalog parts and services. A changed quote needs fresh approval.</p><div class="stack">${btn('Build quotation', 'quote')}${btn('Request parts', 'request-part')}${btn('Record test results', 'test')}${btn('Publish customer update', 'publish')}</div><small>Ready for pickup requires passed tests. Cash collection remains a separate action.</small></section></div><div class="grid section"><section class="card"><h2>Quotations</h2>${quotesHTML(t, false)}</section><section class="card"><h2>Device history</h2>${timeline(t.events.filter((event) => event.public || visibleEvent(event)).slice(0, 7))}<div class="actions">${btn('Internal note', 'note')}${role !== 'Technician' ? btn('Transfer / delivery', 'transfer') : ''}</div>${t.notes.length && (role === 'Admin' || role === 'Technician' && t.assigned === 'Mika Reyes') ? `<details><summary>Internal notes (${t.notes.length})</summary>${t.notes.map((n) => `<p>${esc(n)}</p>`).join('')}</details>` : ''}</section></div><section class="card section"><h2>Customer requests</h2>${requestsHTML(t, false)}</section>`
+    `${!t.issued ? `<div class="notice">Draft: customer tracking is unavailable. ${btn('Review & issue', 'issue')}</div>` : ''}<div class="row card"><label style="flex:1">Device<select id="device-picker">${t.devices.map((x, i) => `<option value="${i}" ${i === activeDevice ? 'selected' : ''}>${i + 1}. ${esc(x.name)}</option>`).join('')}</select></label>${badge(d.status)}${next ? btn(next[0], next[1], '', 'primary') : ''}${btn('Add device', 'add-device')}${t.issued ? btn('Tracking receipt', 'receipt') : ''}</div><div class="grid section"><section class="card"><p class="eyebrow">Device overview</p><h2>${esc(d.name)}</h2><dl class="summary"><div><dt>Reported problem</dt><dd>${esc(d.problem)}</dd></div><div><dt>Confirmed location</dt><dd>${esc(t.location)} · ${esc(t.custody)}</dd></div><div><dt>Visible condition</dt><dd>${esc(t.condition)}</dd></div><div><dt>Accessories</dt><dd>${esc(t.accessories)}</dd></div><div><dt>Assigned technician</dt><dd>${esc(t.assigned || 'Unassigned')}</dd></div><div><dt>Diagnosis</dt><dd>${esc(d.diagnosis || 'Not recorded')}</dd></div></dl><div class="actions">${role === 'Admin' ? btn('Assign technician', 'assign') : ''}${next?.[1] !== 'diagnose' ? btn('Record diagnosis', 'diagnose') : ''}${next?.[1] !== 'status' ? btn('Update status', 'status') : ''}</div></section><section class="card"><h2>Work and costs</h2><p class="muted">Choose catalog parts and services. A changed quote needs fresh approval.</p><div class="stack">${btn('Build quotation', 'quote')}${btn('Request parts', 'request-part')}${next?.[1] !== 'test' ? btn('Record test results', 'test') : ''}${btn('Publish customer update', 'publish')}</div><small>Ready for pickup requires passed tests. Cash collection remains a separate action.</small></section></div><div class="grid section"><section class="card"><h2>Quotations</h2>${quotesHTML(t, false)}</section><section class="card"><h2>Device history</h2>${timeline(t.events.filter((event) => event.public || visibleEvent(event)).slice(0, 7))}<div class="actions">${btn('Internal note', 'note')}${role !== 'Technician' ? btn('Transfer / delivery', 'transfer') : ''}</div>${t.notes.length && (role === 'Admin' || role === 'Technician' && t.assigned === 'Mika Reyes') ? `<details><summary>Internal notes (${t.notes.length})</summary>${t.notes.map((n) => `<p>${esc(n)}</p>`).join('')}</details>` : ''}</section></div><section class="card section"><h2>Customer requests</h2>${requestsHTML(t, false)}</section>`
   );
 }
 function quotesHTML(t, customer) {
@@ -429,22 +451,28 @@ function portal() {
   const tab = location.hash.split('/')[1] || 'overview';
   const tabs = ['Overview', 'Location', 'Messages', 'Requests', 'Costs', 'Alerts'];
   let html = '';
-  if (tab === 'overview')
-    html = `<div class="grid"><section class="card"><p class="eyebrow">Your devices</p><div class="list">${t.devices.map((d) => `<article class="list-item"><div><h3>${esc(d.name)}</h3><p>${esc(d.problem)}</p>${badge(d.status)}</div></article>`).join('')}</div></section><section class="card"><p class="eyebrow">What happens next</p><h2>${currentQuote(t)?.status === 'Pending' ? 'Your quotation is ready' : t.devices.every((d) => d.status === 'Returned') ? 'Your devices are back with you' : 'Your team will keep you informed'}</h2><p class="muted">${currentQuote(t)?.status === 'Pending' ? 'Review the itemized costs before work proceeds.' : 'Check the latest published update below, or contact your repair team.'}</p>${link('View costs', 'portal/costs', 'button primary')}</section></div><section class="card section"><h2>Repair timeline</h2>${timeline(t.events.filter((e) => e.public))}</section>`;
+  if (tab === 'overview') {
+    const devices = t.devices.map((d, index) => {
+      const pending = deviceQuote(t, index)?.status === 'Pending';
+      const ready = d.status === 'Ready for pickup';
+      const next = pending ? link('Review quote', 'portal/costs', 'button primary')
+        : ready ? `<p>${t.bill && balance(t) > 0 ? 'Balance due before pickup.' : 'Contact the branch to arrange pickup.'}</p>`
+        : `<p>${d.status === 'Returned' ? 'Returned to you.' : 'Your repair team will post the next update.'}</p>`;
+      return `<article class="list-item"><div><h3>${esc(d.name)}</h3>${badge(d.status)}${next}</div></article>`;
+    });
+    html = `<div class="grid"><section class="card"><h2>Your devices</h2><div class="list">${devices.join('')}</div></section>
+      <section class="card"><h2>Repair history</h2>${timeline(t.events.filter((event) => event.public))}</section></div>`;
+  }
   if (tab === 'location')
     html = `<div class="grid"><section class="card"><p class="eyebrow">Last confirmed custody</p><h2>${esc(t.location)}</h2><p>${esc(t.custody)}</p>${BRANCHES.includes(t.location) ? branchMapCard(t.location) : '<p>Device is away from a branch. See the last confirmed handoff below.</p>'}</section><section class="card"><h2>Location updates</h2>${timeline(t.events.filter((e) => e.public && /branch|handoff|transit|deliver|return|received/i.test(e.text)))}</section></div>`;
-  if (['messages', 'requests', 'costs'].includes(tab) && !verified)
+  if (['messages', 'requests', 'costs', 'alerts'].includes(tab) && !verified)
     html = `<section class="card narrow"><p class="eyebrow">Extra verification</p><h2>Confirm access to your repair</h2><p class="muted">Tracking shows basic progress. Messages, costs and decisions need a separate PIN.</p><form data-form="verify" class="stack">${field('Demo PIN', 'pin', '', 'password')}<button class="primary">Verify demo access</button><small>Demo PIN: 2468. This is simulated verification only.</small></form></section>`;
   else if (tab === 'messages') html = chatHTML(t, true);
   else if (tab === 'requests')
     html = `<section class="card"><h2>Ask for a change</h2><p class="muted">Staff reviews compatibility, completed work and disclosed charges before acting.</p><div class="row">${['Upgrade', 'Customization', 'Cancellation'].map((type) => btn(type, 'customer-request', `data-type="${type}"`)).join('')}</div>${requestsHTML(t, true)}</section>`;
   else if (tab === 'costs')
     html = `<div class="grid"><section class="card"><h2>Itemized quotations</h2>${quotesHTML(t, true)}</section><section class="card"><h2>Payment summary</h2><dl class="summary"><div><dt>Final bill</dt><dd>${t.bill ? money(t.bill.total) : 'Not issued yet'}</dd></div><div><dt>Cash received, net refunds</dt><dd>${money(paid(t))}</dd></div><div><dt>Balance</dt><dd>${t.bill ? money(balance(t)) : 'Pending final bill'}</dd></div><div><dt>Payment methods</dt><dd>Cash at counter or on delivery</dd></div></dl>${t.payments.map((p) => `<p class="section">Receipt ${esc(p.id)} · ${money(p.amount)} · ${esc(p.method)}</p>`).join('')}<p class="muted section">No online payment is available.</p></section></div>`;
-  if (tab === 'alerts')
-    html =
-      role === 'Customer' && verified
-        ? ticketAlertPanel(t)
-        : '<section class="card"><p>Verify your PIN in the Messages tab to manage alerts.</p></section>';
+  if (tab === 'alerts' && verified) html = ticketAlertPanel(t);
   return `${publicNav()}<main id="content" tabindex="-1" class="container">${header('Your repair, at a glance', `${esc(t.id)} · ${t.devices.length} device${t.devices.length > 1 ? 's' : ''} · ${esc(t.branch)}`, badge(verified ? 'Verified demo session' : 'Tracking access'))}<nav class="tabs">${tabs.map((s) => link(s, 'portal/' + s.toLowerCase(), tab === s.toLowerCase() ? 'active' : '')).join('')}</nav>${html}</main>`;
 }
 function chatHTML(t, customer) {
@@ -528,7 +556,8 @@ function logistics() {
     `<section class="list">${
       pageOf(state.pickups
         .filter((p) => state.branch === 'All branches' || p.branch === state.branch)
-        , 'logistics',
+        .filter((p) => !location.hash.startsWith('#logistics/job/') ||
+          location.hash === '#logistics/job/' + encodeURIComponent(p.id)), 'logistics',
           (p) =>
             `<article class="card"><div class="row between"><h2>${esc(p.id)} · ${esc(p.name)}</h2>${badge(p.status)}</div><p>${esc(p.device)} · ${esc(p.problem)}</p><p class="muted">${esc(p.address)} · ${esc(p.date)}<br>${esc(p.branch)} · Collector: ${esc(p.collector)}</p><small>Proposed pickup fee: ${money(p.fee)}. Separate approval required.</small><div class="actions">${p.status === 'Requested' ? btn('Review coverage & fee', 'pickup-confirm', `data-id="${p.id}"`) : p.status === 'Confirmed' ? btn('Record collection', 'pickup-collect', `data-id="${p.id}"`, 'primary') : p.status === 'Collected' ? btn('Receive at branch', 'pickup-receive', `data-id="${p.id}"`) : ''}${['Requested', 'Confirmed'].includes(p.status) ? btn('Failed / cancel', 'pickup-fail', `data-id="${p.id}"`) : ''}</div></article>`, 'No pickups in this branch.')
     }</section>`
@@ -543,6 +572,11 @@ function transfers() {
       ({ transfer: x, index: i }) => `<article class="card"><div class="row between"><h2>${x.ticket} · ${esc(x.type)}</h2>${badge(x.status)}</div><p>${esc(x.from)} to ${esc(x.to)}</p><p class="muted">${esc(x.evidence || 'Handoff evidence pending')}</p><div class="actions">${x.status === 'In transit' ? btn('Confirm handoff', 'receive-transfer', `data-index="${i}"`, 'primary') : ''}</div></article>`, 'No handoffs for this branch.')}</section>`
   );
 }
+function canRelease(t) {
+  return t.issued && t.bill && balance(t) === 0 &&
+    t.devices.some((d) => d.status === 'Ready for pickup');
+}
+
 function finance() {
   return (
     header(
@@ -554,12 +588,24 @@ function finance() {
         .flatMap((t) => t.payments)
         .filter((p) => p.method === 'COD' && !p.remitted)
         .reduce((n, p) => n + p.amount, 0)
-    )}</div></section></div><section class="list section">${pageOf(scope().filter((t) => t.issued && (role !== 'Collector' ||
-        t.payments.some((payment) => payment.method === 'COD' && !payment.remitted))), 'finance',
-        (t) =>
-          `<article class="card"><div class="row between"><h2>${t.id} · ${esc(t.customer)}</h2>${badge(t.bill ? (balance(t) === 0 ? 'Paid' : 'Unpaid') : 'No final bill')}</div><p class="muted">Bill ${t.bill ? money(t.bill.total) : 'pending'} · Net collected ${money(paid(t))} · Balance ${t.bill ? money(balance(t)) : 'pending'}</p><div class="actions">${!t.bill ? btn('Generate bill', 'bill', `data-id="${t.id}"`) : balance(t) > 0 ? btn('Record cash', 'cash', `data-id="${t.id}"`, 'primary') : ''}${paid(t) > 0 ? btn('Receipt', 'cash-receipt', `data-id="${t.id}"`) : ''}${paid(t) > 0 && role !== 'Collector' ? btn('Refund', 'refund', `data-id="${t.id}"`) : ''}${t.bill && balance(t) === 0 && t.devices.some((d) => d.status === 'Ready for pickup') ? btn('Release device', 'release', `data-id="${t.id}"`) : ''}${t.payments.some((p) => p.method === 'COD' && !p.remitted) ? btn('Confirm COD remittance', 'remit', `data-id="${t.id}"`) : ''}</div></article>`
-      , 'No matching payment records.')}</section>`
+    )}</div></section></div><section class="card section"><label>Find by ticket code<input type="search" id="finance-search"></label><div id="finance-list" class="list section"></div></section>`
   );
+}
+function financeRow(t) {
+  const id = `data-id="${esc(t.id)}"`;
+  let primary = '';
+  if (role === 'Collector') primary = btn('Confirm COD remittance', 'remit', id, 'primary');
+  else if (canRelease(t)) primary = btn('Release device', 'release', id, 'primary');
+  else if (!t.bill) primary = btn('Generate bill', 'bill', id, 'primary');
+  else if (balance(t) > 0) primary = btn('Collect cash', 'cash', id, 'primary');
+  return `<article class="card"><div class="row between"><h2>${t.id} · ${esc(t.customer)}</h2>${badge(t.bill ? (balance(t) === 0 ? 'Paid' : 'Unpaid') : 'No final bill')}</div><p class="muted">Bill ${t.bill ? money(t.bill.total) : 'pending'} · Net collected ${money(paid(t))} · Balance ${t.bill ? money(balance(t)) : 'pending'}</p><div class="actions">${primary}${paid(t) > 0 ? btn('Receipt', 'cash-receipt', id) : ''}${paid(t) > 0 && role !== 'Collector' ? btn('Refund', 'refund', id) : ''}</div></article>`;
+}
+
+function filterFinance(page = 1) {
+  const code = $('#finance-search').value.trim().toLowerCase();
+  const rows = scope().filter((t) => t.issued && t.id.toLowerCase().includes(code) &&
+    (role !== 'Collector' || t.payments.some((p) => p.method === 'COD' && !p.remitted)));
+  $('#finance-list').innerHTML = pageOf(rows, 'finance', financeRow, 'No matching tickets.', page);
 }
 function reports() {
   const devices = scope().flatMap((t) => t.devices);
@@ -648,6 +694,16 @@ function render() {
   $('#app').innerHTML = publics.includes(route)
     ? (pages[route] || home)()
     : shell(route, (pages[route] || overview)());
+  if (route === 'finance') {
+    const [, target, code] = location.hash.split('/');
+    if (target === 'ticket' && code) $('#finance-search').value = code;
+    filterFinance();
+  }
+  if (route === 'repairs' && repairReturn?.branch === state.branch) {
+    $('#repair-search').value = repairReturn.query;
+    $('#repair-filter').value = repairReturn.status;
+    filterRepairs(repairReturn.page);
+  }
   if (route === 'home' && matchMedia('(prefers-reduced-motion: reduce)').matches) {
     $('video')?.pause();
     const b = $('[data-action=video]');
@@ -672,8 +728,9 @@ function action(name, el) {
   switch (name) {
     case 'list-page':
       if ($('#repair-search')) filterRepairs(Number(el.dataset.page));
+      else if ($('#finance-search')) filterFinance(Number(el.dataset.page));
       else if ($('#customer-filter')) filterCustomers(Number(el.dataset.page));
-      $('#repair-search, #customer-filter')?.focus();
+      $('#repair-search, #customer-filter, #finance-search')?.focus();
       break;
     case 'close':
       closeModal();
@@ -722,8 +779,13 @@ function action(name, el) {
       showReceipt(t);
       break;
     case 'open-ticket':
+      if ($('#repair-search')) repairReturn = {
+        branch: state.branch, query: $('#repair-search').value,
+        status: $('#repair-filter').value, page: repairPage,
+      };
+      repairBack = location.hash.slice(1) || 'repairs';
       activeTicket = el.dataset.id;
-      activeDevice = 0;
+      activeDevice = Number(el.dataset.device || 0);
       go('repair');
       break;
     case 'customer-intake':
@@ -1734,7 +1796,10 @@ document.addEventListener("click", (event) => {
   }
 });
 
+let repairReturn = null;
+let repairPage = 1;
 function filterRepairs(page = 1) {
+  repairPage = page;
   const q = ($('#repair-search')?.value || '').trim().toLowerCase(),
     status = $('#repair-filter')?.value || 'All statuses';
   const matches = scope()
@@ -1752,6 +1817,7 @@ function filterRepairs(page = 1) {
 }
 document.addEventListener('input', (e) => {
   if (e.target.id === 'repair-search') filterRepairs();
+  if (e.target.id === 'finance-search') filterFinance();
   if (e.target.id === "customer-filter") filterCustomers();
 });
 // Read the URL hash whenever the user opens a page or uses browser navigation.
