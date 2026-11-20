@@ -43,3 +43,37 @@
     display: none;
   }
 }
+
+.practice-record, .practice-result {
+  border-inline-start: 3px solid currentColor;
+  padding: .75rem 1rem;
+  margin-block: 1rem;
+}
+.practice-record p {
+  margin: .25rem 0 0;
+}
+.practice-form {
+  display: grid;
+  gap: .75rem;
+  max-width: 28rem;
+}
+.practice-form label {
+  display: grid;
+  gap: .25rem;
+}
+.practice-form input, .practice-form select {
+  color: inherit;
+  background: transparent;
+  min-height: 44px;
+  border: 1px solid currentColor;
+  border-radius: .5rem;
+  padding: .5rem;
+  max-width: 100%;
+}
+.practice-form select option {
+  color: #17202b;
+  background: #fff;
+}
+.practice-hint {
+  margin-block: .75rem;
+}

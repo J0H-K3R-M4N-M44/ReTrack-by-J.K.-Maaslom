@@ -2,6 +2,8 @@
 $guides = require __DIR__ . '/../../app/learning/guides.php';
 $staffGuide = $guideRole !== 'CUSTOMER';
 [$label, $steps] = $guides[$guideRole] ?? $guides['VIEWER'];
+$simulations = require __DIR__ . '/../../app/learning/simulations.php';
+$simulation = $simulations[$guideRole] ?? null;
 $root = $staffGuide ? '../' : '';
 ?>
 <!doctype html>
@@ -43,12 +45,38 @@ else: ?>
             <p>Step <?= $index + 1 ?> of <?= count($steps) ?></p>
             <h3 tabindex="-1"><?= h($title) ?></h3>
             <p><?= h($scenario) ?></p>
+            <?php if ($simulation && $simulation[0] === $index): ?>
+                <?php [, $record, $fields, $action, $result] = $simulation; ?>
+                <div class="practice-record"><strong>Sample record</strong><p><?= h($record) ?></p></div>
+                <form class="practice-form" autocomplete="off">
+                    <?php foreach ($fields as $field): ?>
+                        <?php [$fieldLabel, $control, $expected] = $field; ?>
+                        <label><?= h($fieldLabel) ?>
+                            <?php if (is_array($control)): ?>
+                                <select data-expected="<?= h($expected) ?>" required>
+                                    <option value="">Choose an option</option>
+                                    <?php foreach ($control as $option): ?>
+                                        <option><?= h($option) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php else: ?>
+                                <input type="text" inputmode="<?= h($field[3] ?? 'text') ?>"
+                                    data-expected="<?= h($expected) ?>" maxlength="32" required>
+                            <?php endif; ?>
+                        </label>
+                    <?php endforeach; ?>
+                    <button type="submit"><?= h($action) ?></button>
+                </form>
+                <p class="practice-result" hidden><?= h($result) ?></p>
+            <?php else: ?>
             <div class="practice-choices">
                 <?php foreach ($index % 2 === 0 ? [[$correct, true], [$other, false]] : [[$other, false], [$correct, true]] as [$choice, $isCorrect]): ?>
                 <button type="button" data-answer="<?= $isCorrect ? 'correct' : 'retry' ?>"><?= h($choice) ?></button>
                 <?php endforeach; ?>
             </div>
+            <?php endif; ?>
             <p class="practice-feedback" role="status" data-explanation="<?= h($feedback) ?>"></p>
+            <details class="practice-hint"><summary>Show a hint</summary><p><?= h($feedback) ?></p></details>
             <button type="button" class="practice-next" hidden><?= $index === count($steps) - 1 ? 'Finish practice' : 'Next step' ?></button>
         </article>
         <?php endforeach; ?>
