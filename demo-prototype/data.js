@@ -223,6 +223,18 @@ function loadDemo() {
   }
 }
 let state = loadDemo();
+function nextCustomerId() {
+  let number = state.customers.length + 1;
+  while (state.customers.some(c => c.id === 'C-' + number)) number++;
+  return 'C-' + number;
+}
+// Give older browser records stable identifiers the first time they are opened.
+function assignCustomerIds() {
+  for (const customer of state.customers) {
+    if (!customer.id) customer.id = nextCustomerId();
+  }
+}
+assignCustomerIds();
 // Save only to this browser; this does not write to the PHP database.
 function saveDemo() {
   try {

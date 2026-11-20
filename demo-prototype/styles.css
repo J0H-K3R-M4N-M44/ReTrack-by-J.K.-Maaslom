@@ -1006,3 +1006,15 @@ dialog::backdrop {
     text-decoration: underline;
   }
 }
+
+.mobile-nav summary {
+  min-height: 44px;
+  padding-block: 10px;
+  cursor: pointer;
+}
+.admin-more summary {
+  color: var(--muted);
+  padding: 12px 14px;
+  min-height: 44px;
+  cursor: pointer;
+}

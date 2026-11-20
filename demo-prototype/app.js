@@ -37,19 +37,27 @@ function toast(text) {
   toastTimer = setTimeout(() => ($('#toast').hidden = true), 4500);
 }
 function now() {
-  return new Date().toLocaleString('en-PH', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  return new Date().toISOString();
+}
+function displayTime(value) {
+  // Older sample events already contain a display label.
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(value)) return value || '';
+  return new Date(value).toLocaleString('en-PH', {timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short'});
+}
+function resetIntake() {
+  intakeStep = 0;
+  intakeDevice = 0;
+  intakeDraft = {};
+}
+function focusIntakeStep() {
+  document.querySelector('.stepper [aria-current="step"]')?.focus();
 }
 // Save one workflow event to the demo history, notifications and optional ticket.
 const feedGroups = ['Repairs', 'Conversations', 'Cash desk', 'Collections', 'Custody', 'Administration'];
 const feedSelection = { alerts: 'All', audit: 'All' };
 
 function record(text, ticket = null, isPublic = false, group = 'Repairs', branch = state.branch, custody = false) {
-  const event = { at: now(), text, public: isPublic, role, group,
+  const event = { at: now(), text, public: isPublic, role, actorId: demoAccounts[role], group,
     custody: custody || group === 'Collections' || group === 'Custody',
     ticketId: ticket?.id, branch: ticket?.branch || branch };
   state.audit.unshift(event);
@@ -72,12 +80,14 @@ function visibleEvent(event) {
     ['Repairs', 'Conversations'].includes(event.group);
 }
 
+// The role selector represents one fixed sample account per staff role.
+const demoAccounts = { Admin: 'staff-admin', Technician: 'staff-mika', Cashier: 'staff-jamie', Collector: 'staff-taylor' };
 function inbox() {
-  return state.alerts.filter((event) => visibleEvent(event) && event.role !== role);
+  return state.alerts.filter((event) => visibleEvent(event) && (event.actorId ? event.actorId !== demoAccounts[role] : event.role !== role));
 }
 
 function isUnread(event) {
-  return !event.read && !event.readBy?.includes(role);
+  return !event.read && !event.readBy?.includes(demoAccounts[role]) && !event.readBy?.includes(role);
 }
 
 function ticket() {
@@ -139,7 +149,7 @@ function select(label, name, options, value) {
   return `<label>${label}<select name="${name}">${options.map((o) => `<option ${o === value ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>`;
 }
 function header(title, description = '', action = '') {
-  return `<header class="page-heading"><div><p class="eyebrow">${role === 'Customer' ? 'Your repair' : esc(role) + ' workspace'}</p><h1>${title}</h1><p>${description}</p></div>${action}</header>`;
+  return `<header class="page-heading"><div><p class="eyebrow">${title === 'Request device pickup' ? 'Pickup service' : role === 'Customer' ? 'Your repair' : esc(role) + ' workspace'}</p><h1>${title}</h1><p>${description}</p></div>${action}</header>`;
 }
 function modal(title, body) {
   $('#modal-content').innerHTML =
@@ -160,6 +170,8 @@ function go(route) {
   else location.hash = route;
 }
 function setRole(next) {
+  resetIntake();
+  if ($('#modal').open) closeModal();
   feedSelection.alerts = 'All';
   feedSelection.audit = 'All';
   repairReturn = null;
@@ -168,6 +180,10 @@ function setRole(next) {
   if (role !== 'Admin' && state.branch === 'All branches') state.branch = BRANCHES[0];
   verified = false;
   tick();
+  if (role === 'Customer') {
+    const sample = state.tickets.find(t => t.id === activeTicket && t.issued) || state.tickets.find(t => t.issued);
+    if (sample) publicTicketId = activeTicket = sample.id;
+  }
   go(ROLE_HOME[role]);
   renderBar();
 }
@@ -188,7 +204,7 @@ const navs = {
     ['overview', 'Overview', '◈'],
     ['repairs', 'Repairs', '▣'],
     ['customers', 'Customers', '◎'],
-    ['team', 'Team', '♧'],
+    ['team', 'Team', '♙'],
     ['inventory', 'Inventory', '▤'],
     ['finance', 'Finance', '₱'],
     ['reports', 'Reports', '▥'],
@@ -218,22 +234,33 @@ function navigation(route) {
   if (role === 'Admin') {
     links.push(['logistics', 'Pickup & delivery', '⌖'], ['transfers', 'Branch transfers', '⇄'], ['settings', 'Branch settings', '⚙']);
   }
-  links.push(['alerts', 'Notifications', '✉'], ['audit', 'Activity history', '◷']);
-  return links
-    .map(
-      ([path, label, icon]) =>
-        `<a href="#${path}" ${route === path ? 'aria-current="page"' : ''} class="${route === path ? 'active' : ''}"><span class="side-icon" aria-hidden="true">${icon}</span>${label}</a>`
-    )
-    .join('');
+  links.push(['alerts', 'Notifications', '♢'], ['audit', 'Activity history', '◷']);
+  const icons = {
+    team: '<circle cx="9" cy="8" r="3"/><path d="M2 20v-2a7 7 0 0 1 14 0v2m0-15a3 3 0 0 1 0 6m3 3a5 5 0 0 1 3 5"/>',
+    alerts: '<path d="M4 17h16l-2-3V9a6 6 0 0 0-12 0v5zm6 3a2 2 0 0 0 4 0"/>',
+    messages: '<path d="M3 4h18v13H9l-6 4z"/>'
+  };
+  function navIcon(path, fallback) {
+    return icons[path] ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">${icons[path]}</svg>` : fallback;
+  }
+  function navLink([path, label, icon]) {
+    return `<a href="#${path}" ${route === path ? 'aria-current="page"' : ''} class="${route === path ? 'active' : ''}"><span class="side-icon" aria-hidden="true">${navIcon(path, icon)}</span>${label}</a>`;
+  }
+  if (role !== 'Admin') return links.map(navLink).join('');
+  const occasional = ['team', 'reports', 'settings'];
+  const daily = links.filter(([path]) => !occasional.includes(path));
+  const more = links.filter(([path]) => occasional.includes(path));
+  return daily.map(navLink).join('') + `<details class="admin-more" ${occasional.includes(route) ? 'open' : ''}><summary>Management &amp; reports</summary>${more.map(navLink).join('')}</details>`;
+
 }
 function shell(route, html) {
-  return `<div class="mobile-nav"><details><summary>Menu · ${esc(role)} · ${esc(state.branch)}</summary><nav aria-label="Mobile workspace">${navigation(route)}</nav>${btn('Sign out', 'logout', '', 'quiet')}</details></div><div class="shell"><aside class="sidebar"><a class="brand" href="#${ROLE_HOME[role]}"><span class="brand-mark">R</span>RepairTrack</a><p class="eyebrow">${esc(role)} console</p><nav class="side-nav" aria-label="Main navigation">${navigation(route)}</nav><div class="sidebar-footer">${btn('Sign out', 'logout', '', 'quiet')}</div></aside><div class="workspace"><header class="topbar"><div><strong>${role === 'Technician' ? 'Mika Reyes' : role === 'Collector' ? 'Taylor · Collector' : 'RepairTrack staff'}</strong><small> / ${esc(role)}</small></div><div class="row"><label class="check">Viewing branch<select id="branch-picker">${(state.singleStore ? [BRANCHES[0]] : role === 'Admin' ? ['All branches', ...BRANCHES] : BRANCHES).map((b) => `<option ${state.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>${link('Alerts ' + inbox().filter(isUnread).length, 'alerts', 'button quiet')}</div></header><main id="content" tabindex="-1" class="content">${html}</main></div></div>`;
+  return `<div class="mobile-nav"><details><summary>Menu · ${esc(role)} · ${esc(state.branch)}</summary><nav aria-label="Mobile workspace">${navigation(route)}</nav>${btn('Sign out', 'logout', '', 'quiet')}</details></div><div class="shell"><aside class="sidebar"><a class="brand" href="#${ROLE_HOME[role]}"><span class="brand-mark" aria-hidden="true">R</span>RepairTrack</a><p class="eyebrow">${esc(role)} console</p><nav class="side-nav" aria-label="Main navigation">${navigation(route)}</nav><div class="sidebar-footer">${btn('Sign out', 'logout', '', 'quiet')}</div></aside><div class="workspace"><header class="topbar"><div><strong>${role === 'Technician' ? 'Mika Reyes' : role === 'Collector' ? 'Taylor · Collector' : 'RepairTrack staff'}</strong><small> / ${esc(role)}</small></div><div class="row"><label class="check">Viewing branch<select id="branch-picker">${(state.singleStore ? [BRANCHES[0]] : role === 'Admin' ? ['All branches', ...BRANCHES] : BRANCHES).map((b) => `<option ${state.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>${link('Alerts ' + inbox().filter(isUnread).length, 'alerts', 'button quiet')}</div></header><main id="content" tabindex="-1" class="content">${html}</main></div></div>`;
 }
 function publicNav() {
   const links = ['Home', 'About', 'FAQ', 'Contacts', 'Services']
     .map((s) => `<a href="#home" data-section="${s.toLowerCase()}">${s}</a>`)
     .join('');
-  return `<header class="public-nav"><a class="brand" href="#home"><span class="brand-mark">R</span>RepairTrack</a><nav>${links}</nav>${link('Staff login', 'login', 'button quiet')}</header><details class="mobile-nav"><summary>Navigation</summary><nav>${links}</nav></details>`;
+  return `<header class="public-nav"><a class="brand" href="#home"><span class="brand-mark" aria-hidden="true">R</span>RepairTrack</a><nav>${links}</nav>${link('Staff login', 'login', 'button quiet')}</header><details class="mobile-nav"><summary>Navigation</summary><nav>${links}</nav></details>`;
 }
 function home() {
   return `${publicNav()}<main id="content" tabindex="-1"><section class="hero" id="home"><video muted autoplay loop playsinline poster="assets/video-poster.jpg"><source src="assets/login-bg.mp4" type="video/mp4"></video><div><p class="eyebrow">Computer repair, without the guesswork</p><h1>Your device.<br>Your updates.<br><span class="hero-accent">All in one place.</span></h1><p>Know what is happening, where your computer is, and what comes next.</p><div class="row section">${link('Request device pickup', 'pickup', 'button quiet')}${btn('Pause background', 'video', '', 'quiet')}</div></div><section class="card"><p class="eyebrow">Track a repair</p><h2>Let’s find your device</h2><form data-form="track" class="stack">${field('Tracking code', 'code', 'DEMO-1042')}<button class="primary">View my repair</button></form><div class="row section">${btn('Scan QR', 'scan')}${btn('Try sample QR', 'qr')}</div><small>Use DEMO-1042 for the main demonstration.</small></section></section><div class="container"><section id="about"><p class="eyebrow">The repair journey</p><h2>A clear next step, from check-in to return</h2><div class="grid three section">${[
@@ -336,7 +363,9 @@ function overview() {
     return header(label, esc(state.branch), link('Back to overview', 'overview')) +
       `<section class="list">${pageOf(tasks, 'overview/' + section, workRow, 'All caught up.')}</section>`;
   }
-  const preview = groups.flatMap(([, tasks]) => tasks).slice(0, 4);
+  const firstTasks = groups.flatMap(([, tasks]) => tasks.slice(0, 1));
+  const remaining = groups.flatMap(([, tasks]) => tasks.slice(1));
+  const preview = [...firstTasks, ...remaining].slice(0, 4);
   const updates = state.audit.filter(visibleEvent).slice(0, 5);
   return header(role + ' overview', esc(state.branch)) +
     `<div class="grid three">${groups.map(([label, tasks], index) =>
@@ -345,7 +374,7 @@ function overview() {
     <section class="card"><h2>Recent activity</h2>${updates.length ? timeline(updates) : empty('No recent activity.')}${link('View activity history', 'audit')}</section></div>`;
 }
 function ticketCard(t) {
-  return `<article class="list-item"><div><h3>${esc(t.id)} · ${esc(t.devices[0].name)}</h3><p>${esc(t.customer)} · ${esc(t.branch)}</p>${t.issued ? [...new Set(t.devices.map((device) => device.status))].map(badge).join(' ') : badge('Draft')} <small>${t.devices.length} device${t.devices.length > 1 ? 's' : ''}</small></div>${btn('Open', 'open-ticket', `data-id="${t.id}"`)}</article>`;
+  return `<article class="list-item"><div><h3>${esc(t.id)} · ${esc(t.devices[0].name)}</h3><p>${esc(t.customer)} · ${esc(t.branch)}</p>${t.issued ? [...new Set(t.devices.map((device) => device.status))].map(badge).join(' ') : badge('Draft')} <small>${t.devices.length} device${t.devices.length > 1 ? 's' : ''}</small></div>${btn('Open', 'open-ticket', `data-id="${esc(t.id)}" aria-label="Open repair ${esc(t.id)}"`)}</article>`;
 }
 // Static lists use the route page. Search results keep their page beside the filter.
 function pageOf(rows, route, draw, emptyMessage, requested) {
@@ -379,7 +408,12 @@ function repairs() {
   );
 }
 function timeline(events) {
-  return `<ol class="timeline">${events.map((e) => `<li><small>${esc(e.at)}</small><p>${esc(e.text)}</p></li>`).join('')}</ol>`;
+  return `<ol class="timeline">${events.map((e) => `<li><small>${esc(displayTime(e.at))}</small><p>${esc(e.text)}</p></li>`).join('')}</ol>`;
+}
+function customerPicker(selected) {
+  const options = state.customers.map(c =>
+    `<option value="${esc(c.id)}" ${c.id === selected ? 'selected' : ''}>${esc(c.name)} · ${esc(c.contact)}</option>`);
+  return `<label>Existing customer<select name="existing"><option value="">New customer</option>${options.join('')}</select></label>`;
 }
 function intake() {
   const d = intakeDraft;
@@ -392,9 +426,9 @@ function intake() {
       'New device intake',
       'Capture essentials first. Review with the customer before issuing a ticket.'
     ) +
-    `<div class="narrow"><ol class="stepper">${['Customer', 'Device & condition', 'Review'].map((s, i) => `<li class="${i === intakeStep ? 'active' : ''}">${i + 1} ${s}</li>`).join('')}</ol><form data-form="intake" class="card form-grid">${
+    `<div class="narrow"><ol class="stepper">${['Customer', 'Device & condition', 'Review'].map((s, i) => `<li class="${i === intakeStep ? 'active' : ''}" ${i === intakeStep ? 'aria-current="step" tabindex="-1"' : ''}>${i + 1} ${s}</li>`).join('')}</ol><form data-form="intake" class="card form-grid">${
       intakeStep === 0
-        ? `<div class="wide">${select('Existing customer', 'existing', ['New customer', ...state.customers.map((c) => c.name)], d.existing || 'New customer')}<small>Select a match to fill contact details.</small></div>${field('Customer name', 'customer', d.customer || '')}${field('Phone or email', 'contact', d.contact || '')}${branches.length === 1 ? `<div><strong>Receiving branch</strong><p>${esc(receiving)}</p><input type="hidden" name="branch" value="${esc(receiving)}"></div>` : select('Receiving branch', 'branch', branches, receiving)}${select('Arrival', 'arrival', ['Walk-in', 'Pickup', 'Mail'], d.arrival || 'Walk-in')}`
+        ? `<div class="wide">${customerPicker(d.existing)}<small>Select a match to fill contact details.</small></div>${field('Customer name', 'customer', d.customer || '')}${field('Phone or email', 'contact', d.contact || '')}${branches.length === 1 ? `<div><strong>Receiving branch</strong><p>${esc(receiving)}</p><input type="hidden" name="branch" value="${esc(receiving)}"></div>` : select('Receiving branch', 'branch', branches, receiving)}${select('Arrival', 'arrival', ['Walk-in', 'Pickup', 'Mail'], d.arrival || 'Walk-in')}`
         : intakeStep === 1
           ? `<h2 class="wide">Device ${intakeDevice + 1}</h2>${field('Device brand and model', 'device', item.device || '')}${field('Serial number (optional)', 'serial', item.serial || '', 'text', false)}<div class="wide">${area('Reported problem', 'problem', item.problem || '')}</div><div class="wide">${area('Visible condition', 'condition', item.condition || '')}</div>${field('Accessories or “None”', 'accessories', item.accessories || '')}${field('Condition photo (demo filename, optional)', 'photo', item.photo || '', 'text', false)}<label class="check wide"><input type="checkbox" name="ack" ${item.ack ? 'checked' : ''}>Customer confirms condition and acknowledges the service terms.</label>`
           : `<div class="wide"><h2>Confirm these details</h2><dl class="summary">${[
@@ -409,7 +443,7 @@ function intake() {
               )}</dl></div><section class="wide" aria-label="Intake devices">
       <h2>${devices.length} device${devices.length === 1 ? '' : 's'} on this ticket</h2>
       ${devices.map((entry, index) => `<article class="list-item"><div><h3>${index + 1}. ${esc(entry.device)}</h3>
-        <p>${esc(entry.problem)} · ${esc(entry.condition)}</p><small>Accessories: ${esc(entry.accessories)} · ${entry.ack ? 'Acknowledged' : 'Acknowledgment pending'}</small></div>
+        <p>${entry.serial ? 'Serial: ' + esc(entry.serial) : 'Serial not recorded'}${entry.photo ? ' · Photo: ' + esc(entry.photo) : ''}</p><p>${esc(entry.problem)} · ${esc(entry.condition)}</p><small>Accessories: ${esc(entry.accessories)} · ${entry.ack ? 'Acknowledged' : 'Acknowledgment pending'}</small></div>
         ${btn('Edit device ' + (index + 1), 'intake-device', `data-index="${index}"`)}</article>`).join('')}
       <div class="actions">${btn('Add another device', 'intake-device', `data-index="${devices.length}"`)}</div></section><div class="notice wide">Save as draft first. Issuance adds tracking access after the checks pass. Photo files here are sample labels, not uploads or signatures.</div>`
     }<div class="actions wide">${intakeStep ? btn('Back', 'intake-back') : link('Cancel', 'repairs')}<button class="primary">${intakeStep === 2 ? 'Save intake draft' : 'Continue'}</button></div></form></div>`
@@ -462,6 +496,10 @@ function portal() {
   const t = ticket();
   const tab = location.hash.split('/')[1] || 'overview';
   const tabs = ['Overview', 'Location', 'Messages', 'Requests', 'Costs', 'Alerts'];
+  if (!tabs.some(label => label.toLowerCase() === tab)) {
+    location.replace('#portal/overview');
+    return '';
+  }
   let html = '';
   if (tab === 'overview') {
     const devices = t.devices.map((d, index) => {
@@ -485,7 +523,7 @@ function portal() {
   else if (tab === 'costs')
     html = `<div class="grid"><section class="card"><h2>Itemized quotations</h2>${quotesHTML(t, true)}</section><section class="card"><h2>Payment summary</h2><dl class="summary"><div><dt>Final bill</dt><dd>${t.bill ? money(t.bill.total) : 'Not issued yet'}</dd></div><div><dt>Cash received, net refunds</dt><dd>${money(paid(t))}</dd></div><div><dt>Balance</dt><dd>${t.bill ? money(balance(t)) : 'Pending final bill'}</dd></div><div><dt>Payment methods</dt><dd>Cash at counter or on delivery</dd></div></dl>${t.payments.map((p) => `<p class="section">Receipt ${esc(p.id)} · ${money(p.amount)} · ${esc(p.method)}</p>`).join('')}<p class="muted section">No online payment is available.</p></section></div>`;
   if (tab === 'alerts' && verified) html = ticketAlertPanel(t);
-  return `${publicNav()}<main id="content" tabindex="-1" class="container">${header('Your repair, at a glance', `${esc(t.id)} · ${t.devices.length} device${t.devices.length > 1 ? 's' : ''} · ${esc(t.branch)}`, badge(verified ? 'Verified demo session' : 'Tracking access'))}<nav class="tabs">${tabs.map((s) => link(s, 'portal/' + s.toLowerCase(), tab === s.toLowerCase() ? 'active' : '')).join('')}</nav>${html}</main>`;
+  return `${publicNav()}<main id="content" tabindex="-1" class="container">${header('Your repair, at a glance', `${esc(t.id)} · ${t.devices.length} device${t.devices.length > 1 ? 's' : ''} · ${esc(t.branch)}`, badge(verified ? 'Verified demo session' : 'Tracking access'))}<nav class="tabs" aria-label="Repair sections">${tabs.map((s) =>  `<a href="#portal/${s.toLowerCase()}" class="${tab === s.toLowerCase() ? 'active' : ''}" ${tab === s.toLowerCase() ? 'aria-current="page"' : ''}>${s}</a>`).join('')}</nav>${html}</main>`;
 }
 function chatHTML(t, customer) {
   return `<section class="card"><h2>${customer ? 'Your repair team' : 'Ticket conversation'} · ${esc(t.id)}</h2><div class="chat">${t.messages.map((m) => `<div class="bubble ${m.by === 'Customer' ? 'customer' : ''}"><small>${esc(m.by)}</small><p>${esc(m.text)}</p></div>`).join('') || empty('No messages yet.')}</div><form data-form="message" class="stack">${area('Message', 'message')}<button class="primary">Send demo message</button></form><small>Messages stay in this browser. No SMS or email is sent.</small></section>`;
@@ -506,7 +544,7 @@ function messages() {
   );
 }
 function customerCard(c) {
-  return `<article class="list-item"><div><h3>${esc(c.name)}</h3><p>${esc(c.contact)}</p></div>${btn('Start intake', 'customer-intake', `data-name="${esc(c.name)}"`)}</article>`;
+  return `<article class="list-item"><div><h3>${esc(c.name)}</h3><p>${esc(c.contact)}</p></div>${btn('Start intake', 'customer-intake', `data-customer="${esc(c.id)}"`)}</article>`;
 }
 function customers() {
   return (
@@ -670,7 +708,7 @@ function activitySection(kind) {
     ['All', ...feedGroups], feedSelection[kind]) : '';
   const mark = notifications && rows.some(isUnread)
     ? btn('Mark all matching as read', 'read-alerts') : '';
-  const items = pageOf(rows, kind, (event) => `<article class="list-item"><div><small>${esc(event.group || 'Earlier activity')} · ${esc(event.at || '')}</small><p>${esc(event.text)}</p></div>${notifications ? badge(isUnread(event) ? 'New' : 'Read') : ''}</article>`,
+  const items = pageOf(rows, kind, (event) => `<article class="list-item"><div><small>${esc(event.group || 'Earlier activity')} · ${esc(displayTime(event.at || ''))}</small><p>${esc(event.text)}</p></div>${notifications ? badge(isUnread(event) ? 'New' : 'Read') : ''}</article>`,
     notifications ? 'No notifications in this view.' : 'No activity in this view.');
   return header(notifications ? 'Notifications' : 'Activity history',
     notifications ? 'Messages and handoffs for your workspace.' : 'Changes recorded in the selected branch.', mark) +
@@ -774,6 +812,7 @@ function action(name, el) {
       renderBar();
       break;
     case 'logout':
+      resetIntake();
       role = 'Public';
       verified = false;
       go('home');
@@ -824,8 +863,9 @@ function action(name, el) {
       break;
     case 'customer-intake':
       {
-        const c = state.customers.find((c) => c.name === el.dataset.name);
-        intakeDraft = { customer: c.name, contact: c.contact, existing: c.name };
+        resetIntake();
+        const c = state.customers.find((c) => c.id === el.dataset.customer);
+        intakeDraft = { customer: c.name, contact: c.contact, existing: c.id };
         intakeStep = 0;
         go('intake');
       }
@@ -834,10 +874,12 @@ function action(name, el) {
       intakeDevice = Number(el.dataset.index);
       intakeStep = 1;
       render();
+      focusIntakeStep();
       break;
     case 'intake-back':
       intakeStep = intakeStep === 1 && intakeDraft.devices?.length ? 2 : 0;
       render();
+      focusIntakeStep();
       break;
     case 'issue':
       formModal(
@@ -1114,15 +1156,13 @@ function action(name, el) {
     case 'pickup-receive':
       {
         const p = state.pickups.find((p) => p.id === context.id);
+        resetIntake();
         intakeDraft = {
           customer: p.name,
           contact: p.contact,
-          device: p.device,
-          problem: p.problem,
+          devices: [{device: p.device, problem: p.problem, condition: p.condition || '', accessories: ''}],
           branch: p.branch,
           arrival: 'Pickup',
-          condition: p.condition || '',
-          accessories: 'To confirm',
           pickupId: p.id,
         };
         intakeStep = 1;
@@ -1209,7 +1249,7 @@ function action(name, el) {
       break;
     case 'read-alerts':
       feedRows('alerts').filter(isUnread).forEach((event) => {
-        event.readBy = [...(event.readBy || []), role];
+        event.readBy = [...(event.readBy || []), demoAccounts[role]];
       });
       saveDemo();
       render();
@@ -1272,25 +1312,43 @@ function submit(kind, form) {
         return;
       case 'reset':
         state = seedDemo();
+        assignCustomerIds();
         saveDemo();
         role = 'Public';
         verified = false;
         activeTicket = 'RT-1042';
         activeDevice = 0;
-        intakeDraft = {};
-        intakeStep = 0;
+        resetIntake();
         closeModal();
         go('home');
         render();
         toast('Sample data restored.');
         return;
       case 'pickup': {
+        // Compute the date at the branch even when the visitor is abroad.
+        const today = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit'
+        }).format(new Date());
+        for (const name of ['name', 'device', 'address', 'problem', 'contact', 'date']) {
+          v[name] = v[name].trim();
+          let error = v[name] ? '' : 'Enter a value for this field.';
+          if (name === 'date' && v.date < today) error = 'Choose today or a future pickup date.';
+          if (name === 'contact' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.contact)
+            && !/^\+?[\d() .-]+$/.test(v.contact)) error = 'Enter a phone number or email address.';
+          if (name === 'contact' && !v.contact.includes('@') && !/^\d{7,15}$/.test(v.contact.replace(/\D/g, '')))
+            error = 'Enter a phone number with 7 to 15 digits or an email address.';
+          if (error) {
+            form.elements[name].setCustomValidity(error);
+            form.elements[name].reportValidity();
+            return;
+          }
+        }
         const id = 'PU-' + (101 + state.pickups.length);
         state.pickups.push({ ...v, id, status: 'Requested', collector: 'Unassigned', fee: 150 });
         record(`${id}: pickup request awaiting staff confirmation`, null, false, 'Collections', v.branch);
         modal(
           'Pickup request received',
-          `<h2>${id}</h2><p>Your request awaits coverage, fee and schedule confirmation. The device is not yet in branch custody.</p>${btn('Return home', 'close')}`
+          `<h2>${id}</h2><p>Your request awaits coverage, fee and schedule confirmation. The device is not yet in branch custody.</p>${link('Return home', 'home')}`
         );
         form.reset();
         return;
@@ -1300,6 +1358,7 @@ function submit(kind, form) {
         if (intakeStep < 2) {
           intakeStep++;
           render();
+          focusIntakeStep();
           return;
         }
         {
@@ -1349,7 +1408,7 @@ function submit(kind, form) {
           };
           state.tickets.push(item);
           if (!state.customers.some((c) => c.name === n.customer && c.contact === n.contact))
-            state.customers.push({ name: n.customer, contact: n.contact });
+            state.customers.push({ id: nextCustomerId(), name: n.customer, contact: n.contact });
           if (n.pickupId) {
             state.pickups.find((p) => p.id === n.pickupId).status = 'Received at branch';
           }
@@ -1710,7 +1769,7 @@ function showReceipt(t) {
 function showCashReceipt(t) {
   modal(
     'Cash receipt',
-    `<p class="eyebrow">Demo document</p><h2>${esc(t.id)} · ${esc(t.customer)}</h2><p>Final bill: ${money(t.bill?.total || 0)}</p>${t.payments.map((p) => `<p>${esc(p.id)}<br>${esc(p.at)} · ${esc(p.method)}<br><strong>${money(p.amount)}</strong></p>`).join('')}<p>Refunds: ${money(t.refunds.reduce((n, r) => n + r.amount, 0))}</p><p class="amount">Balance ${money(balance(t))}</p><small>This is a sample receipt, not a tax invoice.</small><div class="actions">${btn('Print', 'print')}</div>`
+    `<p class="eyebrow">Demo document</p><h2>${esc(t.id)} · ${esc(t.customer)}</h2><p>Final bill: ${money(t.bill?.total || 0)}</p>${t.payments.map((p) => `<p>${esc(p.id)}<br>${esc(displayTime(p.at))} · ${esc(p.method)}<br><strong>${money(p.amount)}</strong></p>`).join('')}<p>Refunds: ${money(t.refunds.reduce((n, r) => n + r.amount, 0))}</p><p class="amount">Balance ${money(balance(t))}</p><small>This is a sample receipt, not a tax invoice.</small><div class="actions">${btn('Print', 'print')}</div>`
   );
 }
 let cameraStream = null,
@@ -1766,6 +1825,12 @@ $('#modal').addEventListener('close', () => {
 });
 // Listen on the document because page buttons are replaced during rendering.
 document.addEventListener('click', (e) => {
+  const routeLink = e.target.closest('a[href^="#"]');
+  if (routeLink?.closest('dialog')) closeModal();
+  if (routeLink?.hash === '#intake') {
+    resetIntake();
+    if (location.hash === '#intake') render();
+  }
   const el = e.target.closest('[data-action]');
   if (el) {
     if (el.dataset.action === 'print') {
@@ -1811,12 +1876,9 @@ document.addEventListener('change', (e) => {
     render();
   }
   if (e.target.name === 'existing') {
-    const c = state.customers.find((c) => c.name === e.target.value);
-    if (c) {
-      const f = e.target.form;
-      f.elements.customer.value = c.name;
-      f.elements.contact.value = c.contact;
-    }
+    const c = state.customers.find(c => c.id === e.target.value);
+    e.target.form.elements.customer.value = c?.name || '';
+    e.target.form.elements.contact.value = c?.contact || '';
   }
   if (e.target.name === 'feed-group') {
     const kind = location.hash.split('/')[0] === '#alerts' ? 'alerts' : 'audit';
@@ -1869,12 +1931,15 @@ function filterRepairs(page = 1) {
 
 }
 document.addEventListener('input', (e) => {
+  if (e.target.form?.dataset.form === 'pickup') e.target.setCustomValidity('');
   if (e.target.id === 'repair-search') filterRepairs();
   if (e.target.id === 'finance-search') filterFinance();
   if (e.target.id === "customer-filter") filterCustomers();
 });
 // Read the URL hash whenever the user opens a page or uses browser navigation.
-function handleRoute() {
+function handleRoute(event) {
+  if (event?.oldURL && new URL(event.oldURL).hash === '#intake') resetIntake();
+  if ($('#modal').open) closeModal();
   const route = location.hash.slice(1);
   if (route.startsWith('track/')) {
     let code;
@@ -1899,6 +1964,7 @@ function handleRoute() {
     return;
   }
   render();
+  if (event) $('#content')?.focus({preventScroll: true});
 }
 window.addEventListener('hashchange', handleRoute);
 ['pointerdown', 'keydown', 'touchstart'].forEach((type) =>
@@ -1906,6 +1972,8 @@ window.addEventListener('hashchange', handleRoute);
 );
 setInterval(() => {
   if (role !== 'Public' && Date.now() - lastActivity >= state.settings.idleMinutes * 60000) {
+    resetIntake();
+    closeModal();
     role = 'Public';
     verified = false;
     go('home');
