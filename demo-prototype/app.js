@@ -108,7 +108,7 @@ function header(title, description = '', action = '') {
 }
 function modal(title, body) {
   $('#modal-content').innerHTML =
-    `<header class="dialog-header"><h2>${title}</h2>${btn('✕', 'close', 'aria-label="Close dialog"', 'quiet')}</header>${body}`;
+    `<header class="dialog-header"><h2 id="dialog-title">${title}</h2>${btn('✕', 'close', 'aria-label="Close dialog"', 'quiet')}</header>${body}`;
   $('#modal').showModal();
 }
 function formModal(title, kind, body, submit = 'Save demo update') {
@@ -156,7 +156,6 @@ const navs = {
     ['repairs', 'My repairs', '▣'],
     ['messages', 'Messages', '✉'],
     ['parts', 'Parts requests', '▤'],
-    ['audit', 'History', '◷'],
   ],
   Cashier: [
     ['overview', 'Overview', '◈'],
@@ -172,15 +171,20 @@ const navs = {
   ],
 };
 function navigation(route) {
-  return (navs[role] || navs.Admin)
+  const links = [...(navs[role] || [])];
+  if (role === 'Admin') {
+    links.push(['logistics', 'Pickup & delivery', '⌖'], ['transfers', 'Branch transfers', '⇄'], ['settings', 'Branch settings', '⚙']);
+  }
+  links.push(['alerts', 'Notifications', '✉'], ['audit', 'Activity history', '◷']);
+  return links
     .map(
       ([path, label, icon]) =>
-        `<a href="#${path}" class="${route === path ? 'active' : ''}"><span class="side-icon" aria-hidden="true">${icon}</span>${label}</a>`
+        `<a href="#${path}" ${route === path ? 'aria-current="page"' : ''} class="${route === path ? 'active' : ''}"><span class="side-icon" aria-hidden="true">${icon}</span>${label}</a>`
     )
     .join('');
 }
 function shell(route, html) {
-  return `<div class="mobile-nav"><details><summary>Menu · ${esc(role)} · ${esc(state.branch)}</summary><nav>${navigation(route)}${link('Logistics', 'logistics', '')}${link('Alerts', 'alerts', '')}</nav></details></div><div class="shell"><aside class="sidebar"><a class="brand" href="#overview"><span class="brand-mark">R</span>RepairTrack</a><p class="eyebrow">${esc(role)} console</p><nav class="side-nav" aria-label="Main navigation">${navigation(route)}</nav><div class="sidebar-footer"><nav class="side-nav">${role === 'Admin' ? '<a href="#logistics">⌖ Pickup & delivery</a><a href="#transfers">⇄ Branch transfers</a><a href="#settings">⚙ Branches & settings</a>' : ''}<a href="#alerts">Notifications</a><a href="#audit">Activity log</a></nav>${btn('Sign out', 'logout', '', 'quiet')}</div></aside><div class="workspace"><header class="topbar"><div><strong>${role === 'Technician' ? 'Mika Reyes' : role === 'Collector' ? 'Taylor · Collector' : 'RepairTrack staff'}</strong><small> / ${esc(role)}</small></div><div class="row"><label class="check">Branch<select id="branch-picker">${(state.singleStore ? [BRANCHES[0]] : role === 'Admin' ? ['All branches', ...BRANCHES] : BRANCHES).map((b) => `<option ${state.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>${link('Alerts ' + state.alerts.filter((a) => !a.read).length, 'alerts', 'button quiet')}</div></header><main id="content" class="content">${html}</main></div></div>`;
+  return `<div class="mobile-nav"><details><summary>Menu · ${esc(role)} · ${esc(state.branch)}</summary><nav aria-label="Mobile workspace">${navigation(route)}</nav>${btn('Sign out', 'logout', '', 'quiet')}</details></div><div class="shell"><aside class="sidebar"><a class="brand" href="#${ROLE_HOME[role]}"><span class="brand-mark">R</span>RepairTrack</a><p class="eyebrow">${esc(role)} console</p><nav class="side-nav" aria-label="Main navigation">${navigation(route)}</nav><div class="sidebar-footer">${btn('Sign out', 'logout', '', 'quiet')}</div></aside><div class="workspace"><header class="topbar"><div><strong>${role === 'Technician' ? 'Mika Reyes' : role === 'Collector' ? 'Taylor · Collector' : 'RepairTrack staff'}</strong><small> / ${esc(role)}</small></div><div class="row"><label class="check">Branch<select id="branch-picker">${(state.singleStore ? [BRANCHES[0]] : role === 'Admin' ? ['All branches', ...BRANCHES] : BRANCHES).map((b) => `<option ${state.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>${link('Alerts ' + state.alerts.filter((a) => !a.read).length, 'alerts', 'button quiet')}</div></header><main id="content" tabindex="-1" class="content">${html}</main></div></div>`;
 }
 function publicNav() {
   const links = ['Home', 'About', 'FAQ', 'Contacts', 'Services']
@@ -189,7 +193,7 @@ function publicNav() {
   return `<header class="public-nav"><a class="brand" href="#home"><span class="brand-mark">R</span>RepairTrack</a><nav>${links}</nav>${link('Staff login', 'login', 'button quiet')}</header><details class="mobile-nav"><summary>Navigation</summary><nav>${links}</nav></details>`;
 }
 function home() {
-  return `${publicNav()}<main id="content"><section class="hero" id="home"><video muted autoplay loop playsinline poster="assets/video-poster.jpg"><source src="assets/login-bg.mp4" type="video/mp4"></video><div><p class="eyebrow">Computer repair, without the guesswork</p><h1>Your device.<br>Your updates.<br><span class="hero-accent">All in one place.</span></h1><p>Know what is happening, where your computer is, and what comes next.</p><div class="row section">${link('Request device pickup', 'pickup', 'button quiet')}${btn('Pause background', 'video', '', 'quiet')}</div></div><section class="card"><p class="eyebrow">Track a repair</p><h2>Let’s find your device</h2><form data-form="track" class="stack">${field('Tracking code', 'code', 'DEMO-1042')}<button class="primary">View my repair</button></form><div class="row section">${btn('Scan QR', 'scan')}${btn('Try sample QR', 'qr')}</div><small>Use DEMO-1042 for the main demonstration.</small></section></section><div class="container"><section id="about"><p class="eyebrow">The repair journey</p><h2>A clear next step, from check-in to return</h2><div class="grid three section">${[
+  return `${publicNav()}<main id="content" tabindex="-1"><section class="hero" id="home"><video muted autoplay loop playsinline poster="assets/video-poster.jpg"><source src="assets/login-bg.mp4" type="video/mp4"></video><div><p class="eyebrow">Computer repair, without the guesswork</p><h1>Your device.<br>Your updates.<br><span class="hero-accent">All in one place.</span></h1><p>Know what is happening, where your computer is, and what comes next.</p><div class="row section">${link('Request device pickup', 'pickup', 'button quiet')}${btn('Pause background', 'video', '', 'quiet')}</div></div><section class="card"><p class="eyebrow">Track a repair</p><h2>Let’s find your device</h2><form data-form="track" class="stack">${field('Tracking code', 'code', 'DEMO-1042')}<button class="primary">View my repair</button></form><div class="row section">${btn('Scan QR', 'scan')}${btn('Try sample QR', 'qr')}</div><small>Use DEMO-1042 for the main demonstration.</small></section></section><div class="container"><section id="about"><p class="eyebrow">The repair journey</p><h2>A clear next step, from check-in to return</h2><div class="grid three section">${[
     ['01', 'Check in', 'Bring your device or request a confirmed collection.'],
     ['02', 'Review the work', 'Discuss findings and approve itemized costs.'],
     ['03', 'Receive your device', 'Follow updates, then collect or arrange delivery.'],
@@ -229,10 +233,10 @@ function home() {
     )}</section><section id="contacts" class="section"><h2>Your nearby repair team</h2><div class="grid">${BRANCHES.map(branchMapCard).join('')}</div></section></div></main><footer class="footer"><strong>RepairTrack</strong><span>Demonstration only. All names, prices and records are samples.</span></footer>`;
 }
 function login() {
-  return `${publicNav()}<main id="content" class="container narrow"><section class="card"><p class="eyebrow">One staff entry point</p><h1>Welcome back</h1><p class="muted">Preview a workspace. No real account or password is needed.</p><form data-form="login" class="stack">${field('Demo email', 'email', 'staff@example.test', 'email')}${select('Demo role', 'role', ['Admin', 'Technician', 'Cashier', 'Collector'], 'Admin')}<button class="primary">Open demo workspace</button><small>Production permissions come from the server. This selector is for presentation only.</small></form></section></main>`;
+  return `${publicNav()}<main id="content" tabindex="-1" class="container narrow"><section class="card"><p class="eyebrow">One staff entry point</p><h1>Welcome back</h1><p class="muted">Preview a workspace. No real account or password is needed.</p><form data-form="login" class="stack">${field('Demo email', 'email', 'staff@example.test', 'email')}${select('Demo role', 'role', ['Admin', 'Technician', 'Cashier', 'Collector'], 'Admin')}<button class="primary">Open demo workspace</button><small>Production permissions come from the server. This selector is for presentation only.</small></form></section></main>`;
 }
 function pickup() {
-  return `${publicNav()}<main id="content" class="container narrow">${header('Request device pickup', 'Your branch will confirm the location, schedule and collection fee.')}<form data-form="pickup" class="card form-grid">${field('Your name', 'name')}${field('Phone or email', 'contact')}${field('Device', 'device')}${select('Service area', 'area', ['Within service area', 'Nearby meeting point', 'Outside service area'])}<div class="wide">${area('What did you notice?', 'problem')}</div><div class="wide">${area('Address and landmark', 'address')}</div>${field('Preferred date', 'date', '', 'date')}${select('Preferred branch', 'branch', state.singleStore ? [BRANCHES[0]] : BRANCHES)}<div class="notice wide">Map and coverage are simulated. No live location is collected.</div><label class="check wide"><input type="checkbox" required>I agree that staff must confirm the fee and schedule.</label><div class="actions wide"><button class="primary">Send demo pickup request</button></div></form></main>`;
+  return `${publicNav()}<main id="content" tabindex="-1" class="container narrow">${header('Request device pickup', 'Your branch will confirm the location, schedule and collection fee.')}<form data-form="pickup" class="card form-grid">${field('Your name', 'name')}${field('Phone or email', 'contact')}${field('Device', 'device')}${select('Service area', 'area', ['Within service area', 'Nearby meeting point', 'Outside service area'])}<div class="wide">${area('What did you notice?', 'problem')}</div><div class="wide">${area('Address and landmark', 'address')}</div>${field('Preferred date', 'date', '', 'date')}${select('Preferred branch', 'branch', state.singleStore ? [BRANCHES[0]] : BRANCHES)}<div class="notice wide">Map and coverage are simulated. No live location is collected.</div><label class="check wide"><input type="checkbox" required>I agree that staff must confirm the fee and schedule.</label><div class="actions wide"><button class="primary">Send demo pickup request</button></div></form></main>`;
 }
 function overview() {
   const ts = scope();
@@ -371,7 +375,7 @@ function portal() {
       role === 'Customer' && verified
         ? ticketAlertPanel(t)
         : '<section class="card"><p>Verify your PIN in the Messages tab to manage alerts.</p></section>';
-  return `${publicNav()}<main id="content" class="container">${header('Your repair, at a glance', `${esc(t.id)} · ${t.devices.length} device${t.devices.length > 1 ? 's' : ''} · ${esc(t.branch)}`, badge(verified ? 'Verified demo session' : 'Tracking access'))}<nav class="tabs">${tabs.map((s) => link(s, 'portal/' + s.toLowerCase(), tab === s.toLowerCase() ? 'active' : '')).join('')}</nav>${html}</main>`;
+  return `${publicNav()}<main id="content" tabindex="-1" class="container">${header('Your repair, at a glance', `${esc(t.id)} · ${t.devices.length} device${t.devices.length > 1 ? 's' : ''} · ${esc(t.branch)}`, badge(verified ? 'Verified demo session' : 'Tracking access'))}<nav class="tabs">${tabs.map((s) => link(s, 'portal/' + s.toLowerCase(), tab === s.toLowerCase() ? 'active' : '')).join('')}</nav>${html}</main>`;
 }
 function chatHTML(t, customer) {
   return `<section class="card"><h2>${customer ? 'Your repair team' : 'Ticket conversation'} · ${esc(t.id)}</h2><div class="chat">${t.messages.map((m) => `<div class="bubble ${m.by === 'Customer' ? 'customer' : ''}"><small>${esc(m.by)}</small><p>${esc(m.text)}</p></div>`).join('') || empty('No messages yet.')}</div><form data-form="message" class="stack">${area('Message', 'message')}<button class="primary">Send demo message</button></form><small>Messages stay in this browser. No SMS or email is sent.</small></section>`;
@@ -390,7 +394,7 @@ function messages() {
 function customers() {
   return (
     header('Customers', 'Search before creating a duplicate record.') +
-    `<section class="card"><label>Search customers<input id="customer-filter" placeholder="Name or contact"></label><div id="customer-list" class="list section">${state.customers.map((c) => `<article class="list-item"><div><h3>${esc(c.name)}</h3><p>${esc(c.contact)}</p></div>${btn('Start intake', 'customer-intake', `data-name="${esc(c.name)}"`)}</article>`).join('')}</div></section>`
+    `<section class="card"><label>Search customers<input id="customer-filter" placeholder="Name or contact"></label><p id="customer-count" role="status"></p><button type="button" id="clear-customer-search" hidden>Clear search</button><div id="customer-list" class="list section">${state.customers.map((c) => `<article class="list-item"><div><h3>${esc(c.name)}</h3><p>${esc(c.contact)}</p></div>${btn('Start intake', 'customer-intake', `data-name="${esc(c.name)}"`)}</article>`).join('')}</div></section>`
   );
 }
 function team() {
@@ -1612,8 +1616,38 @@ document.addEventListener('change', (e) => {
   }
   if (e.target.id === 'repair-filter') filterRepairs();
 });
+function filterCustomers() {
+  const query = $("#customer-filter").value.trim().toLowerCase();
+  const rows = document.querySelectorAll("#customer-list article");
+  let matches = 0;
+  for (const row of rows) {
+    const identity = row.querySelector("div").textContent.toLowerCase();
+    row.hidden = !identity.includes(query);
+    if (!row.hidden) matches++;
+  }
+  $("#customer-count").textContent = matches === 0
+    ? "No customers match your search."
+    : matches + (matches === 1 ? " customer found." : " customers found.");
+  $("#clear-customer-search").hidden = !query;
+}
+
+// The app uses hashes for routes. Skip within this page without starting a route.
+document.querySelector(".skip").addEventListener("click", (event) => {
+  event.preventDefault();
+  document.getElementById("content")?.focus();
+});
+
+document.addEventListener("click", (event) => {
+  if (event.target.closest("#clear-customer-search")) {
+    const search = $("#customer-filter");
+    search.value = "";
+    filterCustomers();
+    search.focus();
+  }
+});
+
 function filterRepairs() {
-  const q = ($('#repair-search')?.value || '').toLowerCase(),
+  const q = ($('#repair-search')?.value || '').trim().toLowerCase(),
     status = $('#repair-filter')?.value || 'All statuses';
   $('#repair-list').innerHTML =
     scope()
@@ -1624,19 +1658,14 @@ function filterRepairs() {
             .includes(q) &&
           (status === 'All statuses' ||
             (status === 'Draft' && !t.issued) ||
-            t.devices.some((d) => d.status === status))
+            (t.issued && t.devices.some((d) => d.status === status)))
       )
       .map(ticketCard)
       .join('') || empty('No matching repairs.');
 }
 document.addEventListener('input', (e) => {
   if (e.target.id === 'repair-search') filterRepairs();
-  if (e.target.id === 'customer-filter') {
-    const q = e.target.value.toLowerCase();
-    $('#customer-list')
-      .querySelectorAll('article')
-      .forEach((a) => (a.hidden = !a.textContent.toLowerCase().includes(q)));
-  }
+  if (e.target.id === "customer-filter") filterCustomers();
 });
 // Read the URL hash whenever the user opens a page or uses browser navigation.
 function handleRoute() {
