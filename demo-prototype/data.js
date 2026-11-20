@@ -213,11 +213,48 @@ function seedDemo() {
     settings: { idleMinutes: 60, photosRequired: false },
   };
 }
+// Each pickup has its own storage key so two open forms cannot overwrite each other.
+const pickupPrefix = DEMO_VERSION + '/pickup/';
+function persistPickup(fields) {
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  const id = 'PU-' + Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
+  const pickup = { ...fields, id, status: 'Requested', collector: 'Unassigned', fee: 150 };
+  const event = { pickupId: id, at: new Date().toISOString(), role: 'Public', group: 'Collections',
+    branch: fields.branch, text: id + ': pickup request awaiting staff confirmation', custody: true };
+  try {
+    localStorage.setItem(pickupPrefix + id, JSON.stringify({ pickup, event }));
+  } catch {
+    throw Error('Pickup could not be saved. Your form is still here. Enable browser storage and retry.');
+  }
+  includePickup(state, pickup, event);
+  return id;
+}
+
+function includePickup(snapshot, pickup, event) {
+  // Preserve subsequent changes a collector made to an existing pickup.
+  if (!snapshot.pickups.some(row => row.id === pickup.id)) snapshot.pickups.push(pickup);
+  for (const feed of [snapshot.audit, snapshot.alerts]) {
+    if (!feed.some(row => row.pickupId === pickup.id)) feed.unshift({ ...event });
+  }
+}
+
+function clearPickupRecords() {
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith(pickupPrefix)) localStorage.removeItem(key);
+  }
+}
 // Fall back to sample records if browser storage is missing or cannot be read.
 function loadDemo() {
   try {
     const raw = localStorage.getItem(DEMO_VERSION);
-    return raw ? JSON.parse(raw) : seedDemo();
+    const snapshot = raw ? JSON.parse(raw) : seedDemo();
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith(pickupPrefix)) {
+        const { pickup, event } = JSON.parse(localStorage.getItem(key));
+        includePickup(snapshot, pickup, event);
+      }
+    }
+    return snapshot;
   } catch {
     return seedDemo();
   }

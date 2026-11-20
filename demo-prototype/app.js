@@ -1311,6 +1311,7 @@ function submit(kind, form) {
         toast('Demo access verified.');
         return;
       case 'reset':
+        clearPickupRecords();
         state = seedDemo();
         assignCustomerIds();
         saveDemo();
@@ -1343,9 +1344,7 @@ function submit(kind, form) {
             return;
           }
         }
-        const id = 'PU-' + (101 + state.pickups.length);
-        state.pickups.push({ ...v, id, status: 'Requested', collector: 'Unassigned', fee: 150 });
-        record(`${id}: pickup request awaiting staff confirmation`, null, false, 'Collections', v.branch);
+        const id = persistPickup(v);
         modal(
           'Pickup request received',
           `<h2>${id}</h2><p>Your request awaits coverage, fee and schedule confirmation. The device is not yet in branch custody.</p>${link('Return home', 'home')}`
