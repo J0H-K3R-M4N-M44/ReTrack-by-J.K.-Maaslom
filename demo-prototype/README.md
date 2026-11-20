@@ -44,5 +44,13 @@ The prototype captures cash at the final-bill stage, partial payments, refunds a
 
 Cash receipts require browser storage and Web Locks. For a two-counter demonstration, open the same localhost or HTTPS demo in two tabs of one browser profile. Separate browsers and devices have separate sample records. Cash receipts and competing handoff confirmations use browser locks. Other workflows still use the shared browser snapshot.
 
+## Counter intake and issuance
+
+The cashier first matches the customer and checks their phone or email, then records each device separately. **Back to customer** keeps the current device entries while the cashier corrects contact details. **Save intake draft** keeps the ticket available to staff while tracking remains closed.
+
+At **Review & issue**, match each item code and serial with the device on the counter. Correct its visible condition and accessories, supply its photo label if the branch requires one, and confirm its acknowledgment. Tracking opens after all devices pass together. A photo label represents a filename in the demo.
+
 ## Verification
+
+Run `node tests/demo-intake-review.mjs` from the repository root with Playwright Core and Chrome installed. Set `CHROME_PATH` to test with a different Chromium executable.
 JavaScript syntax and DOM tests passed for 20 screens, multi-device approval/repair/testing/billing/return, stock reservation and usage, transfer custody, overpayment rejection and COD remittance. Browser checks confirmed tracking, diagnosis, quotes and shared customer decisions. Responsive preview showed no horizontal body overflow at phone, tablet and desktop sizes. No PHP or live database is used.

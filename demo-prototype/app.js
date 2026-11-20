@@ -476,6 +476,17 @@ function customerPicker(selected) {
     `<option value="${esc(c.id)}" ${c.id === selected ? 'selected' : ''}>${esc(c.name)} · ${esc(c.contact)}</option>`);
   return `<label>Existing customer<select name="existing"><option value="">New customer</option>${options.join('')}</select></label>`;
 }
+function validContact(value) {
+  const contact = value.trim();
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) return true;
+  return /^\+?[\d() .-]+$/.test(contact) && /^\d{7,15}$/.test(contact.replace(/\D/g, ''));
+}
+
+function checkIntakeField(input, message) {
+  input.setCustomValidity(message);
+  return input.reportValidity();
+}
+
 function intake() {
   const d = intakeDraft;
   const devices = d.devices || [];
@@ -491,7 +502,7 @@ function intake() {
       intakeStep === 0
         ? `<div class="wide">${customerPicker(d.existing)}<small>Select a match to fill contact details.</small></div>${field('Customer name', 'customer', d.customer || '')}${field('Phone or email', 'contact', d.contact || '')}${branches.length === 1 ? `<div><strong>Receiving branch</strong><p>${esc(receiving)}</p><input type="hidden" name="branch" value="${esc(receiving)}"></div>` : select('Receiving branch', 'branch', branches, receiving)}${select('Arrival', 'arrival', ['Walk-in', 'Pickup', 'Mail'], d.arrival || 'Walk-in')}`
         : intakeStep === 1
-          ? `<h2 class="wide">Device ${intakeDevice + 1}</h2>${field('Device brand and model', 'device', item.device || '')}${field('Serial number (optional)', 'serial', item.serial || '', 'text', false)}<div class="wide">${area('Reported problem', 'problem', item.problem || '')}</div><div class="wide">${area('Visible condition', 'condition', item.condition || '')}</div>${field('Accessories or “None”', 'accessories', item.accessories || '')}${field('Condition photo (demo filename, optional)', 'photo', item.photo || '', 'text', false)}<label class="check wide"><input type="checkbox" name="ack" ${item.ack ? 'checked' : ''}>Customer confirms condition and acknowledges the service terms.</label>`
+          ? `<h2 class="wide">Device ${intakeDevice + 1}</h2>${field('Device brand and model', 'device', item.device || '')}${field('Serial number (optional)', 'serial', item.serial || '', 'text', false)}<div class="wide">${area('Reported problem', 'problem', item.problem || '')}</div><div class="wide">${area('Visible condition', 'condition', item.condition || '')}</div>${field('Accessories or “None”', 'accessories', item.accessories || '')}${field(state.settings.photosRequired ? 'Condition photo (required before issuance)' : 'Condition photo (optional filename)', 'photo', item.photo || '', 'text', false)}<label class="check wide"><input type="checkbox" name="ack" ${item.ack ? 'checked' : ''}>Customer confirms condition and acknowledges the service terms.</label>`
           : `<div class="wide"><h2>Confirm these details</h2><dl class="summary">${[
               ['Customer', d.customer],
               ['Contact', d.contact],
@@ -507,7 +518,7 @@ function intake() {
         <p>${entry.serial ? 'Serial: ' + esc(entry.serial) : 'Serial not recorded'}${entry.photo ? ' · Photo: ' + esc(entry.photo) : ''}</p><p>${esc(entry.problem)} · ${esc(entry.condition)}</p><small>Accessories: ${esc(entry.accessories)} · ${entry.ack ? 'Acknowledged' : 'Acknowledgment pending'}</small></div>
         ${btn('Edit device ' + (index + 1), 'intake-device', `data-index="${index}"`)}</article>`).join('')}
       <div class="actions">${btn('Add another device', 'intake-device', `data-index="${devices.length}"`)}</div></section><div class="notice wide">Save as draft first. Issuance adds tracking access after the checks pass. Photo files here are sample labels, not uploads or signatures.</div>`
-    }<div class="actions wide">${intakeStep ? btn('Back', 'intake-back') : link('Cancel', 'repairs')}<button class="primary">${intakeStep === 2 ? 'Save intake draft' : 'Continue'}</button></div></form></div>`
+    }<div class="actions wide">${intakeStep ? btn('Back to customer', 'intake-back') : link('Cancel', 'repairs')}<button class="primary">${intakeStep === 2 ? 'Save intake draft' : 'Continue'}</button></div></form></div>`
   );
 }
 // Ticket screen: status, custody and payment are deliberately independent.
@@ -1004,7 +1015,9 @@ function action(name, el) {
       focusIntakeStep();
       break;
     case 'intake-back':
-      intakeStep = intakeStep === 1 && intakeDraft.devices?.length ? 2 : 0;
+      // Back never validates an unfinished device. Continue returns to this same device.
+      if (intakeStep === 1) rememberIntake();
+      intakeStep = 0;
       render();
       focusIntakeStep();
       break;
@@ -1012,7 +1025,19 @@ function action(name, el) {
       formModal(
         'Review and issue ticket',
         'issue',
-        `<p>${esc(t.id)} · ${t.devices.length} device(s)</p><p class="muted">Condition: ${esc(t.condition)}<br>Accessories: ${esc(t.accessories)}</p>${field('Condition photo label (optional by default)', 'photo', t.photo || '', 'text', state.settings.photosRequired)}<label class="check"><input name="ack" type="checkbox" required ${t.ack ? 'checked' : ''}>Customer confirms condition and service terms</label><p class="notice">This demo acknowledgment is not a legal signature. Production must meet the applied schema and approved policy.</p>`,
+        field('Customer phone or email', 'contact', t.contact || '') +
+          t.devices.map((device, index) => {
+            // Only the first device can inherit evidence from an older, ticket-level draft.
+            const original = index === 0 ? t : {};
+            const ack = device.ack ?? original.ack;
+            return `<fieldset class="issue-device"><legend>${esc(itemCode(t, index))} · ${esc(device.name)}</legend>
+              <small>Serial: ${esc(device.serial || 'Not recorded')}</small>
+              ${field('Visible condition', 'condition' + index, device.condition ?? original.condition ?? '')}
+              ${field('Accessories or “None”', 'accessories' + index, device.accessories ?? original.accessories ?? '')}
+              ${field(state.settings.photosRequired ? 'Condition photo label (required)' : 'Condition photo label (optional)',
+                'photo' + index, device.photo ?? original.photo ?? '', 'text', state.settings.photosRequired)}
+              <label class="check"><input name="ack${index}" type="checkbox" required ${ack ? 'checked' : ''}>Customer confirms this device’s condition and accessories.</label></fieldset>`;
+          }).join(''),
         'Issue demo tracking code'
       );
       break;
@@ -1411,6 +1436,7 @@ function rememberIntake() {
   const f = $('[data-form=intake]');
   if (!f) return;
   const values = Object.fromEntries(new FormData(f));
+  for (const name of Object.keys(values)) values[name] = values[name].trim();
   if (intakeStep === 1) {
     intakeDraft.devices ||= [];
     intakeDraft.devices[intakeDevice] = { ...values, ack: f.elements.ack.checked };
@@ -1532,10 +1558,7 @@ function submit(kind, form) {
           v[name] = v[name].trim();
           let error = v[name] ? '' : 'Enter a value for this field.';
           if (name === 'date' && v.date < today) error = 'Choose today or a future pickup date.';
-          if (name === 'contact' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.contact)
-            && !/^\+?[\d() .-]+$/.test(v.contact)) error = 'Enter a phone number or email address.';
-          if (name === 'contact' && !v.contact.includes('@') && !/^\d{7,15}$/.test(v.contact.replace(/\D/g, '')))
-            error = 'Enter a phone number with 7 to 15 digits or an email address.';
+          if (name === 'contact' && !validContact(v.contact)) error = 'Enter a phone number or email address.';
           if (error) {
             form.elements[name].setCustomValidity(error);
             form.elements[name].reportValidity();
@@ -1551,6 +1574,15 @@ function submit(kind, form) {
         return;
       }
       case 'intake':
+        if (intakeStep === 0) {
+          if (!checkIntakeField(form.elements.customer, v.customer.trim() ? '' : 'Enter the customer’s name.')) return;
+          if (!checkIntakeField(form.elements.contact, validContact(v.contact) ? '' : 'Enter a phone number or email address.')) return;
+        }
+        if (intakeStep === 1) {
+          for (const name of ['device', 'condition', 'accessories', 'problem']) {
+            if (!checkIntakeField(form.elements[name], v[name].trim() ? '' : 'Enter a value for this device.')) return;
+          }
+        }
         rememberIntake();
         if (intakeStep < 2) {
           intakeStep++;
@@ -1560,6 +1592,13 @@ function submit(kind, form) {
         }
         {
           const n = intakeDraft;
+          if (!n.customer?.trim() || !validContact(n.contact || '')) {
+            intakeStep = 0;
+            render();
+            const input = $('[data-form=intake]').elements[n.customer?.trim() ? 'contact' : 'customer'];
+            checkIntakeField(input, 'Check the customer name and contact before saving.');
+            return;
+          }
           if (n.pickupId) {
             const pickup = state.pickups.find(p => p.id === n.pickupId);
             requireGate(pickupInView(pickup) && pickup.status === 'Collected' && pickup.branch === n.branch,
@@ -1624,18 +1663,30 @@ function submit(kind, form) {
           toast('Draft saved. Review and issue when the checks are complete.');
           return;
         }
-      case 'issue':
-        requireGate(t.condition && t.accessories, 'Record condition and accessories first.');
-        requireGate(v.ack === 'on', 'Customer acknowledgment is required.');
-        requireGate(
-          !state.settings.photosRequired || v.photo.trim(),
-          'A photo label is required by this demo policy.'
-        );
-        t.ack = true;
-        t.photo = v.photo;
+      case 'issue': {
+        requireGate(!t.issued && t.devices.length, 'Open a saved intake draft first.');
+        if (!checkIntakeField(form.elements.contact, validContact(v.contact) ? '' : 'Enter a phone number or email address.')) return;
+        const evidence = [];
+        for (let i = 0; i < t.devices.length; i++) {
+          const item = {};
+          for (const key of ['condition', 'accessories', 'photo']) {
+            const input = form.elements[key + i];
+            item[key] = input.value.trim();
+            if ((key !== 'photo' || state.settings.photosRequired) &&
+                !checkIntakeField(input, item[key] ? '' : 'Complete this field before issuing.')) return;
+          }
+          item.ack = form.elements['ack' + i].checked;
+          if (!item.ack) { form.elements['ack' + i].reportValidity(); return; }
+          evidence.push(item);
+        }
+        // Apply the reviewed evidence only after every device has passed.
+        t.devices.forEach((device, index) => Object.assign(device, evidence[index]));
+        Object.assign(t, evidence[0]);
+        t.contact = v.contact.trim();
         t.issued = true;
-        record(`${t.id}: devices received and tracking issued at ${t.branch}`, t, true, 'Custody');
+        record(`${t.id}: ${t.devices.length} devices reviewed and tracking issued at ${t.branch}`, t, true, 'Custody');
         break;
+      }
       case 'add-device':
         requireGate(!t.bill, 'A billed ticket cannot accept another device.');
         requireGate([v.name, v.problem, v.condition, v.accessories].every(value => value?.trim())
@@ -2145,6 +2196,8 @@ document.addEventListener('change', (e) => {
     const c = state.customers.find(c => c.id === e.target.value);
     e.target.form.elements.customer.value = c?.name || '';
     e.target.form.elements.contact.value = c?.contact || '';
+    e.target.form.elements.contact.setCustomValidity('');
+    e.target.form.elements.customer.setCustomValidity('');
   }
   if (e.target.name === 'feed-group') {
     const kind = location.hash.split('/')[0] === '#alerts' ? 'alerts' : 'audit';
@@ -2198,7 +2251,7 @@ function filterRepairs(page = 1) {
 }
 document.addEventListener('input', (e) => {
   if (e.target.form?.dataset.form === 'refund') correctionPreview(e.target.form);
-  if (e.target.form?.dataset.form === 'pickup') e.target.setCustomValidity('');
+  if (['pickup', 'intake', 'issue'].includes(e.target.form?.dataset.form)) e.target.setCustomValidity('');
   if (e.target.id === 'repair-search') filterRepairs();
   if (e.target.id === 'finance-search') filterFinance();
   if (e.target.id === "customer-filter") filterCustomers();

@@ -1052,3 +1052,13 @@ dialog::backdrop {
   .portal-mobile summary { display: list-item; }
   .portal-mobile details div { position: absolute; right: 0; z-index: 3; min-width: 144px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
 }
+
+.issue-device {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.issue-device legend { font-weight: 650; overflow-wrap: anywhere; }
