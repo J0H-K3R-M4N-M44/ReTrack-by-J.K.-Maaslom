@@ -288,9 +288,14 @@ function assignCustomerIds() {
 }
 assignCustomerIds();
 // Save only to this browser; this does not write to the PHP database.
-function saveDemo() {
+let writingInventory = false;
+function saveDemo(reset = false) {
   try {
-    localStorage.setItem(DEMO_VERSION, JSON.stringify(state));
+    const savedRevision = JSON.parse(localStorage.getItem(DEMO_VERSION) || '{}').stockRevision;
+    if (!reset && savedRevision !== state.stockRevision) return false;
+    const next = writingInventory || reset ? { ...state, stockRevision: crypto.randomUUID() } : state;
+    localStorage.setItem(DEMO_VERSION, JSON.stringify(next));
+    state.stockRevision = next.stockRevision;
     return true;
   } catch {
     return false;

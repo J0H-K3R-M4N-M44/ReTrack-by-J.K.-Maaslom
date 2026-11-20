@@ -44,6 +44,12 @@ The prototype captures cash at the final-bill stage, partial payments, refunds a
 
 Cash receipts require browser storage and Web Locks. For a two-counter demonstration, open the same localhost or HTTPS demo in two tabs of one browser profile. Separate browsers and devices have separate sample records. Cash receipts and competing handoff confirmations use browser locks. Other workflows still use the shared browser snapshot.
 
+## Following a reserved part
+
+In Inventory, **Approve & reserve** holds the requested quantity at the ticket’s branch. **Record usage** requires the current approved quote for that device to cover the part and quantity. Inventory was deducted at reservation, so recording use does not deduct it again.
+
+Approving cancellation returns unused holds to their original shelves. A branch transfer sends the device only. Dispatch releases its holds and reopens its parts requests. After receiving the device, the destination branch can reserve from its own available stock. Installed parts stay consumed. An administrator can also release an unused hold directly in Inventory.
+
 ## Counter intake and issuance
 
 The cashier first matches the customer and checks their phone or email, then records each device separately. **Back to customer** keeps the current device entries while the cashier corrects contact details. **Save intake draft** keeps the ticket available to staff while tracking remains closed.

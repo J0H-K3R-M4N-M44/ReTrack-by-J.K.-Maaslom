@@ -74,7 +74,9 @@ function record(text, ticket = null, isPublic = false, group = 'Repairs', branch
     state.alerts.unshift({ ...event, readBy: [] });
   }
   if (ticket) ticket.events.unshift(event);
-  return saveDemo();
+  const saved = saveDemo();
+  if (writingInventory && !saved) throw Error('Inventory was not saved. Refresh the workspace and retry.');
+  return saved;
 }
 
 // The demo signs in as Taylor when the Collector role is selected.
@@ -691,12 +693,63 @@ function inventory() {
       'inventory/movements', (event) => timeline([event]), 'No stock movements in this view.')}</section></div>`
   );
 }
+// A repair transfer moves the device. Unused stock stays on its original shelf.
+function reservationShelf(ticket, part) {
+  let branch = part.reservedBranch;
+  if (!branch) {
+    // Older reservations only named their branch in the movement history.
+    const text = `Reserved ${part.qty} ${part.name} for ${ticket.id}`;
+    const matches = state.stockLog.filter(event => event.text === text);
+    const branches = new Set(matches.map(event => event.branches?.[0]).filter(Boolean));
+    if (branches.size === 1) branch = [...branches][0];
+  }
+  const shelf = state.stock.find(row => row.id === part.id && row.branch === branch);
+  requireGate(shelf, 'The original reservation branch is unclear. Reconcile the stock record before continuing.');
+  return shelf;
+}
+
+function releaseUnusedParts(ticket, parts, nextStatus, reason) {
+  // Resolve every shelf before changing any quantity.
+  const held = parts.filter(part => part.status === 'Reserved')
+    .map(part => ({ part, shelf: reservationShelf(ticket, part) }));
+  for (const { part, shelf } of held) {
+    shelf.qty += part.qty;
+    part.status = nextStatus;
+    delete part.reservedBranch;
+    state.stockLog.unshift({ at: now(), branches: [shelf.branch],
+      text: `Released ${part.qty} ${part.name} at ${shelf.branch} for ${ticket.id} · ${reason}` });
+  }
+}
+
+function remainingQuoteQuantity(ticket, part) {
+  const index = part.device || 0;
+  const quote = deviceQuote(ticket, index);
+  if (quote?.status !== 'Approved') return 0;
+  const authorized = quote.items.filter(item => item.id === part.id)
+    .reduce((total, item) => total + item.qty, 0);
+  const used = ticket.parts.filter(other => other.id === part.id &&
+    (other.device || 0) === index && other.status === 'Consumed')
+    .reduce((total, other) => total + other.qty, 0);
+  return authorized - used;
+}
+
 function partsHTML() {
   const rows = scope().flatMap((t) => t.parts.map((p, i) => ({ t, p, i })));
   const route = location.hash.startsWith('#inventory') ? 'inventory/requests' : 'parts';
-  return pageOf(rows, route,
-    ({ t, p, i }) =>
-            `<article class="list-item section"><div><h3>${esc(p.name)} × ${p.qty}</h3><p>${t.id} · Device ${(p.device || 0) + 1}</p>${badge(p.status)}</div>${p.status === 'Requested' && role === 'Admin' ? btn('Approve & reserve', 'approve-part', `data-id="${t.id}" data-index="${i}"`) : p.status === 'Reserved' ? btn('Record usage', 'consume-part', `data-id="${t.id}" data-index="${i}"`) : ''}</article>`, 'No parts requests.');
+  return pageOf(rows, route, ({ t, p, i }) => {
+    const target = `data-id="${esc(t.id)}" data-index="${i}"`;
+    let controls = '';
+    if (t.custody === 'In transit') controls = '<small>Awaiting branch receipt</small>';
+    else if (p.status === 'Requested' && role === 'Admin') controls = btn('Approve & reserve', 'approve-part', target);
+    else if (p.status === 'Reserved') {
+      controls = btn('Record usage', 'consume-part', target);
+      if (role === 'Admin') controls += btn('Release unused', 'release-part', target);
+    }
+    const location = p.reservedBranch && p.status === 'Reserved' ? `<small>Held at ${esc(p.reservedBranch)}</small>` : '';
+    return `<article class="list-item section"><div><h3>${esc(p.name)} × ${p.qty}</h3>
+      <p>${esc(t.id)} · Device ${(p.device || 0) + 1}</p>${badge(p.status)} ${location}</div>
+      <div class="actions">${controls}</div></article>`;
+  }, 'No parts requests.');
 }
 function parts() {
   return (
@@ -737,6 +790,7 @@ function releaseBlocker(t) {
   return deviceHandoverBlocker(t);
 }
 function deviceHandoverBlocker(t) {
+  if (t.parts.some(part => part.status === 'Reserved')) return 'Record usage or release unused reserved parts before handover.';
   const waiting = t.devices.filter((d) => !['Ready for pickup', 'Returned'].includes(d.status));
   if (waiting.length) return 'Waiting for ' + waiting.map((d) => d.name + ' (' + d.status + ')').join(', ') + '.';
   const untested = t.devices.find(d => d.status === 'Ready for pickup' && !d.tested && !d.returnAsIs);
@@ -1142,40 +1196,39 @@ function action(name, el) {
       );
       break;
     case 'approve-part':
-    case 'consume-part':
-      {
-        const target = state.tickets.find((x) => x.id === el.dataset.id);
-        const p = target.parts[+el.dataset.index];
-        const stock = state.stock.find((s) => s.id === p.id && s.branch === target.branch);
+    case 'release-part':
+    case 'consume-part': {
+      const target = scope().find(ticket => ticket.id === el.dataset.id);
+      const part = target?.parts[Number(el.dataset.index)];
+      requireGate(part && ['Admin', 'Technician'].includes(role), 'Open the part request in its branch.');
+      requireGate(target.custody !== 'In transit', 'Wait for the receiving branch to accept this device.');
+      if (name === 'release-part') {
+        requireGate(role === 'Admin' && part.status === 'Reserved', 'Choose an unused reservation.');
+        releaseUnusedParts(target, [part], 'Released', 'unused');
+      } else {
+        const device = target.devices[part.device || 0];
+        requireGate(!target.bill && device && !device.returnAsIs && device.status !== 'Returned', 'This device is closed to new parts.');
         if (name === 'approve-part') {
-          if (role !== 'Admin') {
-            toast('Use the Admin demo console to approve inventory.');
-            break;
-          }
-          if (stock.qty < p.qty) {
-            toast('Insufficient stock. Receive stock before reserving.');
-            break;
-          }
-          stock.qty -= p.qty;
-          p.status = 'Reserved';
-          state.stockLog.unshift({
-            at: now(),
-            branches: [target.branch],
-            text: `Reserved ${p.qty} ${p.name} for ${target.id}`,
-          });
+          requireGate(role === 'Admin' && part.status === 'Requested', 'Choose an open request.');
+          const shelf = state.stock.find(row => row.id === part.id && row.branch === target.branch);
+          requireGate(shelf && shelf.qty >= part.qty, 'Insufficient available stock in this branch.');
+          shelf.qty -= part.qty;
+          part.reservedBranch = shelf.branch;
+          part.status = 'Reserved';
         } else {
-          const q = deviceQuote(target, p.device || 0);
-          if (q?.status !== 'Approved') {
-            toast('Approve the device quotation before consuming parts.');
-            break;
-          }
-          p.status = 'Consumed';
-          state.stockLog.unshift({ at: now(), branches: [target.branch], text: `Used ${p.qty} ${p.name} for ${target.id}` });
+          requireGate(part.status === 'Reserved' && reservationShelf(target, part).branch === target.branch,
+            'Release the original hold and reserve at this branch first.');
+          requireGate(remainingQuoteQuantity(target, part) >= part.qty,
+            'The current approved quote must cover this part and its remaining quantity.');
+          part.status = 'Consumed';
         }
-        record(`${target.id}: part ${p.status.toLowerCase()}`, target);
-        render();
+        state.stockLog.unshift({ at: now(), branches: [target.branch],
+          text: `${part.status} ${part.qty} ${part.name} for ${target.id}` });
       }
+      record(`${target.id}: ${part.name} · ${part.status}`, target);
+      render();
       break;
+    }
     case 'test':
       formModal(
         'Record test results',
@@ -1348,6 +1401,10 @@ function action(name, el) {
           break;
         }
         if (target.bill) break;
+        if (target.parts.some(part => part.status === 'Reserved')) {
+          toast('Record usage or release unused reserved parts before billing.');
+          break;
+        }
         const incomplete = target.devices.find((device, index) =>
           device.status !== 'Returned' && !device.returnAsIs &&
           (!device.tested || deviceQuote(target, index)?.status !== 'Approved'));
@@ -1457,13 +1514,42 @@ async function confirmHandoff(form) {
       form.querySelector('[role=status]').textContent = 'Open the demo on localhost or HTTPS to confirm a handoff.';
       return;
     }
-    await navigator.locks.request(DEMO_VERSION + '/handoff', () => {
+    await navigator.locks.request(DEMO_VERSION + '/inventory', () => {
       if (form.isConnected && $('#modal').open) submit('receive-transfer', form);
     });
   } finally {
     button.disabled = false;
   }
 }
+// Reservations, cancellation, and device dispatch all change the same branch stock.
+async function inventoryChange(control, operation) {
+  if (control.disabled) return;
+  control.disabled = true;
+  try {
+    requireGate(navigator.locks, 'Open this demo on localhost or HTTPS to update inventory.');
+    await navigator.locks.request(DEMO_VERSION + '/inventory', () => {
+      if (!control.isConnected || (control.closest('dialog') && !$('#modal').open)) return;
+      const latest = readStoredDemo();
+      latest.branch = state.branch;
+      const before = structuredClone(latest);
+      state = latest;
+      assignCustomerIds();
+      writingInventory = true;
+      try {
+        operation();
+      } finally {
+        writingInventory = false;
+        // A failed write must not leave a phantom reservation in this tab.
+        if (state.stockRevision === before.stockRevision) state = before;
+      }
+    });
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    control.disabled = false;
+  }
+}
+
 // Serialize the balance check across tabs and store each receipt before confirming cash.
 async function receiveCash(form) {
   const button = form.querySelector('[type=submit]');
@@ -1538,7 +1624,7 @@ function submit(kind, form) {
         clearDemoEntries();
         state = seedDemo();
         assignCustomerIds();
-        saveDemo();
+        saveDemo(true);
         role = 'Public';
         verified = false;
         activeTicket = 'RT-1042';
@@ -1811,6 +1897,8 @@ function submit(kind, form) {
         break;
       }
       case 'request-part': {
+        requireGate(t.issued && !t.bill && !d.returnAsIs && d.status !== 'Returned' && t.custody !== 'In transit',
+          'Request parts for an open device at the branch.');
         const part = CATALOG.find((c) => c.name === v.part);
         const qty = Number(v.qty);
         requireGate(Number.isInteger(qty) && qty > 0, 'Enter a positive whole quantity.');
@@ -1878,6 +1966,11 @@ function submit(kind, form) {
             requireGate(candidates.length === 1, 'This request cannot be matched to one current declined quote. Review the ticket before changing custody.');
             affected = candidates;
           }
+          const parts = t.parts.filter(part => affected.includes(t.devices[part.device || 0]));
+          releaseUnusedParts(t, parts, 'Released', 'cancellation approved');
+          for (const part of parts) {
+            if (part.status === 'Requested') part.status = 'Cancelled';
+          }
           affected
             .filter((d) => d.status !== 'Returned')
             .forEach((d) => {
@@ -1893,11 +1986,16 @@ function submit(kind, form) {
         break;
       }
       case 'transfer':
+        requireGate(t.custody === 'At branch', 'Dispatch requires physical custody at the branch.');
         requireGate(t.issued, 'Issue the ticket first.');
         requireGate(t.custody !== 'In transit', 'Complete the existing transfer first.');
         if (v.type === 'Customer delivery') {
           const blocker = deviceHandoverBlocker(t);
           requireGate(!blocker, blocker);
+        }
+        if (v.type === 'Branch transfer') {
+          requireGate(BRANCHES.includes(v.destination) && v.destination !== t.branch, 'Choose a different receiving branch.');
+          releaseUnusedParts(t, t.parts, 'Requested', 'device transfer');
         }
         state.transfers.push({
           ticket: t.id,
@@ -2133,7 +2231,9 @@ document.addEventListener('click', (e) => {
       window.print();
       return;
     }
-    action(el.dataset.action, el);
+    if (['approve-part', 'release-part', 'consume-part'].includes(el.dataset.action))
+      inventoryChange(el, () => action(el.dataset.action, el));
+    else action(el.dataset.action, el);
   }
   const anchor = e.target.closest('[data-section]');
   if (anchor) {
@@ -2153,8 +2253,11 @@ document.addEventListener('submit', (e) => {
   if (form) {
     e.preventDefault();
     if (form.dataset.form === 'cash') receiveCash(form);
+    else if (form.dataset.form === 'receive-transfer') confirmHandoff(form);
     else if (form.dataset.form === 'practice-role') checkRoleStep(form);
     else if (form.dataset.form.startsWith('practice-')) checkPractice(form.dataset.form, form);
+    else if (['transfer', 'review-request', 'receive-stock', 'stock-transfer', 'request-part'].includes(form.dataset.form))
+      inventoryChange(form.querySelector('[type=submit]'), () => submit(form.dataset.form, form));
     else submit(form.dataset.form, form);
   }
 });
