@@ -113,3 +113,23 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
 
 /* Separate the task list from the secondary seven-day trend. */
 .rt-layout .workspace-list + .workspace-trends { margin-top: 24px; }
+
+/* Show the assigned work first. Keep custody and timing beside the same device. */
+.rt-layout .board-lane { background: var(--rt-soft); }
+.rt-layout .board-card { background: var(--rt-panel); color: var(--rt-text); }
+.rt-layout .board-preview summary {
+  padding: 10px 8px;
+  min-height: 44px;
+  color: var(--rt-accent);
+  cursor: pointer;
+}
+.rt-layout .board-preview summary:is(:hover, :focus-visible) { text-decoration: underline; }
+.rt-layout .board-preview summary:focus-visible { outline: 2px solid currentColor; }
+.rt-layout .board-preview dl {
+  margin: 4px 0 0;
+  display: grid;
+  gap: 2px;
+  border-top: 1px solid var(--rt-line);
+}
+.rt-layout .board-preview dt { margin-top: 8px; color: var(--rt-muted); }
+.rt-layout .board-preview dd { margin: 0; overflow-wrap: anywhere; }
