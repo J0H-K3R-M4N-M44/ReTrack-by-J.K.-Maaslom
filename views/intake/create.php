@@ -108,6 +108,7 @@
                                                 'confirm_different_person',
                                                 'customer_id',
                                                 'intake_branch_id',
+                                                'extra_devices',
                                             ],
                                             true,
                                         )
@@ -119,6 +120,15 @@
                                     ) ?></dt><dd><?= h($value ?: 'Not supplied') ?></dd></div>
                                 <?php endforeach; ?>
                             </dl>
+                            <h3><?= 1 + count($values['extra_devices']) ?> devices on this ticket</h3>
+                            <?php foreach ($values['extra_devices'] as $index => $device): ?>
+                                <h4>Device <?= $index + 2 ?></h4>
+                                <dl class="intake-review">
+                                    <?php foreach ($device as $key => $value): ?>
+                                        <div><dt><?= h(ucwords(str_replace('_', ' ', $key))) ?></dt><dd><?= h($value ?: 'Not supplied') ?></dd></div>
+                                    <?php endforeach; ?>
+                                </dl>
+                            <?php endforeach; ?>
                             <?php if ($values['customer_id'] !== ''): ?>
                                 <p>Selected customer: <?= h(
                                     intakeSelectedCustomer($pdo, (int) $values['customer_id'])[
@@ -131,7 +141,13 @@
                                     csrfToken(),
                                 ) ?>">
                                 <input type="hidden" name="form_key" value="<?= h($formKey) ?>">
+                                <?php foreach ($values['extra_devices'] as $index => $device): ?>
+                                    <?php foreach ($device as $key => $value): ?>
+                                        <input type="hidden" name="extra_devices[<?= $index ?>][<?= h($key) ?>]" value="<?= h($value) ?>">
+                                    <?php endforeach; ?>
+                                <?php endforeach; ?>
                                 <?php foreach ($values as $key => $value): ?>
+                                    <?php if (is_array($value)) continue; ?>
                                     <input type="hidden" name="<?= h($key) ?>" value="<?= h(
     $value,
 ) ?>">
@@ -171,7 +187,7 @@
                             <?php endif; ?>
                         </section>
 
-                        <form class="intake-form" method="post" action="intake_create.php" data-intake-wizard novalidate><input type="hidden" name="form_key" value="<?= h(
+                        <form class="intake-form" method="post" action="intake_create.php" data-intake-wizard data-start-step="<?= $showDeviceStep ? 1 : 0 ?>" novalidate><input type="hidden" name="form_key" value="<?= h(
                             $formKey,
                         ) ?>">
                             <input type="hidden" name="csrf_token" value="<?php echo h(
@@ -185,6 +201,11 @@
                                 <h2 tabindex="-1">Who is bringing in the device?</h2>
                                 <p>Select a returning customer or enter a new contact.</p>
 
+                                <?php if (count($branches) === 1 || $draftId > 0): ?>
+                                    <?php $branchNames = array_column($branches, 'branch_name', 'branch_id'); ?>
+                                    <p class="form-wide">Receiving branch <strong><?= h($branchNames[$values['intake_branch_id']] ?? '') ?></strong></p>
+                                    <input type="hidden" name="intake_branch_id" value="<?= h($values['intake_branch_id']) ?>">
+                                <?php else: ?>
                                 <label class="form-wide" for="intake-branch">Service branch
                                     <select id="intake-branch" name="intake_branch_id" required>
                                         <option value="">Choose a branch</option>
@@ -205,6 +226,7 @@
                                     </select>
                                 </label>
 
+                                <?php endif; ?>
                                 <label class="form-wide" for="customer-id">Customer record
                                     <select id="customer-id" name="customer_id">
                                         <option value="">Create a new customer</option>
@@ -381,6 +403,17 @@
                                 </fieldset>
                                 <?php
                                 endforeach; ?>
+                                <?php foreach ($values['extra_devices'] as $index => $device): ?>
+                                    <fieldset class="form-wide">
+                                        <legend>Device <?= $index + 2 ?></legend>
+                                        <?php foreach ($device as $key => $value): ?>
+                                            <label><?= h(ucwords(str_replace('_', ' ', $key))) ?>
+                                                <input name="extra_devices[<?= $index ?>][<?= h($key) ?>]" value="<?= h($value) ?>">
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </fieldset>
+                                <?php endforeach; ?>
+                                <button class="secondary-btn form-wide" name="intent" value="add-device" formnovalidate>Add another device</button>
                                 <div class="intake-step-actions form-wide">
                                     <button class="secondary-btn" type="button" data-step-back hidden><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back</button>
                                     <button class="logout-btn" type="submit" name="intent" value="review">Review details <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>

@@ -73,6 +73,22 @@
                         $values['terms_version'],
                     ) ?></dd></div>
                 </dl>
+                <?php foreach (array_slice($draft['devices'], 1) as $index => $device): ?>
+                    <?php $details = $values['extra_devices'][$index]; ?>
+                    <h3>Device <?= $index + 2 ?> · <?= h(trim($device['make'] . ' ' . $device['model'])) ?></h3>
+                    <p><?= h($device['reported_symptoms']) ?> · <?= h($device['condition_notes']) ?></p>
+                    <p>Storage: <?= h(array_column($locations, 'location_name', 'location_id')[$details['location_id']] ?? '') ?></p>
+                    <p>Identifiers: <?= h($details['alternative_identifiers'] ?: ($device['serial_number'] ?: 'None')) ?></p>
+                    <p>Accessories: <?= h(implode(', ', array_filter([
+                        $details['charger'] === '1' ? 'Charger' : '',
+                        $details['bag'] === '1' ? 'Bag' : '',
+                        $details['cable'] === '1' ? 'Cable' : '',
+                        $details['other_accessories'],
+                    ])) ?: 'None') ?></p>
+                    <figure class="evidence-previews">
+                        <img src="intake_evidence.php?form=<?= h($formKey) ?>&amp;kind=photo_<?= $index + 2 ?>" alt="Condition photo for device <?= $index + 2 ?>">
+                    </figure>
+                <?php endforeach; ?>
                 <div class="evidence-previews">
                     <figure><img src="intake_evidence.php?form=<?= h(
                         $formKey,
@@ -133,8 +149,32 @@
                             : '' ?>>I checked the list, including if no accessories were received.</label>
                     </fieldset>
                     <label>Overall-condition photo<input type="file" name="photo" accept="image/jpeg,image/png" required></label>
+                    <?php foreach (array_slice($draft['devices'], 1) as $index => $device): ?>
+                        <?php $extra = $values['extra_devices'][$index] ?? intakeIssueValues([]); ?>
+                        <fieldset>
+                            <legend>Device <?= $index + 2 ?> · <?= h(trim($device['make'] . ' ' . $device['model'])) ?></legend>
+                            <p><?= h($device['reported_symptoms']) ?> · <?= h($device['condition_notes']) ?></p>
+                            <label>Storage location
+                                <select name="extra_devices[<?= $index ?>][location_id]" required>
+                                    <option value="">Choose location</option>
+                                    <?php foreach ($locations as $location): ?>
+                                        <option value="<?= (int) $location['location_id'] ?>" <?= $extra['location_id'] === (string) $location['location_id'] ? 'selected' : '' ?>><?= h($location['location_name']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <label>Other identifying marks
+                                <textarea name="extra_devices[<?= $index ?>][alternative_identifiers]" maxlength="1000"><?= h($extra['alternative_identifiers']) ?></textarea>
+                            </label>
+                            <?php foreach (['charger' => 'Charger / adapter', 'bag' => 'Bag / case', 'cable' => 'Other cable'] as $key => $label): ?>
+                                <label class="check-row"><input type="checkbox" name="extra_devices[<?= $index ?>][<?= h($key) ?>]" value="1" <?= $extra[$key] === '1' ? 'checked' : '' ?>><?= h($label) ?></label>
+                            <?php endforeach; ?>
+                            <label>Other accessories<input name="extra_devices[<?= $index ?>][other_accessories]" maxlength="500" value="<?= h($extra['other_accessories']) ?>"></label>
+                            <label class="check-row"><input type="checkbox" name="extra_devices[<?= $index ?>][checklist_confirmed]" value="1" required <?= $extra['checklist_confirmed'] === '1' ? 'checked' : '' ?>>I checked the accessories for this device.</label>
+                            <label>Overall-condition photo<input type="file" name="photo_<?= $index + 2 ?>" accept="image/jpeg,image/png" required></label>
+                        </fieldset>
+                    <?php endforeach; ?>
                     <label>Customer-signed intake form<input type="file" name="signed_form" accept="image/jpeg,image/png" required></label>
-                    <p class="form-help">JPEG or PNG, up to 5 MB each. Use a legible image of the actual signed form covering device condition and shop terms. Choose both images again after editing or a validation error.</p>
+                    <p class="form-help">JPEG or PNG, up to 5 MB each. Use one legible signed form covering every device and the shop terms. Choose the images again after editing or a validation error.</p>
                     <label>Terms version on the signed form<input name="terms_version" maxlength="40" value="<?= h(
                         $values['terms_version'],
                     ) ?>" required placeholder="For example: Intake terms v1"></label>
@@ -147,7 +187,7 @@
                         'duplicate_confirmed'
                     ] === '1'
                         ? ' checked'
-                        : '' ?>>I checked the workbench for an existing intake for this device.</label>
+                        : '' ?>>I checked the workbench for an existing intake for each device.</label>
                     <button class="logout-btn" name="intent" value="review">Review issuance</button>
                 </form>
                 <?php endif; ?>

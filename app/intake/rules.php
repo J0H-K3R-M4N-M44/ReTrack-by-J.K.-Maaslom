@@ -122,6 +122,12 @@ function intakeValidate(PDO $pdo, array $values, array $branches): array
         }
     }
 
+    return array_merge($errors, intakeValidateDevice($values));
+}
+
+function intakeValidateDevice(array $values): array
+{
+    $errors = [];
     if ($values['device_type'] === '' || mb_strlen($values['device_type']) > 80) {
         $errors[] = 'Enter a device type (up to 80 characters).';
     }
@@ -152,6 +158,25 @@ function intakeValidate(PDO $pdo, array $values, array $branches): array
         if (mb_strlen($values[$field]) > $limit) {
             $errors[] =
                 ucfirst(str_replace('_', ' ', $field)) . " must be at most $limit characters.";
+        }
+    }
+    return $errors;
+}
+
+// Shared customer fields stay on the ticket. These fields belong to each device.
+function intakeDeviceFields(array $values = []): array
+{
+    $defaults = array_fill_keys(['device_type', 'make', 'model', 'serial_number',
+        'reported_symptoms', 'condition_notes'], '');
+    return array_intersect_key($values, $defaults) + $defaults;
+}
+
+function intakeValidateDevices(PDO $pdo, array $values, array $branches): array
+{
+    $errors = intakeValidate($pdo, $values, $branches);
+    foreach ($values['extra_devices'] ?? [] as $index => $device) {
+        foreach (intakeValidateDevice($device) as $error) {
+            $errors[] = 'Device ' . ($index + 2) . ': ' . $error;
         }
     }
     return $errors;

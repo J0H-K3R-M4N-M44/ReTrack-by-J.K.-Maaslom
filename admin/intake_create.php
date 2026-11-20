@@ -11,6 +11,7 @@ header('Cache-Control: no-store, private');
 $userId = (int) $admin['user_id'];
 $errors = [];
 $review = false;
+$showDeviceStep = false;
 
 try {
     $pdo = getPDO();
@@ -34,12 +35,23 @@ try {
         $draftId = $formState['draft_id'];
         $values = intakeReadValues($values, $_POST);
         [$values, $choiceErrors] = intakeQuickValues($values, $_POST);
+        $rawDevices = $_POST['extra_devices'] ?? [];
+        $values['extra_devices'] = [];
+        foreach (is_array($rawDevices) ? $rawDevices : [] as $rawDevice) {
+            if (is_array($rawDevice)) {
+                $values['extra_devices'][] = intakeReadValues(intakeDeviceFields(), $rawDevice);
+            }
+        }
         $intent = requestText($_POST, 'intent');
+        $showDeviceStep = in_array($intent, ['add-device', 'edit', 'review'], true);
         $digest = hash('sha256', json_encode($values, JSON_THROW_ON_ERROR));
-        if ($intent === 'edit') {
+        if ($intent === 'add-device') {
+            $values['extra_devices'][] = intakeDeviceFields();
+            unset($_SESSION['intake_forms'][$formKey]['review_hash']);
+        } elseif ($intent === 'edit') {
             unset($_SESSION['intake_forms'][$formKey]['review_hash']);
         } else {
-            $errors = array_merge($choiceErrors, intakeValidate($pdo, $values, $branches));
+            $errors = array_merge($choiceErrors, intakeValidateDevices($pdo, $values, $branches));
             if ($errors === [] && $intent === 'review') {
                 $_SESSION['intake_forms'][$formKey]['review_hash'] = $digest;
                 $review = true;
@@ -80,6 +92,12 @@ try {
                 }
             }
         }
+        $values['extra_devices'] = array_map(
+            static fn(array $device): array => intakeReadValues(intakeDeviceFields(), array_map(
+                static fn($value): string => (string) $value, intakeDeviceFields($device),
+            )),
+            array_slice($draft['devices'] ?? [], 1),
+        );
         $values['customer_search'] = trim(requestText($_GET, 'customer_search'));
         $formKey = bin2hex(random_bytes(24));
         $_SESSION['intake_forms'][$formKey] = [

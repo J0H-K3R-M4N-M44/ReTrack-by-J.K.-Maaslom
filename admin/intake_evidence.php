@@ -10,7 +10,7 @@ header("Content-Security-Policy: default-src 'none'; sandbox");
 
 try {
     $kind = requestText($_GET, 'kind');
-    if (!in_array($kind, ['photo', 'signed_form'], true)) {
+    if (!in_array($kind, ['photo', 'signed_form'], true) && !preg_match('/^photo_[0-9]+$/D', $kind)) {
         throw new DomainException('Unknown image.');
     }
     $formKey = requestText($_GET, 'form');
@@ -26,19 +26,20 @@ try {
         if (!ctype_digit($id)) {
             throw new DomainException('Choose a ticket.');
         }
+        $sequence = str_starts_with($kind, 'photo_') ? (int) substr($kind, 6) : 1;
         $query = getPDO()->prepare("SELECT t.terms_signature_path,
             (SELECT p.stored_path FROM ticket_device_photos p JOIN ticket_devices d ON d.ticket_device_id = p.ticket_device_id
-             WHERE d.ticket_id = t.ticket_id AND p.photo_category = 'OVERALL_CONDITION' ORDER BY p.photo_id LIMIT 1) AS photo_path
+             WHERE d.ticket_id = t.ticket_id AND d.child_sequence = ? AND p.photo_category = 'OVERALL_CONDITION' ORDER BY p.photo_id LIMIT 1) AS photo_path
             FROM repair_tickets t JOIN user_branch_assignments a ON a.branch_id = t.accountable_branch_id AND a.user_id = ?
             JOIN branches b ON b.branch_id = a.branch_id AND b.is_active = 1
             WHERE t.ticket_id = ? AND t.record_stage = 'ISSUED'");
-        $query->execute([(int) $admin['user_id'], (int) $id]);
+        $query->execute([$sequence, (int) $admin['user_id'], (int) $id]);
         $ticket = $query->fetch();
         if (!$ticket) {
             throw new DomainException('This ticket is unavailable.');
         }
         $name =
-            (string) ($kind === 'photo' ? $ticket['photo_path'] : $ticket['terms_signature_path']);
+            (string) ($kind === 'signed_form' ? $ticket['terms_signature_path'] : $ticket['photo_path']);
     }
     $path = intakeEvidencePath($name);
     if (!is_file($path) || is_link($path)) {

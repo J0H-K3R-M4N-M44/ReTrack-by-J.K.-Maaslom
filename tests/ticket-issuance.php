@@ -27,7 +27,7 @@ function mustReject(callable $action, string $message): void
     }
     throw new RuntimeException($message);
 }
-function newIssueDraft(PDO $pdo, string $serial): int
+function newIssueDraft(PDO $pdo, string $serial, array $extra = []): int
 {
     $values = array_replace(intakeDefaults(intakeBranches($pdo, 1)), [
         'customer_id' => '1',
@@ -38,6 +38,7 @@ function newIssueDraft(PDO $pdo, string $serial): int
         'reported_symptoms' => 'No power',
         'condition_notes' => 'No visible damage',
     ]);
+    $values['extra_devices'] = $extra;
     return intakeSaveDraft($pdo, $values, 1);
 }
 function testEvidence(): array
@@ -182,6 +183,30 @@ expect(
     intakeValidateIssue($pdo, $noSerial, $values, 1) !== [],
     'Missing alternate identity rejected',
 );
+// The second device must pass its own evidence gates before either device is issued.
+$multiId = newIssueDraft($pdo, 'MULTI-INTAKE-01', [intakeDeviceFields([
+    'device_type' => 'Laptop', 'make' => 'Demo', 'model' => 'Second',
+    'serial_number' => 'MULTI-INTAKE-02', 'reported_symptoms' => 'No display',
+    'condition_notes' => 'Case scratched',
+])]);
+$multiDraft = intakeIssueDraft($pdo, $multiId, 1);
+expect(count($multiDraft['devices']) === 2, 'Draft retains both devices');
+$multiVersion = intakeDraftVersion($multiDraft);
+$multiValues = $values + ['extra_devices' => [$values]];
+$multiEvidence = testEvidence();
+mustReject(fn() => intakeIssueTicket($pdo, $multiId, 1, $multiVersion, $multiValues, $multiEvidence),
+    'Issuance accepted without the second photo');
+expect(intakeDraftVersion(intakeIssueDraft($pdo, $multiId, 1)) === $multiVersion,
+    'Missing second photo must roll back the entire ticket');
+$extraEvidence = testEvidence();
+$multiEvidence['photo_2'] = $extraEvidence['photo'];
+intakeDiscardEvidence(['unused' => $extraEvidence['signed_form']]);
+$multiCode = intakeIssueTicket($pdo, $multiId, 1, $multiVersion, $multiValues, $multiEvidence);
+$items = $pdo->prepare('SELECT item_code FROM ticket_devices WHERE ticket_id = ? ORDER BY child_sequence');
+$items->execute([$multiId]);
+expect($items->fetchAll(PDO::FETCH_COLUMN) === [$multiCode . '-01', $multiCode . '-02'],
+    'Issued devices should have distinct item codes');
+
 // Save a fresh draft for browser issuance tests.
 $browserId = newIssueDraft($pdo, 'BROWSER-ISSUE-001');
 file_put_contents(__DIR__ . '/browser-issue-id.txt', (string) $browserId);

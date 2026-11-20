@@ -101,6 +101,33 @@ function intakeValidateIssue(PDO $pdo, array $draft, array $values, int $userId)
     return $errors;
 }
 
+function intakeIssueEntries(array $draft, array $values): array
+{
+    $entries = [];
+    foreach ($draft['devices'] as $index => $device) {
+        $details = $index === 0 ? $values : intakeIssueValues(
+            ($values['extra_devices'][$index - 1] ?? []) + [
+                'terms_version' => $values['terms_version'],
+                'signature_confirmed' => $values['signature_confirmed'],
+                'duplicate_confirmed' => $values['duplicate_confirmed'],
+            ],
+        );
+        $entries[] = [$device + $draft, $details];
+    }
+    return $entries;
+}
+
+function intakeValidateIssueEntries(PDO $pdo, array $draft, array $values, int $userId): array
+{
+    $errors = [];
+    foreach (intakeIssueEntries($draft, $values) as $index => [$device, $details]) {
+        foreach (intakeValidateIssue($pdo, $device, $details, $userId) as $error) {
+            $errors[] = 'Device ' . ($index + 1) . ': ' . $error;
+        }
+    }
+    return $errors;
+}
+
 function intakeDuplicateFingerprint(array $draft, array $values, string $date): string
 {
     $config = require __DIR__ . '/../../config/config.php';
@@ -156,31 +183,12 @@ function intakeIssueTicket(
                 'This draft or customer changed. Reopen issuance and review it again.',
             );
         }
-        $errors = intakeValidateIssue($pdo, $draft, $values, $userId);
+        $errors = intakeValidateIssueEntries($pdo, $draft, $values, $userId);
         if ($errors) {
             throw new DomainException(implode(' ', $errors));
         }
-        // Lock the chosen physical location so it cannot be deactivated mid-issue.
-        $location = $pdo->prepare(
-            "SELECT location_id FROM storage_locations WHERE location_id = ? AND branch_id = ? AND is_active = 1 AND location_type IN ('BRANCH_BIN','WORKBENCH') FOR UPDATE",
-        );
-        $location->execute([$values['location_id'], $draft['intake_branch_id']]);
-        if (!$location->fetchColumn()) {
-            throw new DomainException('The selected storage location is no longer available.');
-        }
         $date = (new DateTimeImmutable('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d');
-        $fingerprint = intakeDuplicateFingerprint($draft, $values, $date);
-        $duplicate = $pdo->prepare(
-            'SELECT ticket_device_id FROM ticket_devices WHERE duplicate_fingerprint = ? LIMIT 1',
-        );
-        $duplicate->execute([$fingerprint]);
-        if ($duplicate->fetchColumn()) {
-            throw new DomainException(
-                'This customer and device already have an issued intake today. Open the existing ticket.',
-            );
-        }
         $ticketCode = 'RT-' . strtoupper(bin2hex(random_bytes(6)));
-        $deviceId = (int) $draft['ticket_device_id'];
         $ticket = $pdo->prepare("UPDATE repair_tickets SET ticket_code = ?, record_stage = 'ISSUED', case_state = 'OPEN', accountable_branch_id = intake_branch_id,
             intake_date = ?, tracking_token_hash = ?, terms_version = ?, terms_accepted = 1, terms_signature_path = ?, terms_signed_at = UTC_TIMESTAMP(), issued_at = UTC_TIMESTAMP() WHERE ticket_id = ?");
         $ticket->execute([
@@ -191,99 +199,122 @@ function intakeIssueTicket(
             $evidence['signed_form']['name'],
             $ticketId,
         ]);
-        $device = $pdo->prepare("UPDATE ticket_devices SET item_code = ?, alternative_identifiers = ?, accessory_checklist_completed = 1,
-            repair_status = 'RECEIVED', physical_location_id = ?, custody_state = 'AT_LOCATION', duplicate_fingerprint = ?, public_summary = 'Received for assessment.' WHERE ticket_device_id = ?");
-        $device->execute([
-            $ticketCode . '-01',
-            $values['alternative_identifiers'] ?: null,
-            $values['location_id'],
-            $fingerprint,
-            $deviceId,
-        ]);
-        // Reject pre-existing evidence rather than changing an earlier signed record.
-        foreach (
-            ['ticket_accessory_items', 'ticket_device_photos', 'ticket_device_acknowledgments']
-            as $table
-        ) {
-            $check = $pdo->prepare(
-                'SELECT COUNT(*) FROM ' . $table . ' WHERE ticket_device_id = ?',
+        foreach (intakeIssueEntries($draft, $values) as $index => [$entry, $details]) {
+            $deviceId = (int) $entry['ticket_device_id'];
+            $photoKey = $index === 0 ? 'photo' : 'photo_' . ($index + 1);
+            intakeVerifyEvidence(['photo' => $evidence[$photoKey] ?? [], 'signed_form' => $evidence['signed_form']]);
+            // Lock the chosen physical location so it cannot be deactivated mid-issue.
+            $location = $pdo->prepare(
+                "SELECT location_id FROM storage_locations WHERE location_id = ? AND branch_id = ? AND is_active = 1 AND location_type IN ('BRANCH_BIN','WORKBENCH') FOR UPDATE",
             );
-            $check->execute([$deviceId]);
-            if ((int) $check->fetchColumn() > 0) {
+            $location->execute([$details['location_id'], $draft['intake_branch_id']]);
+            if (!$location->fetchColumn()) {
+                throw new DomainException('The selected storage location is no longer available.');
+            }
+            $fingerprint = intakeDuplicateFingerprint($entry, $details, $date);
+            $duplicate = $pdo->prepare(
+                'SELECT ticket_device_id FROM ticket_devices WHERE duplicate_fingerprint = ? LIMIT 1',
+            );
+            $duplicate->execute([$fingerprint]);
+            if ($duplicate->fetchColumn()) {
                 throw new DomainException(
-                    'This draft already has intake evidence. It needs manual review before issuance.',
+                    'This customer and device already have an issued intake today. Open the existing ticket.',
                 );
             }
-        }
-        $accessory = $pdo->prepare(
-            'INSERT INTO ticket_accessory_items (ticket_device_id, accessory_name, received, notes, recorded_by_user_id) VALUES (?, ?, ?, ?, ?)',
-        );
-        foreach (
-            [
-                'charger' => 'Charger / power adapter',
-                'bag' => 'Bag / case',
-                'cable' => 'Other cable',
-            ]
-            as $key => $name
-        ) {
-            $accessory->execute([$deviceId, $name, (int) $values[$key], null, $userId]);
-        }
-        $accessory->execute([
-            $deviceId,
-            'Other accessories',
-            $values['other_accessories'] !== '' ? 1 : 0,
-            $values['other_accessories'] ?: 'None received',
-            $userId,
-        ]);
-        $photo = $pdo->prepare(
-            "INSERT INTO ticket_device_photos (ticket_device_id, photo_category, stored_path, mime_type, byte_size, sha256_hash, uploaded_by_user_id, captured_at) VALUES (?, 'OVERALL_CONDITION', ?, ?, ?, ?, ?, UTC_TIMESTAMP())",
-        );
-        $photo->execute([
-            $deviceId,
-            $evidence['photo']['name'],
-            $evidence['photo']['mime'],
-            $evidence['photo']['bytes'],
-            $evidence['photo']['hash'],
-            $userId,
-        ]);
-        $ack = $pdo->prepare(
-            "INSERT INTO ticket_device_acknowledgments (ticket_device_id, customer_name_at_signing, signature_path, policy_version, accepted, signature_source, signed_at, recorded_at) VALUES (?, ?, ?, ?, 1, 'COUNTER_CAPTURE', UTC_TIMESTAMP(), UTC_TIMESTAMP())",
-        );
-        $ack->execute([
-            $deviceId,
-            $draft['customer_name'],
-            $evidence['signed_form']['name'],
-            $values['terms_version'],
-        ]);
-        $gate = $pdo->prepare(
-            'INSERT INTO ticket_intake_gate_events (ticket_id, ticket_device_id, gate_code, passed, details, checked_by_user_id, checked_at) VALUES (?, ?, ?, 1, ?, ?, UTC_TIMESTAMP())',
-        );
-        foreach (
-            [
-                'CUSTOMER_MATCH',
-                'DEVICE_IDENTITY',
-                'SYMPTOMS',
-                'CONDITION_NOTES',
-                'ACCESSORY_CHECKLIST',
-                'REQUIRED_PHOTOS',
-                'CONDITION_SIGNOFF',
-                'TERMS_ACCEPTANCE',
-                'DUPLICATE_CHECK',
-            ]
-            as $code
-        ) {
-            $gate->execute([
-                $ticketId,
+            $device = $pdo->prepare("UPDATE ticket_devices SET item_code = ?, alternative_identifiers = ?, accessory_checklist_completed = 1,
+                repair_status = 'RECEIVED', physical_location_id = ?, custody_state = 'AT_LOCATION', duplicate_fingerprint = ?, public_summary = 'Received for assessment.' WHERE ticket_device_id = ?");
+            $device->execute([
+                $ticketCode . '-' . str_pad((string) $entry['child_sequence'], 2, '0', STR_PAD_LEFT),
+                $details['alternative_identifiers'] ?: null,
+                $details['location_id'],
+                $fingerprint,
                 $deviceId,
-                $code,
-                'Validated at issuance; signed form and condition image retained.',
+            ]);
+            // Reject pre-existing evidence rather than changing an earlier signed record.
+            foreach (
+                ['ticket_accessory_items', 'ticket_device_photos', 'ticket_device_acknowledgments']
+                as $table
+            ) {
+                $check = $pdo->prepare(
+                    'SELECT COUNT(*) FROM ' . $table . ' WHERE ticket_device_id = ?',
+                );
+                $check->execute([$deviceId]);
+                if ((int) $check->fetchColumn() > 0) {
+                    throw new DomainException(
+                        'This draft already has intake evidence. It needs manual review before issuance.',
+                    );
+                }
+            }
+            $accessory = $pdo->prepare(
+                'INSERT INTO ticket_accessory_items (ticket_device_id, accessory_name, received, notes, recorded_by_user_id) VALUES (?, ?, ?, ?, ?)',
+            );
+            foreach (
+                [
+                    'charger' => 'Charger / power adapter',
+                    'bag' => 'Bag / case',
+                    'cable' => 'Other cable',
+                ]
+                as $key => $name
+            ) {
+                $accessory->execute([$deviceId, $name, (int) $details[$key], null, $userId]);
+            }
+            $accessory->execute([
+                $deviceId,
+                'Other accessories',
+                $details['other_accessories'] !== '' ? 1 : 0,
+                $details['other_accessories'] ?: 'None received',
                 $userId,
             ]);
+            $photo = $pdo->prepare(
+                "INSERT INTO ticket_device_photos (ticket_device_id, photo_category, stored_path, mime_type, byte_size, sha256_hash, uploaded_by_user_id, captured_at) VALUES (?, 'OVERALL_CONDITION', ?, ?, ?, ?, ?, UTC_TIMESTAMP())",
+            );
+            $photo->execute([
+                $deviceId,
+                $evidence[$photoKey]['name'],
+                $evidence[$photoKey]['mime'],
+                $evidence[$photoKey]['bytes'],
+                $evidence[$photoKey]['hash'],
+                $userId,
+            ]);
+            $ack = $pdo->prepare(
+                "INSERT INTO ticket_device_acknowledgments (ticket_device_id, customer_name_at_signing, signature_path, policy_version, accepted, signature_source, signed_at, recorded_at) VALUES (?, ?, ?, ?, 1, 'COUNTER_CAPTURE', UTC_TIMESTAMP(), UTC_TIMESTAMP())",
+            );
+            $ack->execute([
+                $deviceId,
+                $entry['customer_name'],
+                $evidence['signed_form']['name'],
+                $details['terms_version'],
+            ]);
+            $gate = $pdo->prepare(
+                'INSERT INTO ticket_intake_gate_events (ticket_id, ticket_device_id, gate_code, passed, details, checked_by_user_id, checked_at) VALUES (?, ?, ?, 1, ?, ?, UTC_TIMESTAMP())',
+            );
+            foreach (
+                [
+                    'CUSTOMER_MATCH',
+                    'DEVICE_IDENTITY',
+                    'SYMPTOMS',
+                    'CONDITION_NOTES',
+                    'ACCESSORY_CHECKLIST',
+                    'REQUIRED_PHOTOS',
+                    'CONDITION_SIGNOFF',
+                    'TERMS_ACCEPTANCE',
+                    'DUPLICATE_CHECK',
+                ]
+                as $code
+            ) {
+                $gate->execute([
+                    $ticketId,
+                    $deviceId,
+                    $code,
+                    'Validated at issuance; signed form and condition image retained.',
+                    $userId,
+                ]);
+            }
+            $event = $pdo->prepare(
+                "INSERT INTO ticket_status_events (ticket_device_id, from_status, to_status, actor_type, actor_user_id, reason_code, public_summary, is_customer_visible, created_at) VALUES (?, 'DRAFT', 'RECEIVED', 'USER', ?, 'INTAKE_ISSUED', 'Received for assessment.', 1, UTC_TIMESTAMP())",
+            );
+            $event->execute([$deviceId, $userId]);
         }
-        $event = $pdo->prepare(
-            "INSERT INTO ticket_status_events (ticket_device_id, from_status, to_status, actor_type, actor_user_id, reason_code, public_summary, is_customer_visible, created_at) VALUES (?, 'DRAFT', 'RECEIVED', 'USER', ?, 'INTAKE_ISSUED', 'Received for assessment.', 1, UTC_TIMESTAMP())",
-        );
-        $event->execute([$deviceId, $userId]);
         $audit = $pdo->prepare(
             "INSERT INTO audit_events (actor_type, actor_user_id, entity_type, entity_id, action, after_data, created_at) VALUES ('USER', ?, 'repair_ticket', ?, 'TICKET_ISSUED', ?, UTC_TIMESTAMP())",
         );
