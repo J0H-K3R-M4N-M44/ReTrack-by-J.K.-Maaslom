@@ -1,6 +1,6 @@
 # RepairTrack: what is still missing
 
-Reviewed against `Payments-Inventory` on 2026-11-18. Prototype buttons and seeded records do not count as implemented features. The payments feature is not yet in `main`.
+PHP `main` includes final billing, counter-cash payment and paid counter pickup. The remaining work below concerns PHP workflows.
 
 ## Implemented foundation
 
@@ -12,7 +12,7 @@ Shared login and password recovery; branch-scoped staff accounts; reviewed intak
 | --- | --- | --- |
 | 1 | Customer self-approval, proof attachments and change orders | Staff can now prepare/revise estimates and record customer decisions. Public self-approval and changes after repair starts remain unfinished. |
 | 2 | Parts requests, reservation, issue/return and stock adjustments | Existing tables and demo rows do not implement stock operations. Prevent negative stock and record who approved each change. |
-| 3 | COD, refunds and bill correction | Counter-cash payment, final bill and paid counter pickup now work on this branch. COD delivery, refunds, void/reissue UI and cancellation need their own permissions and audit rules. |
+| 3 | COD, refunds and bill correction | Counter-cash payment, final bill and paid counter pickup work in PHP. COD delivery, refunds, void/reissue UI and cancellation need their own permissions and audit rules. |
 | 4 | Transfer dispatch, receiving and exceptions | Courier screens currently display manifests only. A handover must update device location, transfer items and custody history together. |
 | 5 | QR convenience and richer customer actions | Private-code tracking now works. QR generation/scanning and customer approval/request actions remain. Receipt numbers alone never open a repair. |
 | 6 | Customer consultation and requests | Technician/customer messages, upgrades, cancellations and approval responses need real storage, permissions and audited decisions. |
@@ -29,4 +29,4 @@ Use `php tools/migrate.php --apply` on an existing database to add the payment t
 
 ## Demo separation
 
-Demo-System contains the standalone prototype and the expanded demo seeder. Simplified-System is the PHP application integration branch. Small original SQL fixtures may remain there for regression tests; the new presentation dataset is owned by Demo-System. Main remains unchanged.
+Demo-System contains the standalone prototype and the expanded demo seeder. Simplified-System is the PHP application integration branch. Small original SQL fixtures may remain there for regression tests; the new presentation dataset is owned by Demo-System.
