@@ -19,6 +19,14 @@ let role = 'Public',
   intakeDevice = 0,
   lastActivity = Date.now(),
   toastTimer;
+// Keep workspace selection per tab without writing unrelated shop records.
+const branchViewKey = DEMO_VERSION + '/viewing-branch';
+try {
+  const preferred = sessionStorage.getItem(branchViewKey);
+  if (!state.singleStore && [...BRANCHES, 'All branches'].includes(preferred)) state.branch = preferred;
+} catch {
+  // The picker still works in memory when session storage is unavailable.
+}
 const ROLE_HOME = {
   Admin: 'overview',
   Technician: 'overview',
@@ -56,17 +64,31 @@ function focusIntakeStep() {
 const feedGroups = ['Repairs', 'Conversations', 'Cash desk', 'Collections', 'Custody', 'Administration'];
 const feedSelection = { alerts: 'All', audit: 'All' };
 
-function record(text, ticket = null, isPublic = false, group = 'Repairs', branch = state.branch, custody = false) {
+function record(text, ticket = null, isPublic = false, group = 'Repairs', branch = state.branch, custody = false, pickupId = null) {
   const event = { at: now(), text, public: isPublic, role, actorId: demoAccounts[role], group,
     custody: custody || group === 'Collections' || group === 'Custody',
-    ticketId: ticket?.id, branch: ticket?.branch || branch };
+    pickupId, ticketId: ticket?.id, branch: ticket?.branch || branch };
   state.audit.unshift(event);
   // Keep routine updates in history. Notify only for a handoff or a conversation.
   if (['Conversations', 'Cash desk', 'Collections'].includes(group) || group === 'Repairs' && role === 'Customer') {
     state.alerts.unshift({ ...event, readBy: [] });
   }
   if (ticket) ticket.events.unshift(event);
-  saveDemo();
+  return saveDemo();
+}
+
+// The demo signs in as Taylor when the Collector role is selected.
+function pickupInView(pickup) {
+  if (!pickup || !['Admin', 'Collector'].includes(role)) return false;
+  if (state.branch !== 'All branches' && pickup.branch !== state.branch) return false;
+  return role === 'Admin' || pickup.collector?.trim().toLowerCase() === 'taylor';
+}
+
+function mayReceiveTransfer(transfer) {
+  if (!transfer || transfer.status !== 'In transit') return false;
+  if (transfer.type === 'Branch transfer')
+    return ['Admin', 'Cashier'].includes(role) && state.branch === transfer.to;
+  return ['Admin', 'Collector'].includes(role) && state.branch === transfer.from;
 }
 
 function visibleEvent(event) {
@@ -74,7 +96,11 @@ function visibleEvent(event) {
   if (role === 'Admin') return true;
   if (!event.group || !event.branch) return false;
   if (role === 'Cashier') return event.group === 'Cash desk';
-  if (role === 'Collector') return event.group === 'Collections';
+  if (role === 'Collector') {
+    if (event.group !== 'Collections') return false;
+    const pickup = state.pickups.find(p => p.id === event.pickupId);
+    return pickupInView(pickup);
+  }
   const assigned = state.tickets.find((t) => t.id === event.ticketId)?.assigned;
   return role === 'Technician' && assigned === 'Mika Reyes' &&
     ['Repairs', 'Conversations'].includes(event.group);
@@ -237,6 +263,7 @@ const navs = {
     ['intake', 'New intake', '＋'],
     ['customers', 'Customers', '◎'],
     ['finance', 'Cash desk', '₱'],
+    ['transfers', 'Handoffs', '⇄'],
   ],
   Collector: [
     ['overview', 'Overview', '◈'],
@@ -347,7 +374,7 @@ function workGroups() {
   const ticketTasks = (matches, label, destination) => tickets.filter(matches)
     .map((t) => ({ label, detail: t.id + ' · ' + t.customer, destination: destination(t) }));
   const pickupTasks = (status, label) => state.pickups
-    .filter((p) => p.branch === state.branch && p.status === status)
+    .filter((p) => pickupInView(p) && p.status === status)
     .map((p) => ({ label, detail: p.id + ' · ' + p.device, destination: 'logistics/job/' + encodeURIComponent(p.id) }));
   switch (role) {
     case 'Admin':
@@ -675,7 +702,7 @@ function logistics() {
     ) +
     `<section class="list">${
       pageOf(state.pickups
-        .filter((p) => state.branch === 'All branches' || p.branch === state.branch)
+        .filter(pickupInView)
         .filter((p) => !location.hash.startsWith('#logistics/job/') ||
           location.hash === '#logistics/job/' + encodeURIComponent(p.id)), 'logistics',
           (p) =>
@@ -689,7 +716,7 @@ function transfers() {
     `<section class="list">${pageOf(state.transfers.map((transfer, index) => ({ transfer, index }))
       .filter(({ transfer }) => state.branch === 'All branches' ||
         [transfer.from, transfer.to].includes(state.branch)), 'transfers',
-      ({ transfer: x, index: i }) => `<article class="card"><div class="row between"><h2>${x.ticket} · ${esc(x.type)}</h2>${badge(x.status)}</div><p>${esc(x.from)} to ${esc(x.to)}</p><p class="muted">${esc(x.evidence || 'Handoff evidence pending')}</p><div class="actions">${x.status === 'In transit' ? btn('Confirm handoff', 'receive-transfer', `data-index="${i}"`, 'primary') : ''}</div></article>`, 'No handoffs for this branch.')}</section>`
+      ({ transfer: x, index: i }) => `<article class="card"><div class="row between"><h2>${x.ticket} · ${esc(x.type)}</h2>${badge(x.status)}</div><p>${esc(x.from)} to ${esc(x.to)}</p><p class="muted">${esc(x.evidence || 'Handoff evidence pending')}</p><div class="actions">${mayReceiveTransfer(x) ? btn('Confirm handoff', 'receive-transfer', `data-index="${i}"`, 'primary') : x.status === 'In transit' && x.type === 'Branch transfer' ? `<small>Awaiting receipt at ${esc(x.to)}</small>` : ''}</div></article>`, 'No handoffs for this branch.')}</section>`
   );
 }
 function releaseBlocker(t) {
@@ -838,6 +865,17 @@ function render() {
     go('login');
     return;
   }
+  if (role === 'Collector' && !publics.includes(route) &&
+      !['overview', 'logistics', 'transfers', 'finance', 'alerts', 'audit'].includes(route) &&
+      !(route === 'intake' && pickupInView(state.pickups.find(p => p.id === intakeDraft.pickupId)))) {
+    go('overview');
+    return;
+  }
+  if (route === 'repair' && !scope().some(t => t.id === activeTicket)) {
+    location.replace('#repairs');
+    toast('Choose a repair in this workspace.');
+    return;
+  }
   const financeQuery = $('#finance-search')?.value;
   $('#app').innerHTML = publics.includes(route)
     ? (pages[route] || home)()
@@ -869,6 +907,11 @@ function action(name, el) {
   if (el?.dataset.id) {
     context.id = el.dataset.id;
   } else context.id = t.id;
+  if (['pickup-confirm', 'pickup-collect', 'pickup-receive', 'pickup-fail'].includes(name) &&
+      !pickupInView(state.pickups.find(p => p.id === context.id))) {
+    toast('This pickup is outside your assignments.');
+    return;
+  }
   switch (name) {
     case 'list-page':
       if ($('#repair-search')) filterRepairs(Number(el.dataset.page));
@@ -1168,11 +1211,16 @@ function action(name, el) {
       break;
     case 'receive-transfer':
       context.index = +el.dataset.index;
+      if (!mayReceiveTransfer(state.transfers[context.index])) {
+        toast('Open the receiving workspace to confirm this handoff.');
+        return;
+      }
+      context.transferTicket = state.transfers[context.index].ticket;
       formModal(
         'Confirm physical handoff',
         'receive-transfer',
         area('Receiver and handoff evidence', 'evidence') +
-          '<small>Customer delivery requires a settled balance. Use Cash desk to record COD first.</small>',
+          '<small>Customer delivery requires a settled balance. Use Cash desk to record COD first.</small><p role="status"></p>',
         'Confirm receipt'
       );
       break;
@@ -1238,6 +1286,7 @@ function action(name, el) {
     case 'pickup-receive':
       {
         const p = state.pickups.find((p) => p.id === context.id);
+        if (p.status !== 'Collected') return;
         resetIntake();
         intakeDraft = {
           customer: p.name,
@@ -1372,6 +1421,23 @@ function rememberIntake() {
 function requireGate(ok, message) {
   if (!ok) throw Error(message);
 }
+// Only one browser tab may confirm the same pending handoff.
+async function confirmHandoff(form) {
+  const button = form.querySelector('[type=submit]');
+  if (button.disabled) return;
+  button.disabled = true;
+  try {
+    if (!navigator.locks) {
+      form.querySelector('[role=status]').textContent = 'Open the demo on localhost or HTTPS to confirm a handoff.';
+      return;
+    }
+    await navigator.locks.request(DEMO_VERSION + '/handoff', () => {
+      if (form.isConnected && $('#modal').open) submit('receive-transfer', form);
+    });
+  } finally {
+    button.disabled = false;
+  }
+}
 // Serialize the balance check across tabs and store each receipt before confirming cash.
 async function receiveCash(form) {
   const button = form.querySelector('[type=submit]');
@@ -1494,6 +1560,11 @@ function submit(kind, form) {
         }
         {
           const n = intakeDraft;
+          if (n.pickupId) {
+            const pickup = state.pickups.find(p => p.id === n.pickupId);
+            requireGate(pickupInView(pickup) && pickup.status === 'Collected' && pickup.branch === n.branch,
+              'Open the assigned pickup at its receiving branch before saving intake.');
+          }
           const first = n.devices[0];
           const id = 'RT-' + state.sequence++;
           const item = {
@@ -1549,7 +1620,7 @@ function submit(kind, form) {
           intakeDraft = {};
           intakeDevice = 0;
           intakeStep = 0;
-          go('repair');
+          go(role === 'Collector' ? 'logistics' : 'repair');
           toast('Draft saved. Review and issue when the checks are complete.');
           return;
         }
@@ -1789,8 +1860,12 @@ function submit(kind, form) {
         record(`${t.id}: dispatched from ${t.location}; in transit`, t, true, 'Collections');
         break;
       case 'receive-transfer': {
-        const x = state.transfers[context.index],
-          target = state.tickets.find((t) => t.id === x.ticket);
+        // A second receiver may already have completed the handoff in another tab.
+        const latest = readStoredDemo();
+        const x = latest.transfers[context.index],
+          target = latest.tickets.find(t => t.id === x?.ticket);
+        requireGate(target && x.ticket === context.transferTicket && mayReceiveTransfer(x),
+          'This handoff must be pending in the receiving workspace.');
         requireGate(x.status === 'In transit' && target.custody === 'In transit', 'This handoff is no longer pending.');
         if (x.type === 'Customer delivery') {
           const blocker = deviceHandoverBlocker(target);
@@ -1806,11 +1881,24 @@ function submit(kind, form) {
           target.custody = 'At branch';
           target.assigned = '';
         }
+        const previous = state;
+        latest.branch = state.branch;
+        state = latest;
+        assignCustomerIds();
         target.location = x.to;
+        x.receivedBy = demoAccounts[role];
+        x.receivedAt = now();
+        x.dispatchEvidence = x.evidence;
         x.status = 'Received';
         x.evidence = v.evidence;
-        record(`${target.id}: handoff confirmed at ${x.to}`, target, true, 'Collections');
-        break;
+        if (!record(`${target.id}: handoff confirmed at ${x.to}`, target, true, 'Collections')) {
+          state = previous;
+          throw Error('Receipt could not be saved. Check browser storage and retry.');
+        }
+        closeModal();
+        render();
+        toast('Physical handoff recorded.');
+        return;
       }
       case 'add-staff':
         requireGate(
@@ -1839,26 +1927,29 @@ function submit(kind, form) {
       }
       case 'pickup-confirm': {
         const p = state.pickups.find((p) => p.id === context.id);
+        requireGate(pickupInView(p) && p.status === 'Requested', 'Choose a requested pickup in your workspace.');
         requireGate(v.confirmed === 'on', 'Confirm the customer agreement.');
         p.status = 'Confirmed';
         p.collector = v.collector;
         p.fee = Number(v.fee);
-        record(`${p.id}: coverage, fee and schedule confirmed`, null, false, 'Collections', p.branch);
+        record(`${p.id}: coverage, fee and schedule confirmed`, null, false, 'Collections', p.branch, false, p.id);
         break;
       }
       case 'pickup-collect': {
         const p = state.pickups.find((p) => p.id === context.id);
+        requireGate(pickupInView(p) && p.status === 'Confirmed', 'Choose a confirmed pickup assigned to you.');
         p.status = 'Collected';
         p.condition = v.condition;
         p.evidence = v.evidence;
-        record(`${p.id}: collector received the device`, null, false, 'Collections', p.branch);
+        record(`${p.id}: collector received the device`, null, false, 'Collections', p.branch, false, p.id);
         break;
       }
       case 'pickup-fail': {
         const p = state.pickups.find((p) => p.id === context.id);
+        requireGate(pickupInView(p) && ['Requested', 'Confirmed'].includes(p.status), 'This pickup is no longer available for an exception.');
         p.status = v.status;
         p.reason = v.reason;
-        record(`${p.id}: ${v.status}. ${v.reason}`, null, false, 'Collections', p.branch);
+        record(`${p.id}: ${v.status}. ${v.reason}`, null, false, 'Collections', p.branch, false, p.id);
         break;
       }
       case 'refund': {
@@ -1902,7 +1993,8 @@ function submit(kind, form) {
     render();
     toast(saved ? 'Demo update saved in this browser.' : 'Updated for this tab. Browser storage is unavailable.');
   } catch (error) {
-    toast(error.message);
+    if (kind === 'receive-transfer') form.querySelector('[role=status]').textContent = error.message;
+    else toast(error.message);
   }
 }
 function showReceipt(t) {
@@ -2019,9 +2111,27 @@ document.addEventListener('change', (e) => {
   tick();
   if (e.target.id === 'role-picker') setRole(e.target.value);
   if (e.target.id === 'branch-picker') {
-    state.branch = e.target.value;
-    saveDemo();
-    render();
+    const branch = e.target.value;
+    const route = location.hash.slice(1).split('/')[0];
+    // A branch switch is a view change. Never save an old tab over another branch's dispatch.
+    state = readStoredDemo();
+    state.branch = branch;
+    try {
+      sessionStorage.setItem(branchViewKey, branch);
+    } catch {
+      // Keep the current tab usable if its preference cannot be stored.
+    }
+    assignCustomerIds();
+    if ($('#modal').open) closeModal();
+    resetIntake();
+    repairReturn = null;
+    context = {};
+    activeDevice = 0;
+    activeTicket = null;
+    if (route === 'repair') go('repairs');
+    else if (route === 'intake' || route === 'overview') go('overview');
+    else if (location.hash.includes('/')) go(route);
+    else render();
   }
   if (e.target.id === 'device-picker') {
     activeDevice = +e.target.value;

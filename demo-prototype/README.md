@@ -26,6 +26,8 @@ Open **Account settings** in a staff workspace or the customer portal. Your role
 7. Use Admin for assignment, inventory, transfers, notifications and reports. Use Collector for confirmed pickups and handoffs.
 8. Explain that pickup coverage is staff-confirmed, device location is confirmed custody, and COD needs cashier remittance confirmation.
 
+For a branch handoff, dispatch from the sending branch, then select the destination branch as Admin or Cashier and open **Handoffs** (Admin: **Branch transfers**). The sending branch and All branches can monitor the transfer. For the collector walkthrough, have Admin confirm the pickup and assign it to Taylor first.
+
 For a late device, collect its condition, accessories, and acknowledgment before adding it. In the cash desk, choose **Reverse cash payment** to return cash against the existing bill, or **Reduce price and refund cash** to reduce both the price and the collected cash. Review the projected balance before saving.
 
 ## Modules and files
@@ -40,7 +42,7 @@ This is a browser-only simulation, not production authentication or financial so
 
 The prototype captures cash at the final-bill stage, partial payments, refunds and COD remittance. Production policies for deposits, cancellation charges and signatures still need approval. The demo records a photo filename only. Catalog editing, date-range analytics and granular staff permissions are production extensions; sample prices and all-record reporting demonstrate those concepts.
 
-Cash receipts require browser storage and Web Locks. For a two-counter demonstration, open the same localhost or HTTPS demo in two tabs of one browser profile. Separate browsers and devices have separate sample records. Only staff receipt entries are serialized across tabs; other workflows still use the shared browser snapshot.
+Cash receipts require browser storage and Web Locks. For a two-counter demonstration, open the same localhost or HTTPS demo in two tabs of one browser profile. Separate browsers and devices have separate sample records. Cash receipts and competing handoff confirmations use browser locks. Other workflows still use the shared browser snapshot.
 
 ## Verification
 JavaScript syntax and DOM tests passed for 20 screens, multi-device approval/repair/testing/billing/return, stock reservation and usage, transfer custody, overpayment rejection and COD remittance. Browser checks confirmed tracking, diagnosis, quotes and shared customer decisions. Responsive preview showed no horizontal body overflow at phone, tablet and desktop sizes. No PHP or live database is used.
