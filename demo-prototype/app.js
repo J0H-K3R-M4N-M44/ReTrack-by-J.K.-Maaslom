@@ -269,7 +269,7 @@ function navigation(route) {
 
 }
 function shell(route, html) {
-  return `<div class="mobile-nav"><details><summary>Menu · ${esc(role)} · ${esc(state.branch)}</summary><nav aria-label="Mobile workspace">${navigation(route)}</nav>${btn('Sign out', 'logout', '', 'quiet')}</details></div><div class="shell"><aside class="sidebar"><a class="brand" href="#${ROLE_HOME[role]}"><span class="brand-mark" aria-hidden="true">R</span>RepairTrack</a><p class="eyebrow">${esc(role)} console</p><nav class="side-nav" aria-label="Main navigation">${navigation(route)}</nav><div class="sidebar-footer">${btn('Sign out', 'logout', '', 'quiet')}</div></aside><div class="workspace"><header class="topbar"><div><strong>${role === 'Technician' ? 'Mika Reyes' : role === 'Collector' ? 'Taylor · Collector' : 'RepairTrack staff'}</strong><small> / ${esc(role)}</small></div><div class="row"><label class="check">Viewing branch<select id="branch-picker">${(state.singleStore ? [BRANCHES[0]] : role === 'Admin' ? ['All branches', ...BRANCHES] : BRANCHES).map((b) => `<option ${state.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>${link('Alerts ' + inbox().filter(isUnread).length, 'alerts', 'button quiet')}</div></header><main id="content" tabindex="-1" class="content">${html}</main></div></div>`;
+  return `<div class="mobile-nav"><details><summary>Menu · ${esc(role)} · ${esc(state.branch)}</summary><nav aria-label="Mobile workspace">${navigation(route)}</nav>${btn('Sign out', 'logout', '', 'quiet')}</details></div><div class="shell"><aside class="sidebar"><a class="brand" href="#${ROLE_HOME[role]}"><span class="brand-mark" aria-hidden="true">R</span>RepairTrack</a><p class="eyebrow">${esc(role)} console</p><nav class="side-nav" aria-label="Main navigation">${navigation(route)}</nav><div class="sidebar-footer">${btn('Sign out', 'logout', '', 'quiet')}</div></aside><div class="workspace"><header class="topbar"><div><strong>${role === 'Technician' ? 'Mika Reyes' : role === 'Collector' ? 'Taylor · Collector' : 'RepairTrack staff'}</strong><small> / ${esc(role)}</small> ${btn('Account settings', 'account-settings', '', 'quiet')}</div><div class="row"><label class="check">Viewing branch<select id="branch-picker">${(state.singleStore ? [BRANCHES[0]] : role === 'Admin' ? ['All branches', ...BRANCHES] : BRANCHES).map((b) => `<option ${state.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>${link('Alerts ' + inbox().filter(isUnread).length, 'alerts', 'button quiet')}</div></header><main id="content" tabindex="-1" class="content">${html}</main></div></div>`;
 }
 function publicNav() {
   const links = ['Home', 'About', 'FAQ', 'Contacts', 'Services']
@@ -833,10 +833,17 @@ function action(name, el) {
       go('home');
       toast('Demo session signed out.');
       break;
+    case 'account-settings':
+      modal('Account settings', '<h3>Practice lessons</h3><p>Receive two identical laptops at the counter. You can repeat this exercise without changing shop records.</p>' +
+        btn('Practice cashier intake', 'practice-start'));
+      break;
+    case 'practice-start':
+      startPractice();
+      break;
     case 'guide':
       modal(
         'Your presentation route',
-        `<ol class="stack"><li>Start on Home. Enter <strong>DEMO-1042</strong>.</li><li>Explore tracking. Verify Messages or Costs with PIN <strong>2468</strong>.</li><li>Switch to Technician. Open RT-1042, record diagnosis and build a catalog quote.</li><li>Switch to Customer. Approve the quote in Costs.</li><li>Switch back to Technician. Repair, record tests and mark ready.</li><li>Use Admin for parts approvals, branches, requests and transfers.</li><li>Use Cashier to generate a bill, record cash and release devices.</li><li>Open Pickup and Collector to demonstrate collection and COD.</li></ol><p class="notice">Each device in a multi-device ticket needs its own diagnosis, quote and test. Reset restores all samples.</p>`
+        `<ol class="stack"><li>Start on Home. Enter <strong>DEMO-1042</strong>.</li><li>Explore tracking. Verify Messages or Costs with PIN <strong>2468</strong>.</li><li>Switch to Technician. Open RT-1042, record diagnosis and build a catalog quote.</li><li>Switch to Customer. Approve the quote in Costs.</li><li>Switch back to Technician. Repair, record tests and mark ready.</li><li>Use Admin for parts approvals, branches, requests and transfers.</li><li>Use Cashier to generate a bill, record cash and release devices.</li><li>Open Pickup and Collector to demonstrate collection and COD.</li></ol><p class="notice">Each device in a multi-device ticket needs its own diagnosis, quote and test. Reset restores all samples.</p>` + btn('Practice cashier intake', 'practice-start')
       );
       break;
     case 'reset':
@@ -1889,7 +1896,8 @@ document.addEventListener('submit', (e) => {
   const form = e.target.closest('[data-form]');
   if (form) {
     e.preventDefault();
-    submit(form.dataset.form, form);
+    if (form.dataset.form.startsWith('practice-')) checkPractice(form.dataset.form, form);
+    else submit(form.dataset.form, form);
   }
 });
 document.addEventListener('change', (e) => {

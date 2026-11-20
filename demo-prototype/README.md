@@ -4,7 +4,7 @@ Open `index.html` in a modern browser, or use the hosted demo. Use the role sele
 
 Tracking code: `DEMO-1042`. Separate demo PIN: `2468`.
 
-Use **Wireframe view** to explain the structure, **Screen sizes** to preview phone/tablet/desktop, and **Reset demo** before another presentation. Changes stay in this browser's local storage, not in the real RepairTrack database.
+Open **Account settings → Practice cashier intake** in a staff workspace, or use **Demo controls → Demo guide → Practice cashier intake**. Match the contact suffix, check both serials, and save the practice draft. **Practice again** restarts only the exercise. **Reset demo** restores the entire sample workspace. Changes stay in this browser's local storage, not in the real RepairTrack database.
 
 ## Suggested walkthrough
 1. Start with Home, the MP4 hero, tracking code and pickup request.
@@ -15,6 +15,8 @@ Use **Wireframe view** to explain the structure, **Screen sizes** to preview pho
 6. Use Cashier to generate the bill, record cash and return devices. Use RT-1044 for a short pre-seeded payment example.
 7. Use Admin for assignment, inventory, transfers, notifications and reports. Use Collector for confirmed pickups and handoffs.
 8. Explain that pickup coverage is staff-confirmed, device location is confirmed custody, and COD needs cashier remittance confirmation.
+
+For a late device, collect its condition, accessories, and acknowledgment before adding it. In the cash desk, choose **Reverse cash payment** to return cash against the existing bill, or **Reduce price and refund cash** to reduce both the price and the collected cash. Review the projected balance before saving.
 
 ## Modules and files
 - `data.js`: seed records, catalog prices, state defaults.
