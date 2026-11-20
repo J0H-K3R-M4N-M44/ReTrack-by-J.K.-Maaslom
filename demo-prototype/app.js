@@ -513,12 +513,19 @@ function repairDetail() {
     `${!t.issued ? `<div class="notice">Draft: customer tracking is unavailable. ${btn('Review & issue', 'issue')}</div>` : ''}<div class="card device-toolbar"><label>Selected device<select id="device-picker">${t.devices.map((x, i) => `<option value="${i}" ${i === activeDevice ? 'selected' : ''}>${esc(itemCode(t, i))} · ${esc(x.name)}</option>`).join('')}</select></label>${deviceIdentity(t, activeDevice)}<div class="row">${badge(d.status)}${next ? btn(next[0], next[1], '', 'primary') : ''}${btn('Add device', 'add-device')}${t.issued ? btn('Tracking receipt', 'receipt') : ''}</div></div><div class="grid section"><section class="card"><p class="eyebrow">Device overview</p><h2>${esc(d.name)}</h2><dl class="summary"><div><dt>Reported problem</dt><dd>${esc(d.problem)}</dd></div><div><dt>Confirmed location</dt><dd>${esc(t.location)} · ${esc(t.custody)}</dd></div><div><dt>Visible condition</dt><dd>${esc(d.condition ?? t.condition)}</dd></div><div><dt>Accessories</dt><dd>${esc(d.accessories ?? t.accessories)}</dd></div><div><dt>Assigned technician</dt><dd>${esc(t.assigned || 'Unassigned')}</dd></div><div><dt>Diagnosis</dt><dd>${esc(d.diagnosis || 'Not recorded')}</dd></div></dl><div class="actions">${role === 'Admin' ? btn('Assign technician', 'assign') : ''}${next?.[1] !== 'diagnose' ? btn('Record diagnosis', 'diagnose') : ''}${next?.[1] !== 'status' ? btn('Update status', 'status') : ''}</div></section><section class="card"><h2>Work and costs</h2><p class="muted">Choose catalog parts and services. A changed quote needs fresh approval.</p><div class="stack">${btn('Build quotation', 'quote')}${btn('Request parts', 'request-part')}${next?.[1] !== 'test' ? btn('Record test results', 'test') : ''}${btn('Publish customer update', 'publish')}</div><small>Ready for pickup requires passed tests. Cash collection remains a separate action.</small></section></div><div class="grid section"><section class="card"><h2>Quotations</h2>${quotesHTML(t, false)}</section><section class="card"><h2>Device history</h2>${timeline(t.events.filter((event) => event.public || visibleEvent(event)).slice(0, 7))}<div class="actions">${btn('Internal note', 'note')}${role !== 'Technician' ? btn('Transfer / delivery', 'transfer') : ''}</div>${t.notes.length && (role === 'Admin' || role === 'Technician' && t.assigned === 'Mika Reyes') ? `<details><summary>Internal notes (${t.notes.length})</summary>${t.notes.map((n) => `<p>${esc(n)}</p>`).join('')}</details>` : ''}</section></div><section class="card section"><h2>Customer requests</h2>${requestsHTML(t, false)}</section>`
   );
 }
+function canDecideQuote(t, q) {
+  const index = q.device || 0;
+  const device = t.devices[index];
+  return device && !t.bill && t.custody !== 'Returned' && !device.returnAsIs &&
+    device.status !== 'Returned' && q.status === 'Pending' && q === deviceQuote(t, index);
+}
+
 function quotesHTML(t, customer) {
   return t.quotes.length
     ? t.quotes
         .map(
           (q) =>
-            `<article class="card section"><div class="row between"><h3>Quote v${q.version} · ${esc(t.devices[q.device || 0]?.name)}</h3>${badge(q.status)}</div><table><thead><tr><th>Item</th><th>Qty</th><th>Subtotal</th></tr></thead><tbody>${q.items.map((i) => `<tr><td>${esc(i.name)}</td><td>${i.qty}</td><td>${money(i.price * i.qty)}</td></tr>`).join('')}</tbody></table><p class="amount section">${money(q.total)}</p>${customer && q.status === 'Pending' ? `<div class="row">${btn('Approve quote', 'approve-quote', `data-version="${q.version}"`, 'primary')}${btn('Decline', 'decline-quote', `data-version="${q.version}"`)}</div>` : ''}</article>`
+            `<article class="card section"><div class="row between"><h3>Quote v${q.version} · ${esc(t.devices[q.device || 0]?.name)}</h3>${badge(q.status)}</div><table><thead><tr><th>Item</th><th>Qty</th><th>Subtotal</th></tr></thead><tbody>${q.items.map((i) => `<tr><td>${esc(i.name)}</td><td>${i.qty}</td><td>${money(i.price * i.qty)}</td></tr>`).join('')}</tbody></table><p class="amount section">${money(q.total)}</p>${customer && canDecideQuote(t, q) ? `<div class="row">${btn('Approve quote', 'approve-quote', `data-version="${q.version}"`, 'primary')}${btn('Decline', 'decline-quote', `data-version="${q.version}"`)}</div>` : ''}</article>`
         )
         .join('')
     : empty('No quotation yet. Diagnosis comes first.');
@@ -545,6 +552,15 @@ function portalTabs(tabs, tab) {
     <nav class="tabs portal-mobile" aria-label="Repair sections">${main.map(tabLink).join('')}
     <details><summary>${esc(selected || 'More')}</summary><div>${more.map(tabLink).join('')}</div></details></nav>`;
 }
+function portalHistory(t, custodyOnly = false) {
+  const events = t.events.filter(event => event.public && (!custodyOnly || event.custody));
+  if (verified) return timeline(events);
+  // Old public records can contain staff-entered evidence. Never render their text before the PIN.
+  const safe = events.filter(event => event.custody || event.group === 'Repairs')
+    .map(event => ({ at: event.at, text: event.custody ? 'Device custody updated.' : 'Repair progress updated.' }));
+  return safe.length ? timeline(safe) : empty('No tracking updates yet.');
+}
+
 function portal() {
   const t = ticket();
   const tab = location.hash.split('/')[1] || 'overview';
@@ -556,18 +572,19 @@ function portal() {
   let html = '';
   if (tab === 'overview') {
     const devices = t.devices.map((d, index) => {
-      const pending = deviceQuote(t, index)?.status === 'Pending';
+      const quote = deviceQuote(t, index);
+      const pending = quote && canDecideQuote(t, quote);
       const ready = d.status === 'Ready for pickup';
       const next = pending ? link(verified ? 'Review quote · ' + money(deviceQuote(t, index).total) : 'Review quote', 'portal/costs', 'button primary')
-        : ready ? `<p>${t.bill && balance(t) > 0 ? 'Balance due before pickup.' : 'Contact the branch to arrange pickup.'}</p>`
+        : ready ? `<p>${verified && t.bill && balance(t) > 0 ? 'Balance due before pickup.' : 'Contact the branch to arrange pickup.'}</p>`
         : `<p>${d.status === 'Returned' ? 'Returned to you.' : 'Your repair team will post the next update.'}</p>`;
       return `<article class="list-item"><div><h3>${esc(d.name)}</h3>${badge(d.status)}${next}</div></article>`;
     });
     html = `<div class="grid"><section class="card"><h2>Your devices</h2><div class="list">${devices.join('')}</div></section>
-      <section class="card"><h2>Repair history</h2>${timeline(t.events.filter((event) => event.public))}</section></div>`;
+      <section class="card"><h2>Repair history</h2>${portalHistory(t)}</section></div>`;
   }
   if (tab === 'location')
-    html = `<div class="grid"><section class="card"><p class="eyebrow">Last confirmed custody</p><h2>${esc(t.location)}</h2><p>${esc(t.custody)}</p>${BRANCHES.includes(t.location) ? branchMapCard(t.location) : '<p>Device is away from a branch. See the last confirmed handoff below.</p>'}</section><section class="card"><h2>Location updates</h2>${timeline(t.events.filter((e) => e.public && e.custody))}</section></div>`;
+    html = `<div class="grid"><section class="card"><p class="eyebrow">Last confirmed custody</p><h2>${esc(t.location)}</h2><p>${esc(t.custody)}</p>${BRANCHES.includes(t.location) ? branchMapCard(t.location) : '<p>Device is away from a branch. See the last confirmed handoff below.</p>'}</section><section class="card"><h2>Location updates</h2>${portalHistory(t, true)}</section></div>`;
   if (['messages', 'requests', 'costs', 'alerts'].includes(tab) && !verified)
     html = `<section class="card narrow"><p class="eyebrow">Extra verification</p><h2>Confirm access to your repair</h2><p class="muted">Tracking shows basic progress. Messages, costs and decisions need a separate PIN.</p><form data-form="verify" class="stack">${field('Demo PIN', 'pin', '', 'password')}<button class="primary">Verify demo access</button><small>Demo PIN: 2468. This is simulated verification only.</small></form></section>`;
   else if (tab === 'messages') html = chatHTML(t, true);
@@ -1280,7 +1297,7 @@ function action(name, el) {
         formModal(
           'Record physical cash',
           'cash',
-          `<p>Outstanding: ${money(balance(target))}</p>${field('Amount received', 'amount', balance(target), 'number')}${select('Collection method', 'method', ['Counter cash', 'COD'])}<label class="check"><input type="checkbox" required>I physically received this cash (demo)</label>`,
+          `<p>Outstanding: ${money(balance(target))}</p>${field('Amount received', 'amount', balance(target), 'number')}${select('Collection method', 'method', ['Counter cash', 'COD'])}<label class="check"><input type="checkbox" required>I physically received this cash (demo)</label><p role="status"></p>`,
           'Issue cash receipt'
         );
       }
@@ -1355,6 +1372,46 @@ function rememberIntake() {
 function requireGate(ok, message) {
   if (!ok) throw Error(message);
 }
+// Serialize the balance check across tabs and store each receipt before confirming cash.
+async function receiveCash(form) {
+  const button = form.querySelector('[type=submit]');
+  if (button.disabled) return;
+  button.disabled = true;
+  const id = context.id;
+  const values = new FormData(form);
+  const amount = Number(values.get('amount'));
+  const method = values.get('method');
+  const message = form.querySelector('[role=status]');
+  try {
+    requireGate(navigator.locks, 'Open the demo on localhost or HTTPS to record cash safely.');
+    await navigator.locks.request(DEMO_VERSION + '/cash', () => {
+      requireGate(form.isConnected && $('#modal').open && ['Cashier', 'Admin'].includes(role), 'Reopen the cash desk.');
+      const latest = readStoredDemo();
+      const target = latest.tickets.find(ticket => ticket.id === id);
+      requireGate(target?.bill && (state.branch === 'All branches' || state.branch === target.branch),
+        'Reopen this ticket at its receiving branch.');
+      requireGate(Number.isFinite(amount) && amount > 0 && Number.isSafeInteger(centavos(amount)) &&
+        centavos(amount) <= centavos(balance(target)), 'The remaining balance is ' + money(balance(target)) + '. Check the amount.');
+      requireGate(['Counter cash', 'COD'].includes(method), 'Choose a collection method.');
+      const payment = { id: 'RC-' + crypto.randomUUID(), amount, method, remitted: method !== 'COD', at: now() };
+      const event = { at: payment.at, text: id + ': ' + money(amount) + ' cash received by ' + method,
+        role, actorId: demoAccounts[role], group: 'Cash desk', public: true, ticketId: id,
+        branch: target.branch, receiptId: payment.id };
+      const entry = { ticketId: id, payment, event };
+      localStorage.setItem(receiptPrefix + payment.id, JSON.stringify(entry));
+      includeReceipt(latest, entry);
+      state = latest;
+      assignCustomerIds();
+    });
+    closeModal();
+    render();
+    toast('Cash receipt saved.');
+  } catch (error) {
+    message.textContent = error.message || 'Cash could not be saved. Check storage before retrying.';
+  } finally {
+    button.disabled = false;
+  }
+}
 // Read a submitted form and apply the matching demo workflow update.
 function submit(kind, form) {
   const f = new FormData(form),
@@ -1386,7 +1443,7 @@ function submit(kind, form) {
         toast('Demo access verified.');
         return;
       case 'reset':
-        clearPickupRecords();
+        clearDemoEntries();
         state = seedDemo();
         assignCustomerIds();
         saveDemo();
@@ -1608,7 +1665,10 @@ function submit(kind, form) {
         requireGate(verified && role === 'Customer', 'Verify customer access before deciding.');
         const q = t.quotes.find((q) => q.version === context.version);
         requireGate(q?.status === 'Pending', 'This quotation already has a decision.');
-        requireGate(q === deviceQuote(t, q.device || 0), 'Open the latest quote for this device.');
+        requireGate(canDecideQuote(t, q), 'This quote is closed. Refresh the ticket before continuing.');
+        const stored = readStoredDemo().tickets.find(ticket => ticket.id === t.id);
+        const storedQuote = stored?.quotes.find(item => item.version === q.version);
+        requireGate(storedQuote && canDecideQuote(stored, storedQuote), 'The ticket changed. Refresh to see the current decision.');
         q.status = kind === 'approve-quote' ? 'Approved' : 'Declined';
         const dev = t.devices[q.device || 0];
         if (q.status === 'Approved')
@@ -1701,6 +1761,8 @@ function submit(kind, form) {
             .forEach((d) => {
               d.status = 'Ready for pickup';
               d.returnAsIs = true;
+              const quote = deviceQuote(t, t.devices.indexOf(d));
+              if (quote?.status === 'Pending') quote.status = 'Withdrawn';
             });
           r.status = 'Approved for as-is return';
         } else r.status = v.decision;
@@ -1797,22 +1859,6 @@ function submit(kind, form) {
         p.status = v.status;
         p.reason = v.reason;
         record(`${p.id}: ${v.status}. ${v.reason}`, null, false, 'Collections', p.branch);
-        break;
-      }
-      case 'cash': {
-        const amount = Number(v.amount);
-        requireGate(
-          t.bill && amount > 0 && amount <= balance(t),
-          'Enter an amount above zero and no greater than the balance.'
-        );
-        t.payments.push({
-          id: 'RC-' + (state.audit.length + 100),
-          amount,
-          method: v.method,
-          remitted: v.method !== 'COD',
-          at: now(),
-        });
-        record(`${t.id}: ${money(amount)} cash received by ${v.method}`, t, true, 'Cash desk');
         break;
       }
       case 'refund': {
@@ -1963,7 +2009,8 @@ document.addEventListener('submit', (e) => {
   const form = e.target.closest('[data-form]');
   if (form) {
     e.preventDefault();
-    if (form.dataset.form === 'practice-role') checkRoleStep(form);
+    if (form.dataset.form === 'cash') receiveCash(form);
+    else if (form.dataset.form === 'practice-role') checkRoleStep(form);
     else if (form.dataset.form.startsWith('practice-')) checkPractice(form.dataset.form, form);
     else submit(form.dataset.form, form);
   }

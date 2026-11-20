@@ -40,5 +40,7 @@ This is a browser-only simulation, not production authentication or financial so
 
 The prototype captures cash at the final-bill stage, partial payments, refunds and COD remittance. Production policies for deposits, cancellation charges and signatures still need approval. The demo records a photo filename only. Catalog editing, date-range analytics and granular staff permissions are production extensions; sample prices and all-record reporting demonstrate those concepts.
 
+Cash receipts require browser storage and Web Locks. For a two-counter demonstration, open the same localhost or HTTPS demo in two tabs of one browser profile. Separate browsers and devices have separate sample records. Only staff receipt entries are serialized across tabs; other workflows still use the shared browser snapshot.
+
 ## Verification
 JavaScript syntax and DOM tests passed for 20 screens, multi-device approval/repair/testing/billing/return, stock reservation and usage, transfer custody, overpayment rejection and COD remittance. Browser checks confirmed tracking, diagnosis, quotes and shared customer decisions. Responsive preview showed no horizontal body overflow at phone, tablet and desktop sizes. No PHP or live database is used.

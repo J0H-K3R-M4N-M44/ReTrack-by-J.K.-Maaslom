@@ -238,23 +238,38 @@ function includePickup(snapshot, pickup, event) {
   }
 }
 
-function clearPickupRecords() {
+const receiptPrefix = DEMO_VERSION + '/receipt/';
+function includeReceipt(snapshot, entry) {
+  const ticket = snapshot.tickets.find(ticket => ticket.id === entry.ticketId);
+  if (!ticket) return;
+  if (!ticket.payments.some(payment => payment.id === entry.payment.id)) ticket.payments.push(entry.payment);
+  for (const feed of [ticket.events, snapshot.audit, snapshot.alerts]) {
+    if (!feed.some(event => event.receiptId === entry.payment.id)) feed.unshift({ ...entry.event });
+  }
+}
+
+function clearDemoEntries() {
   for (const key of Object.keys(localStorage)) {
-    if (key.startsWith(pickupPrefix)) localStorage.removeItem(key);
+    if (key.startsWith(pickupPrefix) || key.startsWith(receiptPrefix)) localStorage.removeItem(key);
   }
 }
 // Fall back to sample records if browser storage is missing or cannot be read.
+function readStoredDemo() {
+  const raw = localStorage.getItem(DEMO_VERSION);
+  const snapshot = raw ? JSON.parse(raw) : seedDemo();
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith(pickupPrefix)) {
+      const { pickup, event } = JSON.parse(localStorage.getItem(key));
+      includePickup(snapshot, pickup, event);
+    } else if (key.startsWith(receiptPrefix)) {
+      includeReceipt(snapshot, JSON.parse(localStorage.getItem(key)));
+    }
+  }
+  return snapshot;
+}
 function loadDemo() {
   try {
-    const raw = localStorage.getItem(DEMO_VERSION);
-    const snapshot = raw ? JSON.parse(raw) : seedDemo();
-    for (const key of Object.keys(localStorage)) {
-      if (key.startsWith(pickupPrefix)) {
-        const { pickup, event } = JSON.parse(localStorage.getItem(key));
-        includePickup(snapshot, pickup, event);
-      }
-    }
-    return snapshot;
+    return readStoredDemo();
   } catch {
     return seedDemo();
   }
