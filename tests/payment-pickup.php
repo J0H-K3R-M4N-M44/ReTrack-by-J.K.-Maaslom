@@ -142,3 +142,26 @@ expectResult($closed['case_state'] === 'CLOSED' && $closed['closure_outcome'] ==
 expectResult($returned['repair_status'] === 'COMPLETED' && $returned['custody_state'] === 'WITH_CUSTOMER'
     && $returned['physical_location_id'] === null, 'Device custody mismatch.');
 echo "PASS: bill issuance, stale review, partial payment, overpayment refusal, pickup and closure.\n";
+
+// Correct a paid bill after pickup and race two refund reviews against the same version.
+cashRecordBillChange($pdo, $manager['user_id'], $bill, $closed['version'],
+    'correction', '180.00', 'Remove duplicate work charge', true);
+$corrected = cashBillDetails($pdo, $first, $bill);
+expectResult($corrected['refund_due_cents'] === 2000 && cashAmountCents($corrected['total_amount']) === 20000,
+    'The reduction should preserve the original total and create a PHP 20 refund due.');
+cashRecordBillChange($pdo, $first['user_id'], $bill, $corrected['version'],
+    'refund', '20.00', 'Returned at counter', true);
+expectRefusal(fn() => cashRecordBillChange($pdo, $second['user_id'], $bill, $corrected['version'],
+    'refund', '20.00', 'Duplicate cashier review', true), 'bill changed');
+$refunded = cashBillDetails($pdo, $first, $bill);
+expectRefusal(fn() => cashRecordBillChange($pdo, $second['user_id'], $bill, $refunded['version'],
+    'refund', '0.01', 'Excess cash', true), 'refund due');
+expectResult($refunded['refund_due_cents'] === 0 && $refunded['case_state'] === 'CLOSED'
+    && count($refunded['payments']) === 2, 'Refund changed closure or original receipts.');
+cashRecordBillChange($pdo, $manager['user_id'], $bill, $refunded['version'],
+    'correction', '190.00', 'Customer approved replacement charge', true);
+$increased = cashBillDetails($pdo, $second, $bill);
+expectResult($increased['balance_cents'] === 1000, 'Expected PHP 10 due after the second correction.');
+$pay($second, $increased['version'], '10.00');
+expectResult(cashBillDetails($pdo, $second, $bill)['balance_cents'] === 0, 'Corrected bill was not settled.');
+echo "PASS: paid bill correction, refund, stale duplicate refund refusal and extra payment.\n";
