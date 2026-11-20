@@ -16,6 +16,7 @@ let role = 'Public',
   wireframe = false,
   intakeStep = 0,
   intakeDraft = {},
+  intakeDevice = 0,
   lastActivity = Date.now(),
   toastTimer;
 const ROLE_HOME = {
@@ -226,7 +227,7 @@ function navigation(route) {
     .join('');
 }
 function shell(route, html) {
-  return `<div class="mobile-nav"><details><summary>Menu · ${esc(role)} · ${esc(state.branch)}</summary><nav aria-label="Mobile workspace">${navigation(route)}</nav>${btn('Sign out', 'logout', '', 'quiet')}</details></div><div class="shell"><aside class="sidebar"><a class="brand" href="#${ROLE_HOME[role]}"><span class="brand-mark">R</span>RepairTrack</a><p class="eyebrow">${esc(role)} console</p><nav class="side-nav" aria-label="Main navigation">${navigation(route)}</nav><div class="sidebar-footer">${btn('Sign out', 'logout', '', 'quiet')}</div></aside><div class="workspace"><header class="topbar"><div><strong>${role === 'Technician' ? 'Mika Reyes' : role === 'Collector' ? 'Taylor · Collector' : 'RepairTrack staff'}</strong><small> / ${esc(role)}</small></div><div class="row"><label class="check">Branch<select id="branch-picker">${(state.singleStore ? [BRANCHES[0]] : role === 'Admin' ? ['All branches', ...BRANCHES] : BRANCHES).map((b) => `<option ${state.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>${link('Alerts ' + inbox().filter(isUnread).length, 'alerts', 'button quiet')}</div></header><main id="content" tabindex="-1" class="content">${html}</main></div></div>`;
+  return `<div class="mobile-nav"><details><summary>Menu · ${esc(role)} · ${esc(state.branch)}</summary><nav aria-label="Mobile workspace">${navigation(route)}</nav>${btn('Sign out', 'logout', '', 'quiet')}</details></div><div class="shell"><aside class="sidebar"><a class="brand" href="#${ROLE_HOME[role]}"><span class="brand-mark">R</span>RepairTrack</a><p class="eyebrow">${esc(role)} console</p><nav class="side-nav" aria-label="Main navigation">${navigation(route)}</nav><div class="sidebar-footer">${btn('Sign out', 'logout', '', 'quiet')}</div></aside><div class="workspace"><header class="topbar"><div><strong>${role === 'Technician' ? 'Mika Reyes' : role === 'Collector' ? 'Taylor · Collector' : 'RepairTrack staff'}</strong><small> / ${esc(role)}</small></div><div class="row"><label class="check">Viewing branch<select id="branch-picker">${(state.singleStore ? [BRANCHES[0]] : role === 'Admin' ? ['All branches', ...BRANCHES] : BRANCHES).map((b) => `<option ${state.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>${link('Alerts ' + inbox().filter(isUnread).length, 'alerts', 'button quiet')}</div></header><main id="content" tabindex="-1" class="content">${html}</main></div></div>`;
 }
 function publicNav() {
   const links = ['Home', 'About', 'FAQ', 'Contacts', 'Services']
@@ -382,6 +383,10 @@ function timeline(events) {
 }
 function intake() {
   const d = intakeDraft;
+  const devices = d.devices || [];
+  const item = devices[intakeDevice] || {};
+  const branches = state.singleStore || role !== 'Admin' ? [state.branch === 'All branches' ? BRANCHES[0] : state.branch] : BRANCHES;
+  const receiving = branches.includes(d.branch) ? d.branch : (branches.includes(state.branch) ? state.branch : branches[0]);
   return (
     header(
       'New device intake',
@@ -389,25 +394,24 @@ function intake() {
     ) +
     `<div class="narrow"><ol class="stepper">${['Customer', 'Device & condition', 'Review'].map((s, i) => `<li class="${i === intakeStep ? 'active' : ''}">${i + 1} ${s}</li>`).join('')}</ol><form data-form="intake" class="card form-grid">${
       intakeStep === 0
-        ? `<div class="wide">${select('Existing customer', 'existing', ['New customer', ...state.customers.map((c) => c.name)], d.existing || 'New customer')}<small>Select a match to fill contact details.</small></div>${field('Customer name', 'customer', d.customer || '')}${field('Phone or email', 'contact', d.contact || '')}${select('Receiving branch', 'branch', state.singleStore ? [BRANCHES[0]] : BRANCHES, d.branch || state.branch)}${select('Arrival', 'arrival', ['Walk-in', 'Pickup', 'Mail'], d.arrival || 'Walk-in')}`
+        ? `<div class="wide">${select('Existing customer', 'existing', ['New customer', ...state.customers.map((c) => c.name)], d.existing || 'New customer')}<small>Select a match to fill contact details.</small></div>${field('Customer name', 'customer', d.customer || '')}${field('Phone or email', 'contact', d.contact || '')}${branches.length === 1 ? `<div><strong>Receiving branch</strong><p>${esc(receiving)}</p><input type="hidden" name="branch" value="${esc(receiving)}"></div>` : select('Receiving branch', 'branch', branches, receiving)}${select('Arrival', 'arrival', ['Walk-in', 'Pickup', 'Mail'], d.arrival || 'Walk-in')}`
         : intakeStep === 1
-          ? `${field('Device brand and model', 'device', d.device || '')}${field('Serial number (optional)', 'serial', d.serial || '', 'text', false)}<div class="wide">${area('Reported problem', 'problem', d.problem || '')}</div><div class="wide">${area('Visible condition', 'condition', d.condition || '')}</div>${field('Accessories or “None”', 'accessories', d.accessories || '')}${field('Condition photo (demo filename, optional)', 'photo', d.photo || '', 'text', false)}<label class="check wide"><input type="checkbox" name="ack" ${d.ack ? 'checked' : ''}>Customer confirms condition and acknowledges the service terms.</label>`
+          ? `<h2 class="wide">Device ${intakeDevice + 1}</h2>${field('Device brand and model', 'device', item.device || '')}${field('Serial number (optional)', 'serial', item.serial || '', 'text', false)}<div class="wide">${area('Reported problem', 'problem', item.problem || '')}</div><div class="wide">${area('Visible condition', 'condition', item.condition || '')}</div>${field('Accessories or “None”', 'accessories', item.accessories || '')}${field('Condition photo (demo filename, optional)', 'photo', item.photo || '', 'text', false)}<label class="check wide"><input type="checkbox" name="ack" ${item.ack ? 'checked' : ''}>Customer confirms condition and acknowledges the service terms.</label>`
           : `<div class="wide"><h2>Confirm these details</h2><dl class="summary">${[
               ['Customer', d.customer],
               ['Contact', d.contact],
               ['Branch', d.branch],
               ['Arrival', d.arrival],
-              ['Device', d.device],
-              ['Problem', d.problem],
-              ['Condition', d.condition],
-              ['Accessories', d.accessories],
-              ['Serial', d.serial || 'Not supplied'],
-              ['Acknowledgment', d.ack ? 'Confirmed' : 'Still required to issue'],
             ]
               .map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`)
               .join(
                 ''
-              )}</dl></div><div class="notice wide">Save as draft first. Issuance adds tracking access after the checks pass. Photo files here are sample labels, not uploads or signatures.</div>`
+              )}</dl></div><section class="wide" aria-label="Intake devices">
+      <h2>${devices.length} device${devices.length === 1 ? '' : 's'} on this ticket</h2>
+      ${devices.map((entry, index) => `<article class="list-item"><div><h3>${index + 1}. ${esc(entry.device)}</h3>
+        <p>${esc(entry.problem)} · ${esc(entry.condition)}</p><small>Accessories: ${esc(entry.accessories)} · ${entry.ack ? 'Acknowledged' : 'Acknowledgment pending'}</small></div>
+        ${btn('Edit device ' + (index + 1), 'intake-device', `data-index="${index}"`)}</article>`).join('')}
+      <div class="actions">${btn('Add another device', 'intake-device', `data-index="${devices.length}"`)}</div></section><div class="notice wide">Save as draft first. Issuance adds tracking access after the checks pass. Photo files here are sample labels, not uploads or signatures.</div>`
     }<div class="actions wide">${intakeStep ? btn('Back', 'intake-back') : link('Cancel', 'repairs')}<button class="primary">${intakeStep === 2 ? 'Save intake draft' : 'Continue'}</button></div></form></div>`
   );
 }
@@ -431,7 +435,7 @@ function repairDetail() {
         : 'Draft intake. Complete the issue checks before sharing tracking access.',
       link('Back to queue', repairBack, 'button quiet')
     ) +
-    `${!t.issued ? `<div class="notice">Draft: customer tracking is unavailable. ${btn('Review & issue', 'issue')}</div>` : ''}<div class="row card"><label style="flex:1">Device<select id="device-picker">${t.devices.map((x, i) => `<option value="${i}" ${i === activeDevice ? 'selected' : ''}>${i + 1}. ${esc(x.name)}</option>`).join('')}</select></label>${badge(d.status)}${next ? btn(next[0], next[1], '', 'primary') : ''}${btn('Add device', 'add-device')}${t.issued ? btn('Tracking receipt', 'receipt') : ''}</div><div class="grid section"><section class="card"><p class="eyebrow">Device overview</p><h2>${esc(d.name)}</h2><dl class="summary"><div><dt>Reported problem</dt><dd>${esc(d.problem)}</dd></div><div><dt>Confirmed location</dt><dd>${esc(t.location)} · ${esc(t.custody)}</dd></div><div><dt>Visible condition</dt><dd>${esc(t.condition)}</dd></div><div><dt>Accessories</dt><dd>${esc(t.accessories)}</dd></div><div><dt>Assigned technician</dt><dd>${esc(t.assigned || 'Unassigned')}</dd></div><div><dt>Diagnosis</dt><dd>${esc(d.diagnosis || 'Not recorded')}</dd></div></dl><div class="actions">${role === 'Admin' ? btn('Assign technician', 'assign') : ''}${next?.[1] !== 'diagnose' ? btn('Record diagnosis', 'diagnose') : ''}${next?.[1] !== 'status' ? btn('Update status', 'status') : ''}</div></section><section class="card"><h2>Work and costs</h2><p class="muted">Choose catalog parts and services. A changed quote needs fresh approval.</p><div class="stack">${btn('Build quotation', 'quote')}${btn('Request parts', 'request-part')}${next?.[1] !== 'test' ? btn('Record test results', 'test') : ''}${btn('Publish customer update', 'publish')}</div><small>Ready for pickup requires passed tests. Cash collection remains a separate action.</small></section></div><div class="grid section"><section class="card"><h2>Quotations</h2>${quotesHTML(t, false)}</section><section class="card"><h2>Device history</h2>${timeline(t.events.filter((event) => event.public || visibleEvent(event)).slice(0, 7))}<div class="actions">${btn('Internal note', 'note')}${role !== 'Technician' ? btn('Transfer / delivery', 'transfer') : ''}</div>${t.notes.length && (role === 'Admin' || role === 'Technician' && t.assigned === 'Mika Reyes') ? `<details><summary>Internal notes (${t.notes.length})</summary>${t.notes.map((n) => `<p>${esc(n)}</p>`).join('')}</details>` : ''}</section></div><section class="card section"><h2>Customer requests</h2>${requestsHTML(t, false)}</section>`
+    `${!t.issued ? `<div class="notice">Draft: customer tracking is unavailable. ${btn('Review & issue', 'issue')}</div>` : ''}<div class="row card"><label style="flex:1">Device<select id="device-picker">${t.devices.map((x, i) => `<option value="${i}" ${i === activeDevice ? 'selected' : ''}>${esc(x.itemCode || t.id + '-' + String(i + 1).padStart(2, '0'))} · ${esc(x.name)}</option>`).join('')}</select></label>${badge(d.status)}${next ? btn(next[0], next[1], '', 'primary') : ''}${btn('Add device', 'add-device')}${t.issued ? btn('Tracking receipt', 'receipt') : ''}</div><div class="grid section"><section class="card"><p class="eyebrow">Device overview</p><h2>${esc(d.name)}</h2><dl class="summary"><div><dt>Reported problem</dt><dd>${esc(d.problem)}</dd></div><div><dt>Confirmed location</dt><dd>${esc(t.location)} · ${esc(t.custody)}</dd></div><div><dt>Visible condition</dt><dd>${esc(d.condition ?? t.condition)}</dd></div><div><dt>Accessories</dt><dd>${esc(d.accessories ?? t.accessories)}</dd></div><div><dt>Assigned technician</dt><dd>${esc(t.assigned || 'Unassigned')}</dd></div><div><dt>Diagnosis</dt><dd>${esc(d.diagnosis || 'Not recorded')}</dd></div></dl><div class="actions">${role === 'Admin' ? btn('Assign technician', 'assign') : ''}${next?.[1] !== 'diagnose' ? btn('Record diagnosis', 'diagnose') : ''}${next?.[1] !== 'status' ? btn('Update status', 'status') : ''}</div></section><section class="card"><h2>Work and costs</h2><p class="muted">Choose catalog parts and services. A changed quote needs fresh approval.</p><div class="stack">${btn('Build quotation', 'quote')}${btn('Request parts', 'request-part')}${next?.[1] !== 'test' ? btn('Record test results', 'test') : ''}${btn('Publish customer update', 'publish')}</div><small>Ready for pickup requires passed tests. Cash collection remains a separate action.</small></section></div><div class="grid section"><section class="card"><h2>Quotations</h2>${quotesHTML(t, false)}</section><section class="card"><h2>Device history</h2>${timeline(t.events.filter((event) => event.public || visibleEvent(event)).slice(0, 7))}<div class="actions">${btn('Internal note', 'note')}${role !== 'Technician' ? btn('Transfer / delivery', 'transfer') : ''}</div>${t.notes.length && (role === 'Admin' || role === 'Technician' && t.assigned === 'Mika Reyes') ? `<details><summary>Internal notes (${t.notes.length})</summary>${t.notes.map((n) => `<p>${esc(n)}</p>`).join('')}</details>` : ''}</section></div><section class="card section"><h2>Customer requests</h2>${requestsHTML(t, false)}</section>`
   );
 }
 function quotesHTML(t, customer) {
@@ -826,9 +830,13 @@ function action(name, el) {
         go('intake');
       }
       break;
+    case 'intake-device':
+      intakeDevice = Number(el.dataset.index);
+      intakeStep = 1;
+      render();
+      break;
     case 'intake-back':
-      rememberIntake();
-      intakeStep = Math.max(0, intakeStep - 1);
+      intakeStep = intakeStep === 1 && intakeDraft.devices?.length ? 2 : 0;
       render();
       break;
     case 'issue':
@@ -1222,8 +1230,12 @@ function rememberIntake() {
   const f = $('[data-form=intake]');
   if (!f) return;
   const values = Object.fromEntries(new FormData(f));
-  intakeDraft = { ...intakeDraft, ...values };
-  if (intakeStep === 1) intakeDraft.ack = f.elements.ack.checked;
+  if (intakeStep === 1) {
+    intakeDraft.devices ||= [];
+    intakeDraft.devices[intakeDevice] = { ...values, ack: f.elements.ack.checked };
+  } else if (intakeStep === 0) {
+    intakeDraft = { ...intakeDraft, ...values };
+  }
 }
 function requireGate(ok, message) {
   if (!ok) throw Error(message);
@@ -1292,6 +1304,7 @@ function submit(kind, form) {
         }
         {
           const n = intakeDraft;
+          const first = n.devices[0];
           const id = 'RT-' + state.sequence++;
           const item = {
             id,
@@ -1302,24 +1315,27 @@ function submit(kind, form) {
             branch: n.branch,
             arrival: n.arrival,
             issued: false,
-            condition: n.condition,
-            accessories: n.accessories,
-            photo: n.photo,
-            ack: n.ack,
+            condition: first.condition,
+            accessories: first.accessories,
+            photo: first.photo,
+            ack: first.ack,
             location: n.branch,
             custody: 'At branch',
             assigned: '',
-            devices: [
-              {
-                name: n.device,
-                serial: n.serial,
-                problem: n.problem,
-                status: 'Received',
-                diagnosis: '',
-                category: 'Not recorded',
-                tested: false,
-              },
-            ],
+            devices: n.devices.map((device, index) => ({
+              itemCode: id + '-' + String(index + 1).padStart(2, '0'),
+              name: device.device,
+              serial: device.serial,
+              problem: device.problem,
+              condition: device.condition,
+              accessories: device.accessories,
+              photo: device.photo,
+              ack: device.ack,
+              status: 'Received',
+              diagnosis: '',
+              category: 'Not recorded',
+              tested: false,
+            })),
             quotes: [],
             payments: [],
             refunds: [],
@@ -1341,6 +1357,7 @@ function submit(kind, form) {
           activeTicket = id;
           activeDevice = 0;
           intakeDraft = {};
+          intakeDevice = 0;
           intakeStep = 0;
           go('repair');
           toast('Draft saved. Review and issue when the checks are complete.');
