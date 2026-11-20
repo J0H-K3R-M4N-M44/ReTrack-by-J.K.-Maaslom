@@ -83,7 +83,7 @@ function seedDemo() {
         ],
         requests: [],
         events: [
-          { at: '24 Oct, 9:00 AM', text: 'Devices received at Central Branch', public: true },
+          { at: '24 Oct, 9:00 AM', text: 'Devices received at Central Branch', public: true, custody: true },
         ],
         parts: [],
         notes: [],
@@ -227,7 +227,8 @@ let state = loadDemo();
 function saveDemo() {
   try {
     localStorage.setItem(DEMO_VERSION, JSON.stringify(state));
+    return true;
   } catch {
-    /* Demo still works in memory when browser storage is unavailable. */
+    return false;
   }
 }
