@@ -119,6 +119,21 @@ function paid(t) {
 function balance(t) {
   return Math.max(0, centavos(t.bill?.total || 0) - centavos(paid(t))) / 100;
 }
+const reduction = 'Reduce price and refund cash';
+const reversal = 'Reverse cash payment';
+function correctionPreview(form) {
+  const t = state.tickets.find(ticket => ticket.id === context.id);
+  const amount = centavos(form.elements.amount.value);
+  const output = form.querySelector('output');
+  if (!amount || amount < 0 || amount > centavos(paid(t))) {
+    output.textContent = 'Enter an amount up to ' + money(paid(t)) + '.';
+    return;
+  }
+  const bill = centavos(t.bill.total) - (form.elements.kind.value === reduction ? amount : 0);
+  const cash = centavos(paid(t)) - amount;
+  output.textContent = 'After saving: bill ' + money(bill / 100) + ' · net cash ' + money(cash / 100)
+    + ' · balance due ' + money(Math.max(0, bill - cash) / 100);
+}
 // Map workflow status words to the shared badge colors.
 function badge(text) {
   const color = /Approved|Ready|Paid|Returned|Passed|Received|Completed|Remitted/.test(text)
@@ -658,7 +673,7 @@ function financeRow(t) {
   else if (canRelease(t)) primary = btn('Release device', 'release', id, 'primary');
   else if (!t.bill) primary = btn('Generate bill', 'bill', id, 'primary');
   else if (balance(t) > 0) primary = btn('Collect cash', 'cash', id, 'primary');
-  return `<article class="card"><div class="row between"><h2>${t.id} · ${esc(t.customer)}</h2>${badge(t.bill ? (balance(t) === 0 ? 'Paid' : 'Unpaid') : 'No final bill')}</div><p class="muted">Bill ${t.bill ? money(t.bill.total) : 'pending'} · Net collected ${money(paid(t))} · Balance ${t.bill ? money(balance(t)) : 'pending'}</p><p>${role !== 'Collector' ? esc(releaseBlocker(t)) : ''}</p><div class="actions">${primary}${pendingRemittance && role !== 'Collector' && canRelease(t) ? btn('Release device', 'release', id) : ''}${paid(t) > 0 ? btn('Receipt', 'cash-receipt', id) : ''}${paid(t) > 0 && role !== 'Collector' ? btn('Refund', 'refund', id) : ''}</div></article>`;
+  return `<article class="card"><div class="row between"><h2>${t.id} · ${esc(t.customer)}</h2>${badge(t.bill ? (balance(t) === 0 ? 'Paid' : 'Unpaid') : 'No final bill')}</div><p class="muted">Bill ${t.bill ? money(t.bill.total) : 'pending'} · Net collected ${money(paid(t))} · Balance ${t.bill ? money(balance(t)) : 'pending'}</p><p>${role !== 'Collector' ? esc(releaseBlocker(t)) : ''}</p><div class="actions">${primary}${pendingRemittance && role !== 'Collector' && canRelease(t) ? btn('Release device', 'release', id) : ''}${t.payments.length ? btn('Receipt', 'cash-receipt', id) : ''}${paid(t) > 0 && role !== 'Collector' ? btn('Refund', 'refund', id) : ''}</div></article>`;
 }
 
 let financePage = 1;
@@ -1220,12 +1235,14 @@ function action(name, el) {
       break;
     case 'refund':
       formModal(
-        'Record cash refund',
+        'Correct a cash payment',
         'refund',
-        field('Refund amount', 'amount', '', 'number') +
+        select('Correction type', 'kind', [reversal, reduction]) +
+          field('Cash to return', 'amount', '', 'number') + '<output aria-live="polite"></output>' +
           area('Reason and authorizing staff', 'reason'),
-        'Record physical refund'
+        'Save correction'
       );
+      correctionPreview($('[data-form=refund]'));
       break;
     case 'release': {
       const target = state.tickets.find((item) => item.id === context.id) || t;
@@ -1727,8 +1744,15 @@ function submit(kind, form) {
       case 'refund': {
         const amount = Number(v.amount);
         requireGate(amount > 0 && amount <= paid(t), 'Refund must not exceed net cash received.');
-        t.refunds.push({ amount, reason: v.reason, at: now() });
-        record(`${t.id}: physical refund ${money(amount)}. ${v.reason}`, t, true, 'Cash desk');
+        requireGate(['Admin', 'Cashier'].includes(role) && t.bill, 'Open the cash desk to correct a billed payment.');
+        requireGate([reduction, reversal].includes(v.kind) && v.reason.trim(), 'Choose a correction and give a reason.');
+        const previousTotal = t.bill.total;
+        if (v.kind === reduction) {
+          requireGate(centavos(amount) <= centavos(previousTotal), 'Correction exceeds the bill total.');
+          t.bill.total = (centavos(previousTotal) - centavos(amount)) / 100;
+        }
+        t.refunds.push({ amount, kind: v.kind, reason: v.reason.trim(), previousTotal, newTotal: t.bill.total, at: now() });
+        record(`${t.id}: ${v.kind}: ${money(amount)}. Balance ${money(balance(t))}. ${v.reason}`, t, true, 'Cash desk');
         break;
       }
       case 'release':
@@ -1778,7 +1802,7 @@ function showReceipt(t) {
 function showCashReceipt(t) {
   modal(
     'Cash receipt',
-    `<p class="eyebrow">Demo document</p><h2>${esc(t.id)} · ${esc(t.customer)}</h2><p>Final bill: ${money(t.bill?.total || 0)}</p>${t.payments.map((p) => `<p>${esc(p.id)}<br>${esc(displayTime(p.at))} · ${esc(p.method)}<br><strong>${money(p.amount)}</strong></p>`).join('')}<p>Refunds: ${money(t.refunds.reduce((n, r) => n + r.amount, 0))}</p><p class="amount">Balance ${money(balance(t))}</p><small>This is a sample receipt, not a tax invoice.</small><div class="actions">${btn('Print', 'print')}</div>`
+    `<p class="eyebrow">Demo document</p><h2>${esc(t.id)} · ${esc(t.customer)}</h2><p>Final bill: ${money(t.bill?.total || 0)}</p>${t.payments.map((p) => `<p>${esc(p.id)}<br>${esc(displayTime(p.at))} · ${esc(p.method)}<br><strong>${money(p.amount)}</strong></p>`).join('')}${t.refunds.map(r => `<p>${esc(r.kind || 'Cash refund')} · ${money(r.amount)} · ${esc(displayTime(r.at))}</p>`).join('')}<p>Refunds: ${money(t.refunds.reduce((n, r) => n + r.amount, 0))}</p><p class="amount">Balance ${money(balance(t))}</p><small>This is a sample receipt, not a tax invoice.</small><div class="actions">${btn('Print', 'print')}</div>`
   );
 }
 let cameraStream = null,
@@ -1940,6 +1964,7 @@ function filterRepairs(page = 1) {
 
 }
 document.addEventListener('input', (e) => {
+  if (e.target.form?.dataset.form === 'refund') correctionPreview(e.target.form);
   if (e.target.form?.dataset.form === 'pickup') e.target.setCustomValidity('');
   if (e.target.id === 'repair-search') filterRepairs();
   if (e.target.id === 'finance-search') filterFinance();
