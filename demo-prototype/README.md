@@ -4,7 +4,17 @@ Open `index.html` in a modern browser, or use the hosted demo. Use the role sele
 
 Tracking code: `DEMO-1042`. Separate demo PIN: `2468`.
 
-Open **Account settings → Practice cashier intake** in a staff workspace, or use **Demo controls → Demo guide → Practice cashier intake**. Match the contact suffix, check both serials, and save the practice draft. **Practice again** restarts only the exercise. **Reset demo** restores the entire sample workspace. Changes stay in this browser's local storage, not in the real RepairTrack database.
+Open **Account settings** in a staff workspace or the customer portal. Your role’s exercise appears first. **Other role lessons** lets you try another workflow. Visitors can use **Demo controls → Demo guide**. Each lesson gives feedback and can be replayed with **Practice again**.
+
+| Role | Practice task |
+| --- | --- |
+| Customer | Track a repair, verify the demo PIN and approve a quote |
+| Cashier | Match a customer and record two laptops by serial number |
+| Technician | Record a failed test, retest and mark the repair ready |
+| Collector | Select a confirmed pickup and record the handoff |
+| Admin | Assign within the branch and reserve available stock |
+
+**Reset demo** restores the entire sample workspace. Changes stay in this browser's local storage, not in the real RepairTrack database.
 
 ## Suggested walkthrough
 1. Start with Home, the MP4 hero, tracking code and pickup request.

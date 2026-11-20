@@ -538,7 +538,7 @@ function portal() {
   else if (tab === 'costs')
     html = `<div class="grid"><section class="card"><h2>Itemized quotations</h2>${quotesHTML(t, true)}</section><section class="card"><h2>Payment summary</h2><dl class="summary"><div><dt>Final bill</dt><dd>${t.bill ? money(t.bill.total) : 'Not issued yet'}</dd></div><div><dt>Cash received, net refunds</dt><dd>${money(paid(t))}</dd></div><div><dt>Balance</dt><dd>${t.bill ? money(balance(t)) : 'Pending final bill'}</dd></div><div><dt>Payment methods</dt><dd>Cash at counter or on delivery</dd></div></dl>${t.payments.map((p) => `<p class="section">Receipt ${esc(p.id)} · ${money(p.amount)} · ${esc(p.method)}</p>`).join('')}<p class="muted section">No online payment is available.</p></section></div>`;
   if (tab === 'alerts' && verified) html = ticketAlertPanel(t);
-  return `${publicNav()}<main id="content" tabindex="-1" class="container">${header('Your repair, at a glance', `${esc(t.id)} · ${t.devices.length} device${t.devices.length > 1 ? 's' : ''} · ${esc(t.branch)}`, badge(verified ? 'Verified demo session' : 'Tracking access'))}<nav class="tabs" aria-label="Repair sections">${tabs.map((s) =>  `<a href="#portal/${s.toLowerCase()}" class="${tab === s.toLowerCase() ? 'active' : ''}" ${tab === s.toLowerCase() ? 'aria-current="page"' : ''}>${s}</a>`).join('')}</nav>${html}</main>`;
+  return `${publicNav()}<main id="content" tabindex="-1" class="container">${header('Your repair, at a glance', `${esc(t.id)} · ${t.devices.length} device${t.devices.length > 1 ? 's' : ''} · ${esc(t.branch)}`, badge(verified ? 'Verified demo session' : 'Tracking access') + btn('Account settings', 'account-settings', '', 'quiet'))}<nav class="tabs" aria-label="Repair sections">${tabs.map((s) =>  `<a href="#portal/${s.toLowerCase()}" class="${tab === s.toLowerCase() ? 'active' : ''}" ${tab === s.toLowerCase() ? 'aria-current="page"' : ''}>${s}</a>`).join('')}</nav>${html}</main>`;
 }
 function chatHTML(t, customer) {
   return `<section class="card"><h2>${customer ? 'Your repair team' : 'Ticket conversation'} · ${esc(t.id)}</h2><div class="chat">${t.messages.map((m) => `<div class="bubble ${m.by === 'Customer' ? 'customer' : ''}"><small>${esc(m.by)}</small><p>${esc(m.text)}</p></div>`).join('') || empty('No messages yet.')}</div><form data-form="message" class="stack">${area('Message', 'message')}<button class="primary">Send demo message</button></form><small>Messages stay in this browser. No SMS or email is sent.</small></section>`;
@@ -834,8 +834,10 @@ function action(name, el) {
       toast('Demo session signed out.');
       break;
     case 'account-settings':
-      modal('Account settings', '<h3>Practice lessons</h3><p>Receive two identical laptops at the counter. You can repeat this exercise without changing shop records.</p>' +
-        btn('Practice cashier intake', 'practice-start'));
+      modal('Account settings', '<h3>Practice lessons</h3>' + lessonMenu(role));
+      break;
+    case 'role-lesson':
+      showRoleStep(el.dataset.lesson, 0);
       break;
     case 'practice-start':
       startPractice();
@@ -843,7 +845,7 @@ function action(name, el) {
     case 'guide':
       modal(
         'Your presentation route',
-        `<ol class="stack"><li>Start on Home. Enter <strong>DEMO-1042</strong>.</li><li>Explore tracking. Verify Messages or Costs with PIN <strong>2468</strong>.</li><li>Switch to Technician. Open RT-1042, record diagnosis and build a catalog quote.</li><li>Switch to Customer. Approve the quote in Costs.</li><li>Switch back to Technician. Repair, record tests and mark ready.</li><li>Use Admin for parts approvals, branches, requests and transfers.</li><li>Use Cashier to generate a bill, record cash and release devices.</li><li>Open Pickup and Collector to demonstrate collection and COD.</li></ol><p class="notice">Each device in a multi-device ticket needs its own diagnosis, quote and test. Reset restores all samples.</p>` + btn('Practice cashier intake', 'practice-start')
+        `<ol class="stack"><li>Start on Home. Enter <strong>DEMO-1042</strong>.</li><li>Explore tracking. Verify Messages or Costs with PIN <strong>2468</strong>.</li><li>Switch to Technician. Open RT-1042, record diagnosis and build a catalog quote.</li><li>Switch to Customer. Approve the quote in Costs.</li><li>Switch back to Technician. Repair, record tests and mark ready.</li><li>Use Admin for parts approvals, branches, requests and transfers.</li><li>Use Cashier to generate a bill, record cash and release devices.</li><li>Open Pickup and Collector to demonstrate collection and COD.</li></ol><p class="notice">Each device in a multi-device ticket needs its own diagnosis, quote and test. Reset restores all samples.</p>` + lessonMenu(role)
       );
       break;
     case 'reset':
@@ -1896,7 +1898,8 @@ document.addEventListener('submit', (e) => {
   const form = e.target.closest('[data-form]');
   if (form) {
     e.preventDefault();
-    if (form.dataset.form.startsWith('practice-')) checkPractice(form.dataset.form, form);
+    if (form.dataset.form === 'practice-role') checkRoleStep(form);
+    else if (form.dataset.form.startsWith('practice-')) checkPractice(form.dataset.form, form);
     else submit(form.dataset.form, form);
   }
 });
