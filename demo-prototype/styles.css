@@ -1018,3 +1018,37 @@ dialog::backdrop {
   min-height: 44px;
   cursor: pointer;
 }
+
+.device-toolbar, .device-identity { display: grid; gap: 8px; }
+.device-toolbar { gap: 16px; }
+.device-toolbar label, .device-toolbar select { width: 100%; min-width: 0; }
+.device-identity { border-left: 3px solid var(--accent); padding-left: 12px; overflow-wrap: anywhere; }
+.device-identity small { color: var(--muted); }
+.pill.received { background: #192f43; border-color: #547595; color: #b8dcff; }
+.pill.returned { background: #283139; border-color: #64717a; color: #dce1e4; }
+.hero-tools { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.hero-tools [data-action="video"] { border-color: transparent; font-size: 13px; color: var(--muted); }
+.intake-layout { width: 100%; }
+.shift-summary summary { cursor: pointer; padding-block: 6px; font-weight: 650; }
+.shift-summary[open] summary { margin-bottom: 16px; }
+.portal-mobile { display: none; }
+@media (max-width: 760px) {
+  .topbar { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 8px; padding: 8px 16px; align-items: center; }
+  .topbar .row { display: contents; }
+  .topbar .row > a, .staff-account > strong, .staff-account > small, .branch-caption { display: none; }
+  .topbar .check { grid-column: 2; grid-row: 1; }
+  .topbar select { min-width: 0; width: 100%; }
+  .staff-account { grid-column: 3; grid-row: 1; }
+  .staff-account button { padding-inline: 8px; }
+  .staff-menu { border: 0; padding: 0; }
+  .staff-menu details[open] { position: absolute; inset: 0 0 auto; background: var(--panel); padding: 8px 16px 16px; z-index: 5; box-shadow: 0 8px 20px #0005; }
+  .hero { padding: 24px 20px; gap: 16px; }
+  .hero h1 { font-size: 36px; }
+  .hero-tools { grid-column: 1; }
+  .portal-desktop { display: none; }
+  .portal-mobile { display: flex; justify-content: space-between; align-items: center; overflow: visible; gap: 0; }
+  .portal-mobile a, .portal-mobile summary { display: block; padding: 12px 8px; font-size: 14px; cursor: pointer; }
+  .portal-mobile details { position: relative; }
+  .portal-mobile summary { display: list-item; }
+  .portal-mobile details div { position: absolute; right: 0; z-index: 3; min-width: 144px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+}

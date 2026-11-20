@@ -136,7 +136,8 @@ function correctionPreview(form) {
 }
 // Map workflow status words to the shared badge colors.
 function badge(text) {
-  const color = /Approved|Ready|Paid|Returned|Passed|Received|Completed|Remitted/.test(text)
+  if (text === 'Received' || text === 'Returned') return `<span class="pill ${text.toLowerCase()}">${text}</span>`;
+  const color = /Approved|Ready|Paid|Passed|Completed|Remitted/.test(text)
     ? 'good'
     : /Awaiting|Requested|Draft|Pending|Diagnosing/.test(text)
       ? 'warn'
@@ -251,6 +252,19 @@ function navigation(route) {
   }
   links.push(['alerts', 'Notifications', '♢'], ['audit', 'Activity history', '◷']);
   const icons = {
+    overview: '<path d="M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z"/>',
+    repairs: '<path d="M14 6a5 5 0 0 0-6 6l-5 5a3 3 0 0 0 4 4l6-6a5 5 0 0 0 6-7l-3 3-3-3 3-3z"/>',
+    customers: '<path d="M4 20v-2a6 6 0 0 1 12 0v2 M6 7a4 4 0 1 0 8 0 4 4 0 1 0-8 0"/>',
+    inventory: '<path d="M3 7l9-4 9 4-9 4z M3 7v10l9 4 9-4V7 M12 11v10"/>',
+    finance: '<path d="M3 6h18v13H3z M3 10h18 M6 15h4"/>',
+    reports: '<path d="M3 3v18h18 M7 17v-5 M12 17V8 M17 17V5"/>',
+    logistics: '<path d="M2 6h12v11H2z M14 10h4l4 4v3h-8 M5 18a2 2 0 1 0 4 0 M16 18a2 2 0 1 0 4 0"/>',
+    transfers: '<path d="M3 8h17l-4-4 M21 16H4l4 4"/>',
+    settings: '<path d="M3 6h6m4 0h8M3 12h12m4 0h2M3 18h2m4 0h12 M9 4v4m6 2v4M6 16v4"/>',
+    parts: '<path d="M8 5h8l4 7-4 7H8l-4-7z M10 12a2 2 0 1 0 4 0 2 2 0 1 0-4 0"/>',
+    intake: '<path d="M4 3h16v18H4z M8 12h8 M12 8v8"/>',
+    audit: '<path d="M3 12a9 9 0 1 0 2-6 M3 3v5h5 M12 7v6l4 2"/>',
+
     team: '<circle cx="9" cy="8" r="3"/><path d="M2 20v-2a7 7 0 0 1 14 0v2m0-15a3 3 0 0 1 0 6m3 3a5 5 0 0 1 3 5"/>',
     alerts: '<path d="M4 17h16l-2-3V9a6 6 0 0 0-12 0v5zm6 3a2 2 0 0 0 4 0"/>',
     messages: '<path d="M3 4h18v13H9l-6 4z"/>'
@@ -269,7 +283,7 @@ function navigation(route) {
 
 }
 function shell(route, html) {
-  return `<div class="mobile-nav"><details><summary>Menu · ${esc(role)} · ${esc(state.branch)}</summary><nav aria-label="Mobile workspace">${navigation(route)}</nav>${btn('Sign out', 'logout', '', 'quiet')}</details></div><div class="shell"><aside class="sidebar"><a class="brand" href="#${ROLE_HOME[role]}"><span class="brand-mark" aria-hidden="true">R</span>RepairTrack</a><p class="eyebrow">${esc(role)} console</p><nav class="side-nav" aria-label="Main navigation">${navigation(route)}</nav><div class="sidebar-footer">${btn('Sign out', 'logout', '', 'quiet')}</div></aside><div class="workspace"><header class="topbar"><div><strong>${role === 'Technician' ? 'Mika Reyes' : role === 'Collector' ? 'Taylor · Collector' : 'RepairTrack staff'}</strong><small> / ${esc(role)}</small> ${btn('Account settings', 'account-settings', '', 'quiet')}</div><div class="row"><label class="check">Viewing branch<select id="branch-picker">${(state.singleStore ? [BRANCHES[0]] : role === 'Admin' ? ['All branches', ...BRANCHES] : BRANCHES).map((b) => `<option ${state.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>${link('Alerts ' + inbox().filter(isUnread).length, 'alerts', 'button quiet')}</div></header><main id="content" tabindex="-1" class="content">${html}</main></div></div>`;
+  return `<div class="shell"><aside class="sidebar"><a class="brand" href="#${ROLE_HOME[role]}"><span class="brand-mark" aria-hidden="true">R</span>RepairTrack</a><p class="eyebrow">${esc(role)} console</p><nav class="side-nav" aria-label="Main navigation">${navigation(route)}</nav><div class="sidebar-footer">${btn('Sign out', 'logout', '', 'quiet')}</div></aside><div class="workspace"><header class="topbar"><div class="mobile-nav staff-menu"><details><summary>Menu</summary><nav aria-label="Mobile workspace">${navigation(route)}</nav>${btn('Sign out', 'logout', '', 'quiet')}</details></div><div class="staff-account"><strong>${role === 'Technician' ? 'Mika Reyes' : role === 'Collector' ? 'Taylor · Collector' : 'RepairTrack staff'}</strong><small> / ${esc(role)}</small> ${btn('Account settings', 'account-settings', '', 'quiet')}</div><div class="row"><label class="check"><span class="branch-caption">Viewing branch</span><select aria-label="Viewing branch" id="branch-picker">${(state.singleStore ? [BRANCHES[0]] : role === 'Admin' ? ['All branches', ...BRANCHES] : BRANCHES).map((b) => `<option ${state.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>${link('Alerts ' + inbox().filter(isUnread).length, 'alerts', 'button quiet')}</div></header><main id="content" tabindex="-1" class="content">${html}</main></div></div>`;
 }
 function publicNav() {
   const links = ['Home', 'About', 'FAQ', 'Contacts', 'Services']
@@ -278,7 +292,7 @@ function publicNav() {
   return `<header class="public-nav"><a class="brand" href="#home"><span class="brand-mark" aria-hidden="true">R</span>RepairTrack</a><nav>${links}</nav>${link('Staff login', 'login', 'button quiet')}</header><details class="mobile-nav"><summary>Navigation</summary><nav>${links}</nav></details>`;
 }
 function home() {
-  return `${publicNav()}<main id="content" tabindex="-1"><section class="hero" id="home"><video muted autoplay loop playsinline poster="assets/video-poster.jpg"><source src="assets/login-bg.mp4" type="video/mp4"></video><div><p class="eyebrow">Computer repair, without the guesswork</p><h1>Your device.<br>Your updates.<br><span class="hero-accent">All in one place.</span></h1><p>Know what is happening, where your computer is, and what comes next.</p><div class="row section">${link('Request device pickup', 'pickup', 'button quiet')}${btn('Pause background', 'video', '', 'quiet')}</div></div><section class="card"><p class="eyebrow">Track a repair</p><h2>Let’s find your device</h2><form data-form="track" class="stack">${field('Tracking code', 'code', 'DEMO-1042')}<button class="primary">View my repair</button></form><div class="row section">${btn('Scan QR', 'scan')}${btn('Try sample QR', 'qr')}</div><small>Use DEMO-1042 for the main demonstration.</small></section></section><div class="container"><section id="about"><p class="eyebrow">The repair journey</p><h2>A clear next step, from check-in to return</h2><div class="grid three section">${[
+  return `${publicNav()}<main id="content" tabindex="-1"><section class="hero" id="home"><video muted autoplay loop playsinline poster="assets/video-poster.jpg"><source src="assets/login-bg.mp4" type="video/mp4"></video><div><p class="eyebrow">Computer repair, without the guesswork</p><h1>Your device.<br>Your updates.<br><span class="hero-accent">All in one place.</span></h1><p>Know what is happening, where your computer is, and what comes next.</p></div><section class="card"><p class="eyebrow">Track a repair</p><h2>Let’s find your device</h2><form data-form="track" class="stack">${field('Tracking code', 'code', 'DEMO-1042')}<button class="primary">View my repair</button></form><div class="row section">${btn('Scan QR', 'scan')}${btn('Try sample QR', 'qr')}</div><small>Use DEMO-1042 for the main demonstration.</small></section><div class="hero-tools">${link('Request device pickup', 'pickup', 'button quiet')}${btn('Pause background', 'video', '', 'quiet')}</div></section><div class="container"><section id="about"><p class="eyebrow">The repair journey</p><h2>A clear next step, from check-in to return</h2><div class="grid three section">${[
     ['01', 'Check in', 'Bring your device or request a confirmed collection.'],
     ['02', 'Review the work', 'Discuss findings and approve itemized costs.'],
     ['03', 'Receive your device', 'Follow updates, then collect or arrange delivery.'],
@@ -382,6 +396,11 @@ function overview() {
   const remaining = groups.flatMap(([, tasks]) => tasks.slice(1));
   const preview = [...firstTasks, ...remaining].slice(0, 4);
   const updates = state.audit.filter(visibleEvent).slice(0, 5);
+  if (role === 'Admin' && !preview.length) {
+    return header('Admin overview', esc(state.branch)) +
+      `<section class="card"><h2>All caught up</h2><p>No assignments or quotes need review.</p>${link('View activity history', 'audit')}</section>` +
+      (updates.length ? `<section class="card section"><h2>Recent activity</h2>${timeline(updates)}</section>` : '');
+  }
   return header(role + ' overview', esc(state.branch)) +
     `<div class="grid three">${groups.map(([label, tasks], index) =>
       `<a class="card" href="#overview/g${index}"><strong>${esc(label)}</strong><div class="metric">${tasks.length}</div></a>`).join('')}</div>
@@ -441,7 +460,7 @@ function intake() {
       'New device intake',
       'Capture essentials first. Review with the customer before issuing a ticket.'
     ) +
-    `<div class="narrow"><ol class="stepper">${['Customer', 'Device & condition', 'Review'].map((s, i) => `<li class="${i === intakeStep ? 'active' : ''}" ${i === intakeStep ? 'aria-current="step" tabindex="-1"' : ''}>${i + 1} ${s}</li>`).join('')}</ol><form data-form="intake" class="card form-grid">${
+    `<div class="intake-layout"><ol class="stepper">${['Customer', 'Device & condition', 'Review'].map((s, i) => `<li class="${i === intakeStep ? 'active' : ''}" ${i === intakeStep ? 'aria-current="step" tabindex="-1"' : ''}>${i + 1} ${s}</li>`).join('')}</ol><form data-form="intake" class="card form-grid">${
       intakeStep === 0
         ? `<div class="wide">${customerPicker(d.existing)}<small>Select a match to fill contact details.</small></div>${field('Customer name', 'customer', d.customer || '')}${field('Phone or email', 'contact', d.contact || '')}${branches.length === 1 ? `<div><strong>Receiving branch</strong><p>${esc(receiving)}</p><input type="hidden" name="branch" value="${esc(receiving)}"></div>` : select('Receiving branch', 'branch', branches, receiving)}${select('Arrival', 'arrival', ['Walk-in', 'Pickup', 'Mail'], d.arrival || 'Walk-in')}`
         : intakeStep === 1
@@ -466,6 +485,13 @@ function intake() {
 }
 // Ticket screen: status, custody and payment are deliberately independent.
 let repairBack = 'repairs';
+function itemCode(t, index) {
+  return t.devices[index].itemCode || t.id + '-' + String(index + 1).padStart(2, '0');
+}
+function deviceIdentity(t, index) {
+  const device = t.devices[index];
+  return `<div class="device-identity"><strong>${esc(device.name)}</strong><small>${esc(itemCode(t, index))} · Serial: ${esc(device.serial || 'Not recorded')}</small></div>`;
+}
 function repairDetail() {
   const t = ticket(),
     d = t.devices[activeDevice] || t.devices[0];
@@ -484,7 +510,7 @@ function repairDetail() {
         : 'Draft intake. Complete the issue checks before sharing tracking access.',
       link('Back to queue', repairBack, 'button quiet')
     ) +
-    `${!t.issued ? `<div class="notice">Draft: customer tracking is unavailable. ${btn('Review & issue', 'issue')}</div>` : ''}<div class="row card"><label style="flex:1">Device<select id="device-picker">${t.devices.map((x, i) => `<option value="${i}" ${i === activeDevice ? 'selected' : ''}>${esc(x.itemCode || t.id + '-' + String(i + 1).padStart(2, '0'))} · ${esc(x.name)}</option>`).join('')}</select></label>${badge(d.status)}${next ? btn(next[0], next[1], '', 'primary') : ''}${btn('Add device', 'add-device')}${t.issued ? btn('Tracking receipt', 'receipt') : ''}</div><div class="grid section"><section class="card"><p class="eyebrow">Device overview</p><h2>${esc(d.name)}</h2><dl class="summary"><div><dt>Reported problem</dt><dd>${esc(d.problem)}</dd></div><div><dt>Confirmed location</dt><dd>${esc(t.location)} · ${esc(t.custody)}</dd></div><div><dt>Visible condition</dt><dd>${esc(d.condition ?? t.condition)}</dd></div><div><dt>Accessories</dt><dd>${esc(d.accessories ?? t.accessories)}</dd></div><div><dt>Assigned technician</dt><dd>${esc(t.assigned || 'Unassigned')}</dd></div><div><dt>Diagnosis</dt><dd>${esc(d.diagnosis || 'Not recorded')}</dd></div></dl><div class="actions">${role === 'Admin' ? btn('Assign technician', 'assign') : ''}${next?.[1] !== 'diagnose' ? btn('Record diagnosis', 'diagnose') : ''}${next?.[1] !== 'status' ? btn('Update status', 'status') : ''}</div></section><section class="card"><h2>Work and costs</h2><p class="muted">Choose catalog parts and services. A changed quote needs fresh approval.</p><div class="stack">${btn('Build quotation', 'quote')}${btn('Request parts', 'request-part')}${next?.[1] !== 'test' ? btn('Record test results', 'test') : ''}${btn('Publish customer update', 'publish')}</div><small>Ready for pickup requires passed tests. Cash collection remains a separate action.</small></section></div><div class="grid section"><section class="card"><h2>Quotations</h2>${quotesHTML(t, false)}</section><section class="card"><h2>Device history</h2>${timeline(t.events.filter((event) => event.public || visibleEvent(event)).slice(0, 7))}<div class="actions">${btn('Internal note', 'note')}${role !== 'Technician' ? btn('Transfer / delivery', 'transfer') : ''}</div>${t.notes.length && (role === 'Admin' || role === 'Technician' && t.assigned === 'Mika Reyes') ? `<details><summary>Internal notes (${t.notes.length})</summary>${t.notes.map((n) => `<p>${esc(n)}</p>`).join('')}</details>` : ''}</section></div><section class="card section"><h2>Customer requests</h2>${requestsHTML(t, false)}</section>`
+    `${!t.issued ? `<div class="notice">Draft: customer tracking is unavailable. ${btn('Review & issue', 'issue')}</div>` : ''}<div class="card device-toolbar"><label>Selected device<select id="device-picker">${t.devices.map((x, i) => `<option value="${i}" ${i === activeDevice ? 'selected' : ''}>${esc(itemCode(t, i))} · ${esc(x.name)}</option>`).join('')}</select></label>${deviceIdentity(t, activeDevice)}<div class="row">${badge(d.status)}${next ? btn(next[0], next[1], '', 'primary') : ''}${btn('Add device', 'add-device')}${t.issued ? btn('Tracking receipt', 'receipt') : ''}</div></div><div class="grid section"><section class="card"><p class="eyebrow">Device overview</p><h2>${esc(d.name)}</h2><dl class="summary"><div><dt>Reported problem</dt><dd>${esc(d.problem)}</dd></div><div><dt>Confirmed location</dt><dd>${esc(t.location)} · ${esc(t.custody)}</dd></div><div><dt>Visible condition</dt><dd>${esc(d.condition ?? t.condition)}</dd></div><div><dt>Accessories</dt><dd>${esc(d.accessories ?? t.accessories)}</dd></div><div><dt>Assigned technician</dt><dd>${esc(t.assigned || 'Unassigned')}</dd></div><div><dt>Diagnosis</dt><dd>${esc(d.diagnosis || 'Not recorded')}</dd></div></dl><div class="actions">${role === 'Admin' ? btn('Assign technician', 'assign') : ''}${next?.[1] !== 'diagnose' ? btn('Record diagnosis', 'diagnose') : ''}${next?.[1] !== 'status' ? btn('Update status', 'status') : ''}</div></section><section class="card"><h2>Work and costs</h2><p class="muted">Choose catalog parts and services. A changed quote needs fresh approval.</p><div class="stack">${btn('Build quotation', 'quote')}${btn('Request parts', 'request-part')}${next?.[1] !== 'test' ? btn('Record test results', 'test') : ''}${btn('Publish customer update', 'publish')}</div><small>Ready for pickup requires passed tests. Cash collection remains a separate action.</small></section></div><div class="grid section"><section class="card"><h2>Quotations</h2>${quotesHTML(t, false)}</section><section class="card"><h2>Device history</h2>${timeline(t.events.filter((event) => event.public || visibleEvent(event)).slice(0, 7))}<div class="actions">${btn('Internal note', 'note')}${role !== 'Technician' ? btn('Transfer / delivery', 'transfer') : ''}</div>${t.notes.length && (role === 'Admin' || role === 'Technician' && t.assigned === 'Mika Reyes') ? `<details><summary>Internal notes (${t.notes.length})</summary>${t.notes.map((n) => `<p>${esc(n)}</p>`).join('')}</details>` : ''}</section></div><section class="card section"><h2>Customer requests</h2>${requestsHTML(t, false)}</section>`
   );
 }
 function quotesHTML(t, customer) {
@@ -507,6 +533,18 @@ function requestsHTML(t, customer) {
         .join('')
     : empty('No change requests.');
 }
+function portalTabs(tabs, tab) {
+  const tabLink = label => {
+    const path = label.toLowerCase();
+    return `<a href="#portal/${path}" ${path === tab ? 'class="active" aria-current="page"' : ''}>${label}</a>`;
+  };
+  const main = ['Overview', 'Costs', 'Messages'];
+  const more = tabs.filter(label => !main.includes(label));
+  const selected = more.find(label => label.toLowerCase() === tab);
+  return `<nav class="tabs portal-desktop" aria-label="Repair sections">${tabs.map(tabLink).join('')}</nav>
+    <nav class="tabs portal-mobile" aria-label="Repair sections">${main.map(tabLink).join('')}
+    <details><summary>${esc(selected || 'More')}</summary><div>${more.map(tabLink).join('')}</div></details></nav>`;
+}
 function portal() {
   const t = ticket();
   const tab = location.hash.split('/')[1] || 'overview';
@@ -520,7 +558,7 @@ function portal() {
     const devices = t.devices.map((d, index) => {
       const pending = deviceQuote(t, index)?.status === 'Pending';
       const ready = d.status === 'Ready for pickup';
-      const next = pending ? link('Review quote', 'portal/costs', 'button primary')
+      const next = pending ? link(verified ? 'Review quote · ' + money(deviceQuote(t, index).total) : 'Review quote', 'portal/costs', 'button primary')
         : ready ? `<p>${t.bill && balance(t) > 0 ? 'Balance due before pickup.' : 'Contact the branch to arrange pickup.'}</p>`
         : `<p>${d.status === 'Returned' ? 'Returned to you.' : 'Your repair team will post the next update.'}</p>`;
       return `<article class="list-item"><div><h3>${esc(d.name)}</h3>${badge(d.status)}${next}</div></article>`;
@@ -538,7 +576,7 @@ function portal() {
   else if (tab === 'costs')
     html = `<div class="grid"><section class="card"><h2>Itemized quotations</h2>${quotesHTML(t, true)}</section><section class="card"><h2>Payment summary</h2><dl class="summary"><div><dt>Final bill</dt><dd>${t.bill ? money(t.bill.total) : 'Not issued yet'}</dd></div><div><dt>Cash received, net refunds</dt><dd>${money(paid(t))}</dd></div><div><dt>Balance</dt><dd>${t.bill ? money(balance(t)) : 'Pending final bill'}</dd></div><div><dt>Payment methods</dt><dd>Cash at counter or on delivery</dd></div></dl>${t.payments.map((p) => `<p class="section">Receipt ${esc(p.id)} · ${money(p.amount)} · ${esc(p.method)}</p>`).join('')}<p class="muted section">No online payment is available.</p></section></div>`;
   if (tab === 'alerts' && verified) html = ticketAlertPanel(t);
-  return `${publicNav()}<main id="content" tabindex="-1" class="container">${header('Your repair, at a glance', `${esc(t.id)} · ${t.devices.length} device${t.devices.length > 1 ? 's' : ''} · ${esc(t.branch)}`, badge(verified ? 'Verified demo session' : 'Tracking access') + btn('Account settings', 'account-settings', '', 'quiet'))}<nav class="tabs" aria-label="Repair sections">${tabs.map((s) =>  `<a href="#portal/${s.toLowerCase()}" class="${tab === s.toLowerCase() ? 'active' : ''}" ${tab === s.toLowerCase() ? 'aria-current="page"' : ''}>${s}</a>`).join('')}</nav>${html}</main>`;
+  return `${publicNav()}<main id="content" tabindex="-1" class="container">${header('Your repair, at a glance', `${esc(t.id)} · ${t.devices.length} device${t.devices.length > 1 ? 's' : ''} · ${esc(t.branch)}`, badge(verified ? 'Verified demo session' : 'Tracking access') + btn('Account settings', 'account-settings', '', 'quiet'))}${portalTabs(tabs, tab)}${html}</main>`;
 }
 function chatHTML(t, customer) {
   return `<section class="card"><h2>${customer ? 'Your repair team' : 'Ticket conversation'} · ${esc(t.id)}</h2><div class="chat">${t.messages.map((m) => `<div class="bubble ${m.by === 'Customer' ? 'customer' : ''}"><small>${esc(m.by)}</small><p>${esc(m.text)}</p></div>`).join('') || empty('No messages yet.')}</div><form data-form="message" class="stack">${area('Message', 'message')}<button class="primary">Send demo message</button></form><small>Messages stay in this browser. No SMS or email is sent.</small></section>`;
@@ -661,12 +699,12 @@ function finance() {
       role === 'Collector' ? 'COD remittance' : 'Cash desk',
       'Approved costs, final bills and physical cash remain separate records.'
     ) +
-    `<div class="grid three"><section class="card"><small>Final bills</small><div class="metric">${money(scope().reduce((n, t) => n + (t.bill?.total || 0), 0))}</div></section><section class="card"><small>Net cash received</small><div class="metric">${money(scope().reduce((n, t) => n + paid(t), 0))}</div></section><section class="card"><small>COD awaiting remittance</small><div class="metric">${money(
+    `<section class="card section"><label>Find by ticket code<input type="search" id="finance-search"></label><div id="finance-list" class="list section"></div></section><details class="card section shift-summary"><summary>Shift summary</summary><div class="grid three"><section class="card"><small>Final bills</small><div class="metric">${money(scope().reduce((n, t) => n + (t.bill?.total || 0), 0))}</div></section><section class="card"><small>Net cash received</small><div class="metric">${money(scope().reduce((n, t) => n + paid(t), 0))}</div></section><section class="card"><small>COD awaiting remittance</small><div class="metric">${money(
       scope()
         .flatMap((t) => t.payments)
         .filter((p) => p.method === 'COD' && !p.remitted)
         .reduce((n, p) => n + p.amount, 0)
-    )}</div></section></div><section class="card section"><label>Find by ticket code<input type="search" id="finance-search"></label><div id="finance-list" class="list section"></div></section>`
+    )}</div></section></div></details>`
   );
 }
 function financeRow(t) {
@@ -839,7 +877,7 @@ function action(name, el) {
       toast('Demo session signed out.');
       break;
     case 'account-settings':
-      modal('Account settings', '<h3>Practice lessons</h3>' + lessonMenu(role));
+      modal('Account settings', '<p>' + esc(role) + ' workspace</p><h3>Practice lessons</h3>' + lessonMenu(role));
       break;
     case 'role-lesson':
       showRoleStep(el.dataset.lesson, 0);
@@ -958,13 +996,8 @@ function action(name, el) {
       formModal(
         'Record diagnosis',
         'diagnose',
-        area('Findings', 'diagnosis', d.diagnosis || '') +
-          select(
-            'Cause category',
-            'category',
-            ['Cooling', 'Storage', 'Memory', 'Power', 'Software'],
-            d.category
-          ) +
+        deviceIdentity(t, activeDevice) + area('Findings', 'diagnosis', d.diagnosis || '') +
+          `<label>Cause category<select required name="category"><option value="">Choose a cause</option>${['Cooling', 'Storage', 'Memory', 'Power', 'Software'].map(c => `<option ${c === d.category ? 'selected' : ''}>${c}</option>`).join('')}</select></label>` +
           area('Internal note (optional)', 'note', '', false),
         'Save findings'
       );
