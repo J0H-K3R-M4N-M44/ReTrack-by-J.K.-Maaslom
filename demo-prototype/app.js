@@ -502,7 +502,7 @@ function requestsHTML(t, customer) {
     ? t.requests
         .map(
           (r, i) =>
-            `<article class="list-item section"><div><h3>${esc(r.type)}</h3><p>${esc(r.text)}</p>${badge(r.status)}</div>${!customer && r.status === 'Requested' ? btn('Review request', 'review-request', `data-index="${i}"`) : ''}</article>`
+            `<article class="list-item section"><div><h3>${esc(r.type)}</h3><p>${esc(r.text)}</p>${badge(r.status)}</div>${!customer && ['Requested', 'Accepted for review'].includes(r.status) ? btn('Review request', 'review-request', `data-index="${i}"`) : ''}</article>`
         )
         .join('')
     : empty('No change requests.');
@@ -641,8 +641,13 @@ function releaseBlocker(t) {
   if (!t.issued) return 'Issue the ticket before handover.';
   if (!t.bill || balance(t) > 0) return 'Settle the bill before release.';
   if (t.custody === 'In transit') return 'Confirm the transfer handoff before release.';
+  return deviceHandoverBlocker(t);
+}
+function deviceHandoverBlocker(t) {
   const waiting = t.devices.filter((d) => !['Ready for pickup', 'Returned'].includes(d.status));
   if (waiting.length) return 'Waiting for ' + waiting.map((d) => d.name + ' (' + d.status + ')').join(', ') + '.';
+  const untested = t.devices.find(d => d.status === 'Ready for pickup' && !d.tested && !d.returnAsIs);
+  if (untested) return 'Record a passed test for ' + untested.name + ' before release.';
   if (!t.devices.some((d) => d.status === 'Ready for pickup')) return 'All devices have already been returned.';
   return '';
 }
@@ -1218,6 +1223,14 @@ function action(name, el) {
           );
           break;
         }
+        if (target.bill) break;
+        const incomplete = target.devices.find((device, index) =>
+          device.status !== 'Returned' && !device.returnAsIs &&
+          (!device.tested || deviceQuote(target, index)?.status !== 'Approved'));
+        if (incomplete) {
+          toast('Check the current quote and passed test for ' + incomplete.name + ' before billing.');
+          break;
+        }
         const total = approvedTotal(target) + (target.pickupFee || 0);
         if (!total && !target.devices.every((d) => d.returnAsIs)) {
           toast('No approved charges. Review quotes before generating a bill.');
@@ -1290,8 +1303,8 @@ function deviceQuote(t, index) {
 }
 function approvedTotal(t) {
   return t.devices.reduce((sum, d, i) => {
-    const q = [...t.quotes].reverse().find((q) => (q.device || 0) === i && q.status === 'Approved');
-    return sum + (q?.total || 0);
+    const quote = deviceQuote(t, i);
+    return sum + (quote?.status === 'Approved' ? quote.total : 0);
   }, 0);
 }
 // Keep the entered intake values before moving to another step.
@@ -1487,6 +1500,8 @@ function submit(kind, form) {
         record(`${t.id}: assigned to ${v.assigned}`, t);
         break;
       case 'diagnose':
+        requireGate(d.status !== 'Returned' && !d.returnAsIs, 'Start a new intake for additional work on this device.');
+        d.tested = false;
         d.diagnosis = v.diagnosis;
         d.category = v.category;
         d.status = 'Diagnosing';
@@ -1495,6 +1510,7 @@ function submit(kind, form) {
         break;
       case 'status': {
         requireGate(t.issued, 'Issue the ticket first.');
+        requireGate(!d.returnAsIs, 'This device is approved for as-is return.');
         const target = v.status;
         requireGate(
           target !== 'Returned',
@@ -1528,12 +1544,14 @@ function submit(kind, form) {
             d.tested,
             'Record passed tests first, or use the approved cancellation/decline return process.'
           );
+        if (target === 'Repairing' || target === 'Awaiting parts') d.tested = false;
         d.status = target;
         queueTicketAlert(t, 'Repair stage updated to ' + target + '.');
         record(`${d.name}: ${target}. ${v.note}`, t, true);
         break;
       }
       case 'quote': {
+        requireGate(!t.bill && !d.returnAsIs && d.status !== 'Returned', 'Start a new intake for additional work on this device.');
         const ids = f.getAll('item');
         requireGate(ids.length > 0, 'Select at least one catalog item.');
         const items = ids.map((id) => ({ ...CATALOG.find((c) => c.id === id), qty: 1 }));
@@ -1557,6 +1575,7 @@ function submit(kind, form) {
         requireGate(verified && role === 'Customer', 'Verify customer access before deciding.');
         const q = t.quotes.find((q) => q.version === context.version);
         requireGate(q?.status === 'Pending', 'This quotation already has a decision.');
+        requireGate(q === deviceQuote(t, q.device || 0), 'Open the latest quote for this device.');
         q.status = kind === 'approve-quote' ? 'Approved' : 'Declined';
         const dev = t.devices[q.device || 0];
         if (q.status === 'Approved')
@@ -1568,8 +1587,8 @@ function submit(kind, form) {
         else {
           dev.status = 'Awaiting approval';
           t.requests.push({
-            type: 'Declined quote return',
-            text: 'Customer declined quote. Review as-is return and previously disclosed charges.',
+            type: 'Declined quote return', device: q.device || 0, quoteVersion: q.version,
+            text: dev.name + ' · quote v' + q.version + ' declined. Review this device for as-is return.',
             status: 'Requested',
           });
         }
@@ -1626,14 +1645,25 @@ function submit(kind, form) {
         break;
       case 'review-request': {
         const r = t.requests[context.index];
-        requireGate(r.status === 'Requested', 'This request has already been reviewed.');
+        requireGate(['Requested', 'Accepted for review'].includes(r.status), 'This request has already been reviewed.');
         if (v.decision === 'Cancellation approved') {
           requireGate(
             ['Cancellation', 'Declined quote return'].includes(r.type),
             'Use cancellation approval only for cancellation or declined-quote return.'
           );
           requireGate(!t.bill, 'Review billed charges at the cash desk before cancellation.');
-          t.devices
+          let affected = t.devices;
+          if (r.type === 'Declined quote return') {
+            // Older requests lack a device reference. Match only an unambiguous declined quote.
+            const candidates = t.devices.filter((device, index) => {
+              const latest = deviceQuote(t, index);
+              return (r.device === undefined || r.device === index) &&
+                latest?.status === 'Declined' && (!r.quoteVersion || latest.version === r.quoteVersion);
+            });
+            requireGate(candidates.length === 1, 'This request cannot be matched to one current declined quote. Review the ticket before changing custody.');
+            affected = candidates;
+          }
+          affected
             .filter((d) => d.status !== 'Returned')
             .forEach((d) => {
               d.status = 'Ready for pickup';
@@ -1648,11 +1678,10 @@ function submit(kind, form) {
       case 'transfer':
         requireGate(t.issued, 'Issue the ticket first.');
         requireGate(t.custody !== 'In transit', 'Complete the existing transfer first.');
-        if (v.type === 'Customer delivery')
-          requireGate(
-            t.devices.every((d) => d.status === 'Ready for pickup'),
-            'All devices must be ready before dispatch.'
-          );
+        if (v.type === 'Customer delivery') {
+          const blocker = deviceHandoverBlocker(t);
+          requireGate(!blocker, blocker);
+        }
         state.transfers.push({
           ticket: t.id,
           type: v.type,
@@ -1667,7 +1696,10 @@ function submit(kind, form) {
       case 'receive-transfer': {
         const x = state.transfers[context.index],
           target = state.tickets.find((t) => t.id === x.ticket);
+        requireGate(x.status === 'In transit' && target.custody === 'In transit', 'This handoff is no longer pending.');
         if (x.type === 'Customer delivery') {
+          const blocker = deviceHandoverBlocker(target);
+          requireGate(!blocker, blocker);
           requireGate(
             target.bill && balance(target) === 0,
             'Settle the bill with counter cash or COD before confirming delivery.'
