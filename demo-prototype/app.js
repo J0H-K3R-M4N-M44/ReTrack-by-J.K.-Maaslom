@@ -899,7 +899,10 @@ function action(name, el) {
         'add-device',
         field('Device name', 'name') +
           field('Reported problem', 'problem') +
-          field('Serial (optional)', 'serial', '', 'text', false),
+          field('Serial (optional)', 'serial', '', 'text', false) +
+          field('Visible condition', 'condition') + field('Accessories or “None”', 'accessories') +
+          field('Condition photo label', 'photo', '', 'text', state.settings.photosRequired) +
+          '<label class="check"><input type="checkbox" name="ack" required>Customer confirms this device’s condition and service terms.</label>',
         'Add device'
       );
       break;
@@ -1434,7 +1437,13 @@ function submit(kind, form) {
         record(`${t.id}: devices received and tracking issued at ${t.branch}`, t, true, 'Custody');
         break;
       case 'add-device':
+        requireGate(!t.bill, 'A billed ticket cannot accept another device.');
+        requireGate([v.name, v.problem, v.condition, v.accessories].every(value => value?.trim())
+          && v.ack === 'on', 'Record device details, condition, accessories and acknowledgment.');
+        requireGate(!state.settings.photosRequired || v.photo?.trim(), 'Add a condition photo label.');
         t.devices.push({
+          itemCode: t.id + '-' + String(t.devices.length + 1).padStart(2, '0'),
+          condition: v.condition.trim(), accessories: v.accessories.trim(), photo: v.photo.trim(), ack: true,
           name: v.name,
           serial: v.serial,
           problem: v.problem,
@@ -1443,7 +1452,8 @@ function submit(kind, form) {
           category: 'Not recorded',
           tested: false,
         });
-        record(`${t.id}: additional device recorded`, t, true);
+        activeDevice = t.devices.length - 1;
+        record(`${t.devices[activeDevice].itemCode}: additional device received`, t, true);
         break;
       case 'assign':
         requireGate(v.assigned, 'Add an active technician for this branch first.');
