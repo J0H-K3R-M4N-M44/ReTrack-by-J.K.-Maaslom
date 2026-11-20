@@ -26,6 +26,7 @@
             <a href="#how-it-works">How it works</a>
             <a href="#prepare">Before your visit</a>
             <a href="#questions">Questions</a>
+            <a href="learn.php">Customer guide</a>
             <a class="nav-cta" href="admin/login.php">Staff sign in <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
         </nav>
     </header>
