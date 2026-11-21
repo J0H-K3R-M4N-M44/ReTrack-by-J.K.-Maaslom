@@ -68,6 +68,31 @@ $activeStep = $expired ? 1 : match ($latest['quote_status'] ?? '') {
      number_format((float) $latest['total_amount'], 2),
  ) ?></strong></p><p>This estimate is not a bill or payment receipt. Parts charges do not reserve stock.</p>
 <?php endif; ?></section>
+<?php if ($canPrepare && $device['case_state'] === 'OPEN' && $latest && $latest['quote_status'] === 'APPROVED'): ?>
+<?php foreach ($items as $item): if (!$item['tracks_branch_stock']) continue; ?>
+<section class="dashboard-card">
+    <h2>Branch stock · <?= h($item['description']) ?></h2>
+    <p><?= h($device['branch_name']) ?> · <?= h($item['available'] ?? '0') ?> available ·
+        <?= $item['installed'] ? 'Installed' : ($item['reservation_id'] ? 'Reserved for this device' : 'Awaiting reservation') ?></p>
+    <?php if (!$item['installed'] && !in_array($device['repair_status'], ['CANCELLED','COMPLETED'], true)): ?>
+    <form method="post" class="staff-actions">
+        <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+        <input type="hidden" name="intent" value="stock">
+        <input type="hidden" name="form_key" value="<?= h($formKey) ?>">
+        <input type="hidden" name="item_id" value="<?= (int) $item['quote_item_id'] ?>">
+        <input type="hidden" name="hold_id" value="<?= (int) $item['reservation_id'] ?>">
+        <?php if ($item['reservation_id']): ?>
+            <?php if ($device['repair_status'] === 'IN_PROGRESS'): ?>
+                <button class="logout-btn" name="stock_action" value="install">Record installation</button>
+            <?php endif; ?>
+            <?php if ($user['role'] !== 'TECHNICIAN'): ?><button class="secondary-btn" name="stock_action" value="release">Release unused part</button><?php endif; ?>
+        <?php elseif ($user['role'] !== 'TECHNICIAN'): ?>
+            <button class="secondary-btn" name="stock_action" value="reserve">Reserve quoted quantity</button>
+        <?php endif; ?>
+    </form>
+    <?php endif; ?>
+</section>
+<?php endforeach; endif; ?>
 <?php if (!$canChange): ?>
 <section class="dashboard-card"><h2>Estimate is read-only</h2><p>Start diagnosis before preparing a quote. Once repair has started or the ticket is closed, estimates stay read-only; changes need a separate change-order workflow.</p></section>
 <?php elseif ($review): ?>
@@ -157,6 +182,13 @@ elseif ($values['action'] === 'share'): ?><p>Mark revision <?= (int) $latest[
     ]
     as $key => $label
 ): ?>
+<?php if ($key === 'parts' && $catalog): ?>
+<label>Catalog part (one unit)
+<select name="part_id"><option value="">Use a written estimate only</option>
+<?php foreach ($catalog as $part): ?>
+<option value="<?= (int) $part['part_id'] ?>" <?= ($values['part_id'] ?? '') === (string) $part['part_id'] ? 'selected' : '' ?>><?= h($part['part_name'] . ' · ' . $part['sku']) ?></option>
+<?php endforeach; ?></select><small>The catalog name identifies the part on the estimate. Enter its quoted price below.</small></label>
+<?php endif; ?>
 <label><?= h(
     $label,
 ) ?><textarea name="<?= $key ?>_description" maxlength="300" rows="2" <?= $key === 'labor'

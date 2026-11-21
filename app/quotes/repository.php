@@ -2,6 +2,8 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../console/repository.php';
 
+require_once __DIR__ . '/../inventory/reservations.php';
+
 function quoteCanPrepare(array $user): bool
 {
     return in_array($user['role'], ['ADMIN', 'MANAGER', 'TECHNICIAN'], true);
@@ -116,12 +118,14 @@ function quoteSave(
             );
         }
         if ($action === 'draft' && quoteCanPrepare($user)) {
+            $input = stockQuoteInput($pdo, (int) $device['accountable_branch_id'], $input);
             $values = quoteValues($input);
             $version = (int) ($latest['version_no'] ?? 0) + 1;
             if ($version > 65535) {
                 throw new DomainException('The quote revision limit has been reached.');
             }
             if ($latest) {
+                stockReleaseQuote($pdo, (int) $latest['quote_id']);
                 $pdo->prepare(
                     "UPDATE repair_quotes SET quote_status = 'SUPERSEDED' WHERE quote_id = ?",
                 )->execute([$latest['quote_id']]);
@@ -144,9 +148,11 @@ function quoteSave(
                     continue;
                 }
                 $pdo->prepare(
-                    'INSERT INTO repair_quote_items (quote_id, item_type, description, quantity, unit_price, line_total) VALUES (?, ?, ?, 1, ?, ?)',
+                    'INSERT INTO repair_quote_items (quote_id, part_id, tracks_branch_stock, item_type, description, quantity, unit_price, line_total) VALUES (?, ?, ?, ?, ?, 1, ?, ?)',
                 )->execute([
                     $quoteId,
+                    $item['type'] === 'PART' ? (requestText($input, 'part_id') ?: null) : null,
+                    (int) ($item['type'] === 'PART' && requestText($input, 'part_id') !== ''),
                     $item['type'],
                     $item['description'],
                     $item['amount'],

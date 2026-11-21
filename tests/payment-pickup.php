@@ -51,7 +51,7 @@ $password = $browserFixture ? bin2hex(random_bytes(20)) : '';
 $hash = $browserFixture ? password_hash($password, PASSWORD_DEFAULT) : 'unused';
 $staff = [];
 $roles = ['MANAGER', 'CASHIER', 'CASHIER'];
-if (in_array('--concurrency', $argv, true)) {
+if (in_array('--concurrency', $argv, true) || in_array('--stock-pilot', $argv, true)) {
     $roles[] = 'MANAGER';
     $roles[] = 'TECHNICIAN';
 }
@@ -87,6 +87,10 @@ $quote = insertFixture($pdo,
 $pdo->prepare("INSERT INTO repair_quote_items (quote_id,item_type,description,quantity,unit_price,line_total)
     VALUES (?,'LABOR','Charging repair',1,100,100)")->execute([$quote]);
 
+if (in_array('--stock-pilot', $argv, true)) {
+    require __DIR__ . '/stock-pilot.php';
+    exit();
+}
 if (in_array('--concurrency', $argv, true)) {
     require __DIR__ . '/checkout-concurrency.php';
     testCheckoutRaces($pdo, $ticket, $device, $staff);
@@ -95,9 +99,16 @@ if (in_array('--concurrency', $argv, true)) {
 
 // Stream these temporary credentials to the browser runner, outside the web root.
 if ($browserFixture) {
+    $part = insertFixture($pdo, 'INSERT INTO parts (sku,part_name) VALUES (?,?)', [$run,'Demo SSD']);
+    stockRun($pdo, 'INSERT INTO branch_inventory (branch_id,part_id,quantity_on_hand) VALUES (?,?,1)', [$branch,$part]);
+    $techId = stockRun($pdo, 'SELECT user_id FROM users WHERE email=?', [$emails['technician']])->fetchColumn();
+    stockRun($pdo, "UPDATE ticket_devices SET repair_status='DIAGNOSING',assigned_technician_id=?
+        WHERE ticket_device_id=?", [$techId,$device]);
     echo json_encode($emails + [
         'password' => $password,
         'ticket' => $run,
+        'device' => $device,
+        'part' => $part,
     ], JSON_THROW_ON_ERROR);
     exit();
 }
