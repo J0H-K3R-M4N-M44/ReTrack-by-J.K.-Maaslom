@@ -70,11 +70,25 @@ try {
                 $_SESSION['issue_forms'][$formKey]['evidence'],
             );
             $values = intakeIssueValues($_POST);
-            $errors = intakeValidateIssue($pdo, $draft, $values, $userId);
+            $values['extra_devices'] = [];
+            $submitted = $_POST['extra_devices'] ?? [];
+            foreach (array_slice($draft['devices'], 1) as $index => $device) {
+                $details = is_array($submitted[$index] ?? null) ? $submitted[$index] : [];
+                $values['extra_devices'][] = intakeIssueValues($details + [
+                    'terms_version' => $values['terms_version'],
+                    'signature_confirmed' => $values['signature_confirmed'],
+                    'duplicate_confirmed' => $values['duplicate_confirmed'],
+                ]);
+            }
+            $errors = intakeValidateIssueEntries($pdo, $draft, $values, $userId);
             if (!$errors) {
                 $evidence = [];
                 try {
-                    foreach (['photo', 'signed_form'] as $kind) {
+                    $kinds = ['photo', 'signed_form'];
+                    for ($index = 2; $index <= count($draft['devices']); $index++) {
+                        $kinds[] = 'photo_' . $index;
+                    }
+                    foreach ($kinds as $kind) {
                         $file = $_FILES[$kind] ?? [];
                         $evidence[$kind] = intakeStoreUpload(is_array($file) ? $file : []);
                     }

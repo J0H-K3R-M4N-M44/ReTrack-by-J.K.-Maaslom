@@ -15,7 +15,7 @@ if (!ctype_digit($id)) {
 try {
     $query = getPDO()
         ->prepare("SELECT t.ticket_id, t.ticket_code, t.tracking_token_hash, t.intake_date, t.terms_version, t.issued_at, c.full_name,
-        b.branch_name, d.item_code, d.device_type_snapshot, d.make_snapshot, d.model_snapshot, d.serial_number_snapshot,
+        b.branch_name, d.child_sequence, d.item_code, d.device_type_snapshot, d.make_snapshot, d.model_snapshot, d.serial_number_snapshot,
         d.alternative_identifiers, d.reported_symptoms, d.condition_notes, d.repair_status, l.location_name
         FROM repair_tickets t JOIN customers c ON c.customer_id = t.customer_id
         JOIN branches b ON b.branch_id = t.accountable_branch_id AND b.is_active = 1
@@ -129,7 +129,7 @@ try {
 ): ?><div><dt><?= h($label) ?></dt><dd><?= h(
     $device[$key] ?: 'Not recorded',
 ) ?></dd></div><?php endforeach; ?>
-</dl></section><?php endforeach; ?>
+</dl><div class="issuance-actions no-print"><a class="secondary-btn" href="intake_evidence.php?ticket=<?= (int) $id ?>&amp;kind=photo_<?= (int) $device['child_sequence'] ?>">View condition photo</a></div></section><?php endforeach; ?>
 <section class="dashboard-card ticket-receipt"><h2>Accessories at intake</h2><ul><?php foreach (
     $accessories
     as $accessory
@@ -142,6 +142,6 @@ try {
          ? ': ' . h($accessory['notes'])
          : '') ?></li><?php endforeach; ?></ul><p>Signed terms version: <?= h(
     $ticket['terms_version'],
-) ?></p><div class="issuance-actions no-print"><a class="secondary-btn" href="intake_evidence.php?ticket=<?= (int) $id ?>&amp;kind=photo">View condition photo</a><a class="secondary-btn" href="intake_evidence.php?ticket=<?= (int) $id ?>&amp;kind=signed_form">View signed intake form</a></div></section>
+) ?></p><div class="issuance-actions no-print"><a class="secondary-btn" href="intake_evidence.php?ticket=<?= (int) $id ?>&amp;kind=signed_form">View signed intake form</a></div></section>
 </main></body></html>
 

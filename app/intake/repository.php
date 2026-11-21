@@ -51,7 +51,7 @@ function intakeSaveDraft(PDO $pdo, array $values, int $userId): int
         $pdo->beginTransaction();
         intakeLockActor($pdo, $userId);
 
-        $errors = intakeValidate($pdo, $values, intakeBranches($pdo, $userId));
+        $errors = intakeValidateDevices($pdo, $values, intakeBranches($pdo, $userId));
         if ($errors !== []) {
             throw new DomainException(implode(' ', $errors));
         }
@@ -66,21 +66,9 @@ function intakeSaveDraft(PDO $pdo, array $values, int $userId): int
         $ticketInsert->execute([$customerId, $branchId, $userId, $values['arrival_method']]);
         $ticketId = (int) $pdo->lastInsertId();
 
-        $deviceInsert = $pdo->prepare(
-            "INSERT INTO ticket_devices
-                (ticket_id, child_sequence, device_type_snapshot, make_snapshot, model_snapshot,
-                 serial_number_snapshot, reported_symptoms, condition_notes, repair_status)
-             VALUES (?, 1, ?, ?, ?, ?, ?, ?, 'DRAFT')",
-        );
-        $deviceInsert->execute([
-            $ticketId,
-            $values['device_type'],
-            $values['make'],
-            $values['model'],
-            $values['serial_number'] !== '' ? $values['serial_number'] : null,
-            $values['reported_symptoms'],
-            $values['condition_notes'],
-        ]);
+        foreach ([intakeDeviceFields($values), ...($values['extra_devices'] ?? [])] as $index => $device) {
+            intakeInsertDevice($pdo, $ticketId, $index + 1, $device);
+        }
 
         $audit = $pdo->prepare(
             "INSERT INTO audit_events
@@ -168,4 +156,14 @@ function intakeLockActor(PDO $pdo, int $userId): void
     if (!$query->fetchColumn()) {
         throw new DomainException('An active intake staff member must save this draft.');
     }
+}
+
+function intakeInsertDevice(PDO $pdo, int $ticketId, int $sequence, array $device): void
+{
+    $query = $pdo->prepare("INSERT INTO ticket_devices
+        (ticket_id, child_sequence, device_type_snapshot, make_snapshot, model_snapshot,
+         serial_number_snapshot, reported_symptoms, condition_notes, repair_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT')");
+    $query->execute([$ticketId, $sequence, $device['device_type'], $device['make'], $device['model'],
+        $device['serial_number'] ?: null, $device['reported_symptoms'], $device['condition_notes']]);
 }

@@ -104,6 +104,7 @@
 
   // Enter in the customer step advances instead of submitting hidden fields.
   form.addEventListener('submit', (event) => {
+    if (event.submitter?.value === 'add-device') return;
     updateCustomerFields();
     if (currentStep === 0) {
       event.preventDefault();
@@ -119,5 +120,5 @@
 
   updateCustomerFields();
   updateContactType();
-  showStep(0);
+  showStep(form.dataset.startStep === "1" ? 1 : 0);
 })();
