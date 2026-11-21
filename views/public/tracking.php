@@ -9,7 +9,7 @@
 </head>
 <body class="public-body">
 <a class="skip-link" href="#main">Skip to content</a>
-<header class="public-header"><a href="index.php">RepairTrack</a><nav aria-label="Customer navigation"><a href="index.php#prepare">Before your visit</a><a href="admin/login.php">Staff sign in</a></nav></header>
+<header class="public-header"><a href="index.php">RepairTrack</a><nav aria-label="Customer navigation"><a href="index.php#prepare">Before your visit</a><a href="learn.php">Customer guide</a><a href="admin/login.php">Staff sign in</a></nav></header>
 <main id="main" class="public-page">
     <p class="eyebrow">Your repair, clearly explained</p>
     <h1><?= $repair ? 'Your repair update' : 'Track your repair' ?></h1>

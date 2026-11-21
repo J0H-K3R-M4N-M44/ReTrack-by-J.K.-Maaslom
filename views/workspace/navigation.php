@@ -24,6 +24,7 @@ if (in_array($workspaceRole, ['ADMIN', 'MANAGER', 'INTAKE_AGENT'], true)) {
 if (in_array($workspaceRole, ['ADMIN', 'MANAGER', 'CASHIER'], true)) {
     $navigation['cash'] = ['Cash desk', 'staff_home.php?view=cash', 'cash'];
 }
+$navigation['learning'] = ['Learning center', 'learning.php', 'file'];
 $symbols = [
     'overview' => 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
     'bench' => 'M3 5h18v12H3z M8 21h8 M12 17v4',
