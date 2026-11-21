@@ -207,7 +207,25 @@ function modal(title, body) {
     `<header class="dialog-header"><h2 id="dialog-title">${title}</h2>${btn('✕', 'close', 'aria-label="Close dialog"', 'quiet')}</header>${body}`;
   $('#modal').showModal();
 }
+const repairEdits = ['diagnose', 'quote', 'test', 'status', 'request-part'];
+
+function repairReviewVersion(kind, ticket, index) {
+  // Issuing covers all devices. Technician edits only depend on the selected device.
+  const details = kind === 'issue' ? [ticket.devices, ticket.contact, state.settings.photosRequired]
+    : [ticket.devices[index], deviceQuote(ticket, index), ticket.parts.filter(p => (p.device || 0) === index)];
+  return JSON.stringify([ticket.id, ticket.branch, ticket.assigned, ticket.custody, ticket.issued, ticket.bill, details]);
+}
+
 function formModal(title, kind, body, submit = 'Save demo update') {
+  if (repairEdits.includes(kind) || kind === 'issue') {
+    const target = ticket();
+    if (repairEdits.includes(kind)) {
+      requireGate(target.issued && !target.bill && target.custody === 'At branch' &&
+        !target.devices[activeDevice].returnAsIs && target.devices[activeDevice].status !== 'Returned',
+        'Repair changes require an issued, unbilled device in branch custody.');
+    }
+    context.repairVersion = repairReviewVersion(kind, target, activeDevice);
+  }
   modal(
     title,
     `<form data-form="${kind}" class="stack">${body}<div class="actions">${btn('Cancel', 'close')}<button class="primary" type="submit">${submit}</button></div></form>`
@@ -1009,6 +1027,11 @@ function action(name, el) {
     return;
   }
   switch (name) {
+    case 'review-current-repair':
+      closeModal();
+      if (scope().some(item => item.id === activeTicket)) render();
+      else go('repairs');
+      break;
     case 'list-page':
       if ($('#repair-search')) filterRepairs(Number(el.dataset.page));
       else if ($('#finance-search')) filterFinance(Number(el.dataset.page));
@@ -1627,6 +1650,23 @@ function submit(kind, form) {
     d = t.devices[activeDevice] || t.devices[0];
   tick();
   try {
+    if (repairEdits.includes(kind) || kind === 'issue') {
+      if (t.id !== context.id || !scope().includes(t) ||
+          context.repairVersion !== repairReviewVersion(kind, t, activeDevice)) {
+        // Preserve typed notes so staff can copy them before reopening the current record.
+        const button = form.querySelector('[type=submit]');
+        button.type = 'button';
+        button.dataset.action = 'review-current-repair';
+        button.textContent = 'View current repair';
+        const notice = document.createElement('p');
+        notice.setAttribute('role', 'alert');
+        notice.textContent = 'This repair changed while the form was open. Your entry was not saved. Copy any notes you want to keep before viewing the current repair.';
+        notice.tabIndex = -1;
+        button.before(notice);
+        notice.focus();
+        return;
+      }
+    }
     if (['refund', 'release', 'remit'].includes(kind)) {
       const target = checkoutTicket(context.id);
       if (checkoutVersion(target) !== context.checkoutReview) {
@@ -2297,11 +2337,12 @@ document.addEventListener('submit', (e) => {
   if (form) {
     e.preventDefault();
     if (form.dataset.form === 'cash') receiveCash(form);
+    else if (form.querySelector('[data-action=review-current-repair]')) return;
     else if (form.dataset.form === 'intake' && intakeStep === 2)
       withCurrentRecords(e.submitter || form.querySelector('button.primary'), () => submit('intake', form));
     else if (form.dataset.form === 'practice-role') checkRoleStep(form);
     else if (form.dataset.form.startsWith('practice-')) checkPractice(form.dataset.form, form);
-    else if (['receive-transfer', 'transfer', 'review-request', 'receive-stock', 'stock-transfer', 'request-part', 'refund', 'release', 'remit'].includes(form.dataset.form))
+    else if (repairEdits.includes(form.dataset.form) || ['issue', 'receive-transfer', 'transfer', 'review-request', 'receive-stock', 'stock-transfer', 'request-part', 'refund', 'release', 'remit'].includes(form.dataset.form))
       withCurrentRecords(form.querySelector('[type=submit]'), () => submit(form.dataset.form, form));
     else submit(form.dataset.form, form);
   }
