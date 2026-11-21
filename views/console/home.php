@@ -190,10 +190,8 @@ require __DIR__ . '/../workspace/navigation.php';
  ) ?></td><td class="numeric"><?= h($row['currency']) ?> <?= number_format(
      (float) $row['amount_paid'],
      2,
- ) ?></td><td class="numeric"><?= h($row['currency']) ?> <?= number_format(
-     max(0, (float) $row['total_amount'] - (float) $row['amount_paid']),
-     2,
- ) ?></td><td><a href="cash.php?bill_id=<?= (int) $row['bill_id'] ?>">Open cash record</a></td>
+ ) ?></td><td class="numeric"><?php $difference = (float) $row['total_amount'] - (float) $row['amount_paid']; ?>
+    <?= $difference < 0 ? 'Refund due · ' : '' ?><?= h($row['currency']) ?> <?= number_format(abs($difference), 2) ?></td><td><a href="cash.php?bill_id=<?= (int) $row['bill_id'] ?>">Open cash record</a></td>
                     <?php elseif ($view === 'drafts'): ?>
                         <td>#<?= (int) $row['ticket_id'] ?></td><td><?= h(
     $row['customer_name'] ?? 'Not recorded',

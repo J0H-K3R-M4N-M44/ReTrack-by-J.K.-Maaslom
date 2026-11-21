@@ -133,11 +133,7 @@ function cashBillDetails(PDO $pdo, array $user, int $billId): array
     );
     $payments->execute([$billId]);
     $bill['payments'] = $payments->fetchAll();
-    $bill['balance_cents'] = max(
-        0,
-        cashAmountCents((string) $bill['total_amount']) -
-            cashAmountCents((string) $bill['amount_paid']),
-    );
+    cashLoadBillChanges($pdo, $bill);
     $bill['version'] = cashBillVersion($bill);
     return $bill;
 }
@@ -193,6 +189,7 @@ function cashBillVersion(array $bill): string
             $bill['updated_at'],
             $bill['amount_paid'],
             $bill['latest_payment_id'],
+            $bill['latest_change_id'],
         ]),
     );
 }
@@ -405,14 +402,14 @@ function cashRecordPayment(
         }
         $bill = cashBillForUpdate($pdo, $actor, $billId);
         cashRefreshPaymentTotals($pdo, $bill);
+        cashLoadBillChanges($pdo, $bill, true);
         if (!hash_equals(cashBillVersion($bill), $expectedVersion)) {
             throw new DomainException('The bill changed. Reload before recording another payment.');
         }
-        if ($bill['bill_status'] !== 'ISSUED' || $bill['case_state'] !== 'OPEN') {
-            throw new DomainException('Only an issued bill on an open ticket can receive cash.');
+        if ($bill['bill_status'] !== 'ISSUED' || ($bill['case_state'] !== 'OPEN' && !$bill['latest_change_id'])) {
+            throw new DomainException('This bill cannot receive another payment.');
         }
-        $balance = cashAmountCents((string) $bill['total_amount']) -
-            cashAmountCents((string) $bill['amount_paid']);
+        $balance = $bill['balance_cents'];
         if ($amountCents > $balance) {
             throw new DomainException('The payment cannot be greater than the remaining balance.');
         }
@@ -437,6 +434,84 @@ function cashRecordPayment(
     }
 }
 
+// Corrections set a new total. Refunds change net cash while leaving the original receipts intact.
+function cashLoadBillChanges(PDO $pdo, array &$bill, bool $lock = false): void
+{
+    $query = $pdo->prepare($lock
+        ? 'SELECT c.* FROM repair_bill_changes c WHERE c.bill_id = ? ORDER BY c.bill_change_id FOR UPDATE'
+        : 'SELECT c.*, u.full_name FROM repair_bill_changes c JOIN users u ON u.user_id = c.actor_user_id
+            WHERE c.bill_id = ? ORDER BY c.bill_change_id');
+    $query->execute([(int) $bill['bill_id']]);
+    $bill['changes'] = $query->fetchAll();
+    $bill['latest_change_id'] = 0;
+    $bill['corrected_cents'] = cashAmountCents((string) $bill['total_amount']);
+    $bill['refunded_cents'] = 0;
+    foreach ($bill['changes'] as $change) {
+        $amount = cashAmountCents((string) $change['amount']);
+        if ($change['change_type'] === 'CORRECTION') {
+            $bill['corrected_cents'] = $amount;
+        } else {
+            $bill['refunded_cents'] += $amount;
+        }
+        $bill['latest_change_id'] = (int) $change['bill_change_id'];
+    }
+    $paid = cashAmountCents((string) $bill['amount_paid']) - $bill['refunded_cents'];
+    $difference = $bill['corrected_cents'] - $paid;
+    $bill['balance_cents'] = max(0, $difference);
+    $bill['refund_due_cents'] = max(0, -$difference);
+}
+
+function cashRecordBillChange(
+    PDO $pdo,
+    int $actorId,
+    int $billId,
+    string $version,
+    string $action,
+    string $amountText,
+    string $reason,
+    bool $confirmed,
+): void {
+    $amount = cashAmountCents($amountText);
+    $reason = trim($reason);
+    if (!in_array($action, ['correction', 'refund'], true) || !$confirmed ||
+        $reason === '' || mb_strlen($reason) > 500) {
+        throw new DomainException('Enter a reason and confirm the change.');
+    }
+    $pdo->beginTransaction();
+    try {
+        $actor = cashLockActor($pdo, $actorId);
+        $roles = $action === 'correction' ? ['ADMIN', 'MANAGER'] : ['ADMIN', 'CASHIER'];
+        if (!in_array($actor['role'], $roles, true)) {
+            throw new DomainException('Your role cannot record this change.');
+        }
+        $bill = cashBillForUpdate($pdo, $actor, $billId);
+        cashRefreshPaymentTotals($pdo, $bill);
+        cashLoadBillChanges($pdo, $bill, true);
+        if (!hash_equals(cashBillVersion($bill), $version) || $bill['bill_status'] !== 'ISSUED') {
+            throw new DomainException('The bill changed. Reopen it before recording this change.');
+        }
+        if ($action === 'correction' && ($amount === $bill['corrected_cents'] ||
+            cashAmountCents((string) $bill['amount_paid']) === 0)) {
+            throw new DomainException('A paid bill and a different total are required.');
+        }
+        if ($action === 'refund' && ($amount <= 0 || $amount > $bill['refund_due_cents'])) {
+            throw new DomainException('The refund must be greater than zero and at most the remaining refund due.');
+        }
+        $pdo->prepare(
+            'INSERT INTO repair_bill_changes (bill_id, change_type, amount, reason, actor_user_id, created_at)
+            VALUES (?, ?, ?, ?, ?, UTC_TIMESTAMP())',
+        )->execute([$billId, strtoupper($action), cashAmountText($amount), $reason, $actorId]);
+        cashAudit($pdo, $actorId, 'repair_bill', $billId, strtoupper($action) . '_RECORDED', [
+            'amount' => cashAmountText($amount),
+            'reason' => $reason,
+        ]);
+        $pdo->commit();
+    } catch (Throwable $error) {
+        $pdo->rollBack();
+        throw $error;
+    }
+}
+
 // Use the same eligibility rules in the preview and on locked records at confirmation.
 function cashHandoverBlockers(array $bill, array $ticket): array
 {
@@ -445,9 +520,11 @@ function cashHandoverBlockers(array $bill, array $ticket): array
     }
 
     $blockers = [];
-    if (cashAmountCents((string) $bill['total_amount']) !==
-        cashAmountCents((string) $bill['amount_paid'])) {
+    if ($bill['balance_cents'] > 0) {
         $blockers[] = 'Collect the full bill balance before releasing the device.';
+    }
+    if ($bill['refund_due_cents'] > 0) {
+        $blockers[] = 'Record the outstanding refund before handover.';
     }
     if (!$ticket['devices']) {
         $blockers[] = 'This ticket has no devices to return.';
@@ -495,6 +572,7 @@ function cashCompleteHandover(
         }
         $bill = cashBillForUpdate($pdo, $actor, $billId);
         cashRefreshPaymentTotals($pdo, $bill);
+        cashLoadBillChanges($pdo, $bill, true);
         if (!hash_equals(cashBillVersion($bill), $expectedVersion)) {
             throw new DomainException('The bill changed. Reload before confirming handover.');
         }

@@ -103,11 +103,23 @@
                 <span class="workspace-status"><?= h(ucfirst(strtolower($bill['bill_status']))) ?></span>
             </div>
             <div class="payments-summary">
-                <div><span>Bill total</span><strong>PHP <?= number_format((float) $bill['total_amount'], 2) ?></strong></div>
+                <div><span>Original bill total</span><strong>PHP <?= number_format((float) $bill['total_amount'], 2) ?></strong></div>
                 <div><span>Cash recorded</span><strong>PHP <?= number_format((float) $bill['amount_paid'], 2) ?></strong></div>
+                <div><span>Corrected total</span><strong>PHP <?= number_format($bill['corrected_cents'] / 100, 2) ?></strong></div>
+                <div><span>Refunds recorded</span><strong>PHP <?= number_format($bill['refunded_cents'] / 100, 2) ?></strong></div>
+                <div><span>Refund due</span><strong>PHP <?= number_format($bill['refund_due_cents'] / 100, 2) ?></strong></div>
                 <div><span>Balance due</span><strong>PHP <?= number_format($bill['balance_cents'] / 100, 2) ?></strong></div>
             </div>
-            <p class="payments-note">Counter cash only. This screen does not record online payments, COD delivery, discounts, taxes, refunds, or digital signatures.</p>
+            <div class="staff-actions">
+                <?php if ($bill['bill_status'] === 'ISSUED' && cashAmountCents((string) $bill['amount_paid']) > 0 &&
+                    in_array($user['role'], ['ADMIN', 'MANAGER'], true)): ?>
+                    <a class="secondary-btn" href="cash.php?bill_id=<?= (int) $bill['bill_id'] ?>&amp;cash_action=correction">Correct paid bill</a>
+                <?php endif; ?>
+                <?php if ($bill['bill_status'] === 'ISSUED' && $bill['refund_due_cents'] > 0 &&
+                    in_array($user['role'], ['ADMIN', 'CASHIER'], true)): ?>
+                    <a class="secondary-btn" href="cash.php?bill_id=<?= (int) $bill['bill_id'] ?>&amp;cash_action=refund">Record cash refund</a>
+                <?php endif; ?>
+            </div>
         </section>
 
         <section class="dashboard-card">
@@ -142,7 +154,47 @@
         </section>
         <?php endif; ?>
 
-        <?php if ($pageAction === 'payment'): ?>
+        <?php if ($bill['changes']): ?>
+            <section class="dashboard-card">
+                <h2>Corrections and refunds</h2>
+                <ul>
+                    <?php foreach ($bill['changes'] as $change): ?>
+                        <li><strong><?= $change['change_type'] === 'CORRECTION' ? 'Corrected total' : 'Cash refunded' ?>
+                            PHP <?= h($change['amount']) ?></strong> · <?= h($change['full_name']) ?>
+                            · <?= h(workspaceDate($change['created_at'])) ?><br><?= h($change['reason']) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </section>
+        <?php endif; ?>
+
+        <?php if (in_array($pageAction, ['correction', 'refund'], true)): ?>
+            <?php $isRefund = $pageAction === 'refund'; ?>
+            <section class="dashboard-card payments-next-action">
+                <h2><?= $isRefund ? 'Record cash refund' : 'Correct paid bill' ?></h2>
+                <form method="post" class="staff-actions">
+                    <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+                    <input type="hidden" name="form_key" value="<?= h($formKey) ?>">
+                    <?php if ($review): ?>
+                        <p><?= $isRefund ? 'Cash returned' : 'New total' ?>:
+                            <strong>PHP <?= h($formValues['amount']) ?></strong><br><?= h($formValues['reason']) ?></p>
+                        <button class="secondary-btn" name="intent" value="edit">Back to edit</button>
+                        <button class="logout-btn" name="intent" value="save">Confirm <?= $isRefund ? 'refund' : 'correction' ?></button>
+                    <?php else: ?>
+                        <label><?= $isRefund ? 'Cash returned (PHP)' : 'New bill total (PHP)' ?>
+                            <input type="number" name="amount" step="0.01" min="<?= $isRefund ? '0.01' : '0' ?>"
+                                value="<?= h($formValues['amount'] ?? '') ?>" required>
+                        </label>
+                        <label><?= $isRefund ? 'Refund reason or reference' : 'Reason and customer approval reference, when required' ?>
+                            <textarea name="reason" maxlength="500" required><?= h($formValues['reason'] ?? '') ?></textarea>
+                        </label>
+                        <label class="payments-check"><input type="checkbox" name="confirm" value="yes" required>
+                            <?= $isRefund ? 'I counted and returned this cash to the customer.' : 'I verified the new total and recorded any required customer approval.' ?>
+                        </label>
+                        <button class="logout-btn" name="intent" value="review">Review</button>
+                    <?php endif; ?>
+                </form>
+            </section>
+        <?php elseif ($pageAction === 'payment'): ?>
             <section class="dashboard-card payments-next-action">
                 <h2><?= $review ? 'Review cash received' : 'Record counter cash' ?></h2>
                 <?php if ($review && $pageAction === 'payment'): ?>

@@ -78,9 +78,14 @@ function consoleCashDesk(PDO $pdo, array $user, array $input): array
         throw new DomainException('This role cannot open the cash desk.');
     }
     $term = likePattern(mb_substr(trim(requestText($input, 'q')), 0, 100));
-    $sql = "SELECT rb.bill_id, rb.bill_number, rb.bill_status, rb.total_amount, rb.currency,
+    $sql = "SELECT rb.bill_id, rb.bill_number, rb.bill_status,
+        COALESCE((SELECT c.amount FROM repair_bill_changes c WHERE c.bill_id = rb.bill_id
+            AND c.change_type = 'CORRECTION' ORDER BY c.bill_change_id DESC LIMIT 1), rb.total_amount) AS total_amount,
+        rb.currency,
         rb.issued_at, t.ticket_code, t.portal_code, b.branch_name,
-        COALESCE((SELECT SUM(p.amount) FROM repair_bill_payments p WHERE p.bill_id = rb.bill_id), 0) AS amount_paid
+        COALESCE((SELECT SUM(p.amount) FROM repair_bill_payments p WHERE p.bill_id = rb.bill_id), 0)
+        - COALESCE((SELECT SUM(c.amount) FROM repair_bill_changes c WHERE c.bill_id = rb.bill_id
+            AND c.change_type = 'REFUND'), 0) AS amount_paid
         FROM repair_bills rb JOIN repair_tickets t ON t.ticket_id = rb.ticket_id
         JOIN branches b ON b.branch_id = t.accountable_branch_id AND b.is_active = 1
         WHERE t.record_stage = 'ISSUED' AND rb.bill_status <> 'DRAFT'
