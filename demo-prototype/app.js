@@ -8,6 +8,7 @@ const esc = (v) =>
   );
 const money = (n) =>
   '₱' + Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+let publicTicketId = null;
 let role = 'Public',
   verified = false,
   activeTicket = 'RT-1042',
@@ -43,11 +44,12 @@ function now() {
   });
 }
 // Save one workflow event to the demo history, notifications and optional ticket.
-const feedGroups = ['Repairs', 'Conversations', 'Cash desk', 'Collections', 'Administration'];
+const feedGroups = ['Repairs', 'Conversations', 'Cash desk', 'Collections', 'Custody', 'Administration'];
 const feedSelection = { alerts: 'All', audit: 'All' };
 
-function record(text, ticket = null, isPublic = false, group = 'Repairs', branch = state.branch) {
+function record(text, ticket = null, isPublic = false, group = 'Repairs', branch = state.branch, custody = false) {
   const event = { at: now(), text, public: isPublic, role, group,
+    custody: custody || group === 'Collections' || group === 'Custody',
     ticketId: ticket?.id, branch: ticket?.branch || branch };
   state.audit.unshift(event);
   // Keep routine updates in history. Notify only for a handoff or a conversation.
@@ -95,11 +97,16 @@ function approvedQuote(t) {
   return [...t.quotes].reverse().find((q) => q.status === 'Approved');
 }
 // Refunds reduce the amount already paid toward this ticket.
+function centavos(amount) {
+  return Math.round(Number(amount) * 100);
+}
 function paid(t) {
-  return t.payments.reduce((n, p) => n + p.amount, 0) - t.refunds.reduce((n, p) => n + p.amount, 0);
+  const receipts = t.payments.reduce((total, payment) => total + centavos(payment.amount), 0);
+  const refunds = t.refunds.reduce((total, refund) => total + centavos(refund.amount), 0);
+  return (receipts - refunds) / 100;
 }
 function balance(t) {
-  return Math.max(0, (t.bill?.total || 0) - paid(t));
+  return Math.max(0, centavos(t.bill?.total || 0) - centavos(paid(t))) / 100;
 }
 // Map workflow status words to the shared badge colors.
 function badge(text) {
@@ -155,6 +162,7 @@ function setRole(next) {
   feedSelection.alerts = 'All';
   feedSelection.audit = 'All';
   repairReturn = null;
+  publicTicketId = null;
   role = next;
   if (role !== 'Admin' && state.branch === 'All branches') state.branch = BRANCHES[0];
   verified = false;
@@ -464,7 +472,7 @@ function portal() {
       <section class="card"><h2>Repair history</h2>${timeline(t.events.filter((event) => event.public))}</section></div>`;
   }
   if (tab === 'location')
-    html = `<div class="grid"><section class="card"><p class="eyebrow">Last confirmed custody</p><h2>${esc(t.location)}</h2><p>${esc(t.custody)}</p>${BRANCHES.includes(t.location) ? branchMapCard(t.location) : '<p>Device is away from a branch. See the last confirmed handoff below.</p>'}</section><section class="card"><h2>Location updates</h2>${timeline(t.events.filter((e) => e.public && /branch|handoff|transit|deliver|return|received/i.test(e.text)))}</section></div>`;
+    html = `<div class="grid"><section class="card"><p class="eyebrow">Last confirmed custody</p><h2>${esc(t.location)}</h2><p>${esc(t.custody)}</p>${BRANCHES.includes(t.location) ? branchMapCard(t.location) : '<p>Device is away from a branch. See the last confirmed handoff below.</p>'}</section><section class="card"><h2>Location updates</h2>${timeline(t.events.filter((e) => e.public && e.custody))}</section></div>`;
   if (['messages', 'requests', 'costs', 'alerts'].includes(tab) && !verified)
     html = `<section class="card narrow"><p class="eyebrow">Extra verification</p><h2>Confirm access to your repair</h2><p class="muted">Tracking shows basic progress. Messages, costs and decisions need a separate PIN.</p><form data-form="verify" class="stack">${field('Demo PIN', 'pin', '', 'password')}<button class="primary">Verify demo access</button><small>Demo PIN: 2468. This is simulated verification only.</small></form></section>`;
   else if (tab === 'messages') html = chatHTML(t, true);
@@ -572,9 +580,17 @@ function transfers() {
       ({ transfer: x, index: i }) => `<article class="card"><div class="row between"><h2>${x.ticket} · ${esc(x.type)}</h2>${badge(x.status)}</div><p>${esc(x.from)} to ${esc(x.to)}</p><p class="muted">${esc(x.evidence || 'Handoff evidence pending')}</p><div class="actions">${x.status === 'In transit' ? btn('Confirm handoff', 'receive-transfer', `data-index="${i}"`, 'primary') : ''}</div></article>`, 'No handoffs for this branch.')}</section>`
   );
 }
+function releaseBlocker(t) {
+  if (!t.issued) return 'Issue the ticket before handover.';
+  if (!t.bill || balance(t) > 0) return 'Settle the bill before release.';
+  if (t.custody === 'In transit') return 'Confirm the transfer handoff before release.';
+  const waiting = t.devices.filter((d) => !['Ready for pickup', 'Returned'].includes(d.status));
+  if (waiting.length) return 'Waiting for ' + waiting.map((d) => d.name + ' (' + d.status + ')').join(', ') + '.';
+  if (!t.devices.some((d) => d.status === 'Ready for pickup')) return 'All devices have already been returned.';
+  return '';
+}
 function canRelease(t) {
-  return t.issued && t.bill && balance(t) === 0 &&
-    t.devices.some((d) => d.status === 'Ready for pickup');
+  return !releaseBlocker(t);
 }
 
 function finance() {
@@ -594,14 +610,18 @@ function finance() {
 function financeRow(t) {
   const id = `data-id="${esc(t.id)}"`;
   let primary = '';
-  if (role === 'Collector') primary = btn('Confirm COD remittance', 'remit', id, 'primary');
+  const pendingRemittance = t.payments.some((p) => p.method === 'COD' && !p.remitted);
+  if (role === 'Collector') primary = '<p>Awaiting cashier confirmation</p>';
+  else if (pendingRemittance) primary = btn('Confirm COD remittance', 'remit', id, 'primary');
   else if (canRelease(t)) primary = btn('Release device', 'release', id, 'primary');
   else if (!t.bill) primary = btn('Generate bill', 'bill', id, 'primary');
   else if (balance(t) > 0) primary = btn('Collect cash', 'cash', id, 'primary');
-  return `<article class="card"><div class="row between"><h2>${t.id} · ${esc(t.customer)}</h2>${badge(t.bill ? (balance(t) === 0 ? 'Paid' : 'Unpaid') : 'No final bill')}</div><p class="muted">Bill ${t.bill ? money(t.bill.total) : 'pending'} · Net collected ${money(paid(t))} · Balance ${t.bill ? money(balance(t)) : 'pending'}</p><div class="actions">${primary}${paid(t) > 0 ? btn('Receipt', 'cash-receipt', id) : ''}${paid(t) > 0 && role !== 'Collector' ? btn('Refund', 'refund', id) : ''}</div></article>`;
+  return `<article class="card"><div class="row between"><h2>${t.id} · ${esc(t.customer)}</h2>${badge(t.bill ? (balance(t) === 0 ? 'Paid' : 'Unpaid') : 'No final bill')}</div><p class="muted">Bill ${t.bill ? money(t.bill.total) : 'pending'} · Net collected ${money(paid(t))} · Balance ${t.bill ? money(balance(t)) : 'pending'}</p><p>${role !== 'Collector' ? esc(releaseBlocker(t)) : ''}</p><div class="actions">${primary}${pendingRemittance && role !== 'Collector' && canRelease(t) ? btn('Release device', 'release', id) : ''}${paid(t) > 0 ? btn('Receipt', 'cash-receipt', id) : ''}${paid(t) > 0 && role !== 'Collector' ? btn('Refund', 'refund', id) : ''}</div></article>`;
 }
 
+let financePage = 1;
 function filterFinance(page = 1) {
+  financePage = page;
   const code = $('#finance-search').value.trim().toLowerCase();
   const rows = scope().filter((t) => t.issued && t.id.toLowerCase().includes(code) &&
     (role !== 'Collector' || t.payments.some((p) => p.method === 'COD' && !p.remitted)));
@@ -612,7 +632,7 @@ function reports() {
   const cats = ['Cooling', 'Storage', 'Memory', 'Power', 'Software', 'Not recorded'];
   return (
     header('Operational trends', 'Sample data only. Diagnosis counts reflect technician entries.') +
-    `<div class="row card"><strong>All demo records</strong><small>Reports summarize all current demo records.</small></div><div class="grid section"><section class="card"><h2>Recorded causes</h2><p class="muted">Sample size: ${devices.length} devices</p><div class="bars">${cats
+    `<div class="row card"><strong>${esc(state.branch)}</strong><small>Diagnosis and upgrade figures follow the selected branch.</small></div><div class="grid section"><section class="card"><h2>Recorded causes</h2><p class="muted">Sample size: ${devices.length} devices</p><div class="bars">${cats
       .map((c) => {
         let n = devices.filter(
           (d) => d.category === c || (!d.category && c === 'Not recorded')
@@ -623,7 +643,7 @@ function reports() {
       scope()
         .flatMap((t) => t.requests)
         .filter((r) => r.type === 'Upgrade').length
-    }</div><p class="muted">Customer upgrade requests</p><h2 class="section">Branch workload</h2>${BRANCHES.map((b) => `<p>${b}: ${state.tickets.filter((t) => t.branch === b).length} tickets</p>`).join('')}<small>Production reporting will add date ranges, turnaround time and repeat repair analysis.</small></section></div>`
+    }</div><p class="muted">Customer upgrade requests</p><h2 class="section">Workload across all branches</h2>${BRANCHES.map((b) => `<p>${b}: ${state.tickets.filter((t) => t.branch === b).length} tickets</p>`).join('')}<small>Production reporting will add date ranges, turnaround time and repeat repair analysis.</small></section></div>`
   );
 }
 function settings() {
@@ -686,18 +706,29 @@ function render() {
     audit,
   };
   const publics = ['home', 'login', 'pickup', 'portal'];
+  if (!Object.hasOwn(pages, route)) {
+    go(ROLE_HOME[role]);
+    return;
+  }
+  if (route === 'portal' && (role !== 'Customer' || !state.tickets.some((t) => t.id === publicTicketId && t.issued))) {
+    go('home');
+    toast('Enter the tracking code from your receipt to open a repair.');
+    return;
+  }
+  if (route === 'portal') activeTicket = publicTicketId;
   if (!publics.includes(route) && ['Public', 'Customer'].includes(role)) {
     // A direct URL must not select a staff role on the visitor's behalf.
     go('login');
     return;
   }
+  const financeQuery = $('#finance-search')?.value;
   $('#app').innerHTML = publics.includes(route)
     ? (pages[route] || home)()
     : shell(route, (pages[route] || overview)());
   if (route === 'finance') {
     const [, target, code] = location.hash.split('/');
-    if (target === 'ticket' && code) $('#finance-search').value = code;
-    filterFinance();
+    $('#finance-search').value = financeQuery ?? (target === 'ticket' ? (code || '') : '');
+    filterFinance(financeQuery === undefined ? 1 : financePage);
   }
   if (route === 'repairs' && repairReturn?.branch === state.branch) {
     $('#repair-search').value = repairReturn.query;
@@ -708,10 +739,6 @@ function render() {
     $('video')?.pause();
     const b = $('[data-action=video]');
     if (b) b.textContent = 'Play background';
-  }
-  if (route === 'portal' && !ticket().issued) {
-    go('home');
-    toast('This draft has no tracking access yet.');
   }
   document.title = 'RepairTrack · ' + (route.charAt(0).toUpperCase() + route.slice(1)) + ' demo';
 }
@@ -730,7 +757,10 @@ function action(name, el) {
       if ($('#repair-search')) filterRepairs(Number(el.dataset.page));
       else if ($('#finance-search')) filterFinance(Number(el.dataset.page));
       else if ($('#customer-filter')) filterCustomers(Number(el.dataset.page));
-      $('#repair-search, #customer-filter, #finance-search')?.focus();
+      const results = document.querySelector('#repair-list, #customer-list, #finance-list');
+      const range = results?.querySelector('[role="status"]');
+      range?.setAttribute('tabindex', '-1');
+      range?.focus();
       break;
     case 'close':
       closeModal();
@@ -1146,7 +1176,13 @@ function action(name, el) {
         'Record physical refund'
       );
       break;
-    case 'release':
+    case 'release': {
+      const target = state.tickets.find((item) => item.id === context.id) || t;
+      const blocker = releaseBlocker(target);
+      if (blocker) {
+        toast(blocker);
+        break;
+      }
       formModal(
         'Return devices to customer',
         'release',
@@ -1154,6 +1190,7 @@ function action(name, el) {
         'Confirm device return'
       );
       break;
+    }
     case 'remit':
       formModal(
         'Confirm COD remittance',
@@ -1205,7 +1242,7 @@ function submit(kind, form) {
           (t) => t.issued && t.code.toUpperCase() === v.code.trim().toUpperCase()
         );
         requireGate(found, 'Code not found. Try DEMO-1042 or check the receipt.');
-        activeTicket = found.id;
+        publicTicketId = activeTicket = found.id;
         activeDevice = 0;
         role = 'Customer';
         verified = false;
@@ -1319,7 +1356,7 @@ function submit(kind, form) {
         t.ack = true;
         t.photo = v.photo;
         t.issued = true;
-        record(`${t.id}: devices received and tracking issued at ${t.branch}`, t, true);
+        record(`${t.id}: devices received and tracking issued at ${t.branch}`, t, true, 'Custody');
         break;
       case 'add-device':
         t.devices.push({
@@ -1610,19 +1647,11 @@ function submit(kind, form) {
         break;
       }
       case 'release':
-        requireGate(t.bill && balance(t) === 0, 'Settle the bill before release.');
-        requireGate(
-          t.custody !== 'In transit',
-          'Use transfer handoff confirmation while the device is in transit.'
-        );
-        requireGate(
-          t.devices.every((d) => ['Ready for pickup', 'Returned'].includes(d.status)),
-          'Every device must be ready before this ticket-level handover.'
-        );
+        requireGate(canRelease(t), releaseBlocker(t));
         t.devices.forEach((d) => (d.status = 'Returned'));
         t.location = 'Customer';
         t.custody = 'Returned';
-        record(`${t.id}: devices returned. ${v.evidence}`, t, true, 'Cash desk');
+        record(`${t.id}: devices returned. ${v.evidence}`, t, true, 'Cash desk', t.branch, true);
         break;
       case 'remit':
         requireGate(
@@ -1640,9 +1669,9 @@ function submit(kind, form) {
         break;
     }
     closeModal();
-    saveDemo();
+    const saved = saveDemo();
     render();
-    toast('Demo update saved in this browser.');
+    toast(saved ? 'Demo update saved in this browser.' : 'Updated for this tab. Browser storage is unavailable.');
   } catch (error) {
     toast(error.message);
   }
@@ -1681,11 +1710,17 @@ async function scanQR() {
     'Scan tracking QR',
     '<video id="camera" autoplay playsinline style="width:100%"></video><p>Point your camera at a RepairTrack demo receipt.</p>'
   );
+  const preview = $('#camera');
   try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({
+    const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment' },
     });
-    $('#camera').srcObject = cameraStream;
+    if (!$('#modal').open || $('#camera') !== preview) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+    cameraStream = stream;
+    preview.srcObject = stream;
     const detector = new BarcodeDetector({ formats: ['qr_code'] });
     scanTimer = setInterval(async () => {
       const video = $('#camera');
@@ -1702,6 +1737,7 @@ async function scanQR() {
       } catch {}
     }, 700);
   } catch {
+    if ($('#camera') !== preview || !$('#modal').open) return;
     toast('Camera unavailable. Use manual tracking code entry.');
     closeModal();
   }
@@ -1834,7 +1870,7 @@ function handleRoute() {
     }
     const t = state.tickets.find((t) => t.issued && t.code === code);
     if (t) {
-      activeTicket = t.id;
+      publicTicketId = activeTicket = t.id;
       activeDevice = 0;
       role = 'Customer';
       verified = false;
