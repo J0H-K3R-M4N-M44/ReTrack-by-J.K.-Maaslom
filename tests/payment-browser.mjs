@@ -4,7 +4,10 @@ import { chromium } from 'playwright-core';
 
 const base = 'http://127.0.0.1:8742';
 const fixture = JSON.parse(readFileSync(process.env.PICKUP_FIXTURE, 'utf8'));
-const browser = await chromium.launch({ channel: 'chrome' });
+const browser = await chromium.launch({
+  executablePath: process.env.CHROME_PATH,
+  channel: process.env.CHROME_PATH ? undefined : 'chrome',
+});
 
 async function login(role, width) {
   const page = await browser.newPage({ viewport: { width, height: 900 } });
