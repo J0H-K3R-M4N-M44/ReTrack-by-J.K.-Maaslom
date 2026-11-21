@@ -51,6 +51,10 @@ $password = $browserFixture ? bin2hex(random_bytes(20)) : '';
 $hash = $browserFixture ? password_hash($password, PASSWORD_DEFAULT) : 'unused';
 $staff = [];
 $roles = ['MANAGER', 'CASHIER', 'CASHIER'];
+if (in_array('--concurrency', $argv, true)) {
+    $roles[] = 'MANAGER';
+    $roles[] = 'TECHNICIAN';
+}
 if ($browserFixture) {
     $roles = array_merge($roles, ['ADMIN', 'INTAKE_AGENT', 'TECHNICIAN', 'COURIER', 'VIEWER']);
 }
@@ -82,6 +86,12 @@ $quote = insertFixture($pdo,
      VALUES (?,1,'APPROVED',100,100,?)", [$device,$manager['user_id']]);
 $pdo->prepare("INSERT INTO repair_quote_items (quote_id,item_type,description,quantity,unit_price,line_total)
     VALUES (?,'LABOR','Charging repair',1,100,100)")->execute([$quote]);
+
+if (in_array('--concurrency', $argv, true)) {
+    require __DIR__ . '/checkout-concurrency.php';
+    testCheckoutRaces($pdo, $ticket, $device, $staff);
+    exit();
+}
 
 // Stream these temporary credentials to the browser runner, outside the web root.
 if ($browserFixture) {
