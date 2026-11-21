@@ -209,7 +209,7 @@ function seedDemo() {
     ],
     transfers: [],
     audit: [],
-    alerts: [{ text: 'RT-1044 is ready for cash collection and handover', read: false }],
+    alerts: [{ group: 'Cash desk', branch: 'Central Branch', ticketId: 'RT-1044', text: 'RT-1044 is ready for cash collection and handover', read: false }],
     settings: { idleMinutes: 60, photosRequired: false },
   };
 }
