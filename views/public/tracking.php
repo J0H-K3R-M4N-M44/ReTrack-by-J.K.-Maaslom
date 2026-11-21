@@ -13,7 +13,7 @@
 <main id="main" class="public-page">
     <p class="eyebrow">Your repair, clearly explained</p>
     <h1><?= $repair ? 'Your repair update' : 'Track your repair' ?></h1>
-    <?php if ($error): ?><p class="public-notice" role="alert"><?= h($error) ?></p><?php endif; ?>
+    <?php if ($error): ?><p id="tracking-error" class="public-notice" role="alert"><?= h($error) ?></p><?php endif; ?>
     <?php if (!$repair): ?>
     <section class="public-card">
         <h2>Use your tracking code and PIN</h2>
@@ -21,10 +21,11 @@
         <form method="post" id="tracking-form">
             <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
             <label for="tracking-code">Tracking code</label>
-            <input id="tracking-code" name="tracking_code" required minlength="5" maxlength="64" pattern="([a-fA-F0-9]{5}|[a-fA-F0-9]{64})" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="tracking-help">
-            <p id="tracking-help">Enter the five-character code from your branch (for example A3F90). Older 64-character private codes still work without a PIN.</p>
+            <input id="tracking-code" name="tracking_code" required minlength="5" maxlength="64" pattern="([a-fA-F0-9]{5}|[a-fA-F0-9]{64})" value="<?= h($enteredCode) ?>" title="Use five hexadecimal characters or your original 64-character private code." autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="tracking-help<?= $errorField === 'tracking-code' ? ' tracking-error' : '' ?>" <?= $errorField === 'tracking-code' ? 'aria-invalid="true" autofocus' : '' ?>>
+            <p id="tracking-help">Enter the five-character code from your branch (for example A3F90).</p>
+            <details><summary>Using an older tracking code?</summary><p>Enter your full 64-character private code. You can leave the PIN blank.</p></details>
             <label for="portal-pin">Portal PIN</label>
-            <input id="portal-pin" name="portal_pin" type="password" inputmode="numeric" minlength="4" maxlength="4" pattern="[0-9]{4}" autocomplete="off" aria-describedby="pin-help">
+            <input id="portal-pin" name="portal_pin" type="password" inputmode="numeric" minlength="4" maxlength="4" pattern="[0-9]{4}" autocomplete="off" aria-describedby="pin-help<?= $errorField === 'portal-pin' ? ' tracking-error' : '' ?>" <?= $errorField === 'portal-pin' ? 'aria-invalid="true" autofocus' : '' ?>>
             <p id="pin-help">Last four digits of the phone number recorded when your code was issued. If your number changed, ask the branch for new access.</p>
             <button class="public-button">View repair</button>
         </form>

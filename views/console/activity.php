@@ -23,7 +23,7 @@ require __DIR__ . '/../workspace/navigation.php';
   <form class="report-filters" method="get">
     <label>Category<select name="group">
       <?php foreach ($groups as $option): ?>
-        <option <?= $group === $option ? 'selected' : '' ?> value="<?= h($option) ?>"><?= h(ucfirst($option)) ?></option>
+        <option <?= $group === $option ? 'selected' : '' ?> value="<?= h($option) ?>"><?= h(ucfirst($option)) ?><?= isset($activityCounts[$option]) ? ' · ' . (int) $activityCounts[$option] . ' unread' : '' ?></option>
       <?php endforeach; ?>
     </select></label>
     <label>Show<select name="view">
@@ -36,7 +36,7 @@ require __DIR__ . '/../workspace/navigation.php';
   <section class="report-panel">
     <h2><?= h(ucfirst($group)) ?> · <?= $mode === 'inbox' ? 'Unread' : 'History' ?></h2>
     <?php if (!$events['total']): ?>
-      <p><?= $search !== '' ? 'No matching entries.' : ($mode === 'inbox' ? 'All caught up.' : 'No activity recorded yet.') ?></p>
+      <p><?= $search !== '' ? 'No matching entries.' : ($mode === 'inbox' ? 'No unread ' . $group . ' updates.' : 'No activity recorded yet.') ?></p>
       <?php if ($search !== ''): ?><a href="?group=<?= h($group) ?>&amp;view=<?= h($mode) ?>">Clear search</a><?php endif; ?>
     <?php else: ?>
       <ul class="activity-list">

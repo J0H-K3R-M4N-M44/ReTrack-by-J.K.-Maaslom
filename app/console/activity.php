@@ -44,6 +44,28 @@ function activitySource(array $user, string $group): array
     return [$sql, $params];
 }
 
+// Count only the events this person can open, using their own read receipts.
+function activityUnreadCounts(PDO $pdo, array $user): array
+{
+    $queries = [];
+    $values = [];
+    foreach (activityGroups($user['role']) as $group) {
+        [$source, $params] = activitySource($user, $group);
+        $queries[] = "SELECT ? AS category, COUNT(*) AS unread FROM ($source) s
+            WHERE NOT EXISTS (SELECT 1 FROM staff_activity_reads r
+                WHERE r.event_id = s.event_id AND r.event_group = ? AND r.user_id = ?)";
+        array_push($values, $group, ...$params);
+        $values[] = $group;
+        $values[] = $user['user_id'];
+    }
+    if (!$queries) {
+        return [];
+    }
+    $statement = $pdo->prepare(implode(' UNION ALL ', $queries));
+    $statement->execute($values);
+    return $statement->fetchAll(PDO::FETCH_KEY_PAIR);
+}
+
 function activityMarkRead(PDO $pdo, array $user, string $group, string $id): void
 {
     [$source, $params] = activitySource($user, $group);

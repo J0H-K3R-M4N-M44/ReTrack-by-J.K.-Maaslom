@@ -29,7 +29,14 @@ if ($workspaceRole !== 'ADMIN' && consoleCanViewReports($workspaceUser)) {
     $navigation['reports'] = ['Reports', 'reports.php', 'chart'];
 }
 require_once __DIR__ . '/../../app/console/activity.php';
+$activityCounts = [];
 if (activityGroups($workspaceRole)) {
+    try {
+        $activityCounts = activityUnreadCounts(getPDO(), $workspaceUser);
+    } catch (RuntimeException $activityError) {
+        // A missing activity migration should not interrupt unrelated staff work.
+        error_log('Staff unread counts unavailable: ' . $activityError->getCode());
+    }
     $navigation['activity'] = ['Staff activity', 'activity.php', 'clock'];
 }
 $navigation['learning'] = ['Learning center', 'learning.php', 'file'];
@@ -71,6 +78,11 @@ $inMore = !in_array($currentSection, $shortcuts, true);
 </aside>
 <header class="rt-top">
     <span>Workspace <b>/ <?= h($navigation[$currentSection][0] ?? 'Repair operations') ?></b></span>
+    <?php if (array_sum($activityCounts) > 0): ?>
+        <a class="rt-unread" href="activity.php?group=<?= h(array_key_first(array_filter($activityCounts))) ?>">
+            <?= (int) array_sum($activityCounts) ?> unread
+        </a>
+    <?php endif; ?>
     <details id="rt-menu">
         <summary>Menu <span aria-hidden="true">⌄</span></summary>
         <div class="rt-menu-body">

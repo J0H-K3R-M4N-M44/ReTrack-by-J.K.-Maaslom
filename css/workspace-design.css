@@ -133,3 +133,13 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
 }
 .rt-layout .board-preview dt { margin-top: 8px; color: var(--rt-muted); }
 .rt-layout .board-preview dd { margin: 0; overflow-wrap: anywhere; }
+
+.rt-unread {
+  margin-inline-start: auto;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--rt-accent);
+  font-weight: 600;
+  white-space: nowrap;
+}

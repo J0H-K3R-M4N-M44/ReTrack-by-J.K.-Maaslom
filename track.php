@@ -8,6 +8,8 @@ header('Referrer-Policy: no-referrer');
 header('X-Robots-Tag: noindex, nofollow');
 $repair = null;
 $error = '';
+$errorField = '';
+$enteredCode = '';
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!csrfIsValid(requestText($_POST, 'csrf_token'))) {
@@ -18,17 +20,25 @@ try {
             header('Location: track.php', true, 303);
             exit();
         } else {
-            // Separate prefix prevents tracking attempts consuming staff login attempts.
-            $code = strtoupper(trim(requestText($_POST, 'tracking_code')));
+            $enteredCode = substr(trim(requestText($_POST, 'tracking_code')), 0, 65);
+            $token = strtolower($enteredCode);
+            $pin = trim(requestText($_POST, 'portal_pin'));
+            $shortCode = preg_match('/^[a-f0-9]{5}$/D', $token);
             $address = 'tracking:' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-            if (!reserveLoginAttempt('portal-code:' . hash('sha256', $code), $address)) {
+            unset($_SESSION['public_tracking']);
+
+            // Format errors can be corrected before spending a verification attempt.
+            if (!$shortCode && !preg_match('/^[a-f0-9]{64}$/D', $token)) {
+                $errorField = 'tracking-code';
+                $error = 'Enter the five-character tracking code from your branch, using 0–9 and A–F.';
+            } elseif ($shortCode && !preg_match('/^[0-9]{4}$/D', $pin)) {
+                $errorField = 'portal-pin';
+                $error = 'Enter the four-digit PIN for this tracking code.';
+            } elseif (!reserveLoginAttempt('portal-code:' . hash('sha256', strtoupper($token)), $address)) {
                 http_response_code(429);
                 $error = 'Too many attempts. Please try again in 15 minutes.';
             } else {
-                $token = strtolower(trim(requestText($_POST, 'tracking_code')));
-                $pin = trim(requestText($_POST, 'portal_pin'));
                 $repair = publicRepair(getPDO(), $token, $pin);
-                unset($_SESSION['public_tracking']);
                 if ($repair) {
                     $_SESSION['public_tracking'] = [
                         'token' => $token,
