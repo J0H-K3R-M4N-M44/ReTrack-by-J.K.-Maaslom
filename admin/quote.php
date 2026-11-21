@@ -49,12 +49,21 @@ try {
         }
     } else {
         $intent = requestText($_POST, 'intent');
+        if ($intent === 'stock') {
+            stockChange($pdo, (int) $user['user_id'], (int) $id, (int) requestText($_POST, 'item_id'),
+                (int) requestText($_POST, 'hold_id'), requestText($_POST, 'stock_action'));
+            unset($_SESSION['quote_forms'][$formKey]);
+            $_SESSION['quote_saved'] = 'Branch stock updated.';
+            header('Location: quote.php?' . http_build_query(['id' => $id, 'return' => $returnQuery]), true, 303);
+            exit();
+        }
         if ($intent === 'review') {
             foreach (
                 [
                     'action',
                     'labor_description',
                     'labor_amount',
+                    'part_id',
                     'parts_description',
                     'parts_amount',
                     'other_description',
@@ -69,6 +78,7 @@ try {
                 $values[$field] = requestText($_POST, $field);
             }
             if ($values['action'] === 'draft') {
+                $values = stockQuoteInput($pdo, (int) $device['accountable_branch_id'], $values);
                 quoteValues($values);
             }
             if (!in_array($values['action'], ['draft', 'share', 'decision'], true)) {
@@ -116,12 +126,20 @@ try {
     unavailablePage('The quote could not be loaded or saved. No partial quote was saved.');
 }
 try {
+    $catalog = stockCatalog($pdo, (int) $device['accountable_branch_id']);
     $items = [];
     if ($latest) {
         $query = $pdo->prepare(
-            'SELECT item_type, description, quantity, unit_price, line_total FROM repair_quote_items WHERE quote_id = ? ORDER BY quote_item_id',
+            "SELECT i.*, r.reservation_id,
+                EXISTS(SELECT 1 FROM inventory_transactions m WHERE m.ticket_device_id = ?
+                    AND m.reference_code = CONCAT('QUOTE-ITEM-', i.quote_item_id) AND m.transaction_type = 'TICKET_USE') AS installed,
+                bi.quantity_on_hand - COALESCE((SELECT SUM(h.quantity) FROM stock_reservations h
+                    WHERE h.branch_id = bi.branch_id AND h.part_id = bi.part_id),0) AS available
+                FROM repair_quote_items i LEFT JOIN stock_reservations r ON r.quote_item_id = i.quote_item_id
+                LEFT JOIN branch_inventory bi ON bi.part_id = i.part_id AND bi.branch_id = ?
+                WHERE i.quote_id = ? ORDER BY i.quote_item_id",
         );
-        $query->execute([$latest['quote_id']]);
+        $query->execute([$id, $device['accountable_branch_id'], $latest['quote_id']]);
         $items = $query->fetchAll();
     }
     $history = dashboardPage(

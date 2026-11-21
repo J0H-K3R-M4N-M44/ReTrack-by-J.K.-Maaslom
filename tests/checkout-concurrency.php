@@ -24,6 +24,9 @@ function runCheckoutWorker(): void
     [$action, $actor, $id, $version] = json_decode((string) fgets(STDIN), true, flags: JSON_THROW_ON_ERROR);
     try {
         switch ($action) {
+            case 'reserve':
+                stockChange($pdo, $actor, $id, (int) $version, 0, 'reserve');
+                break;
             case 'progress':
                 consoleSave($pdo, $actor, $id, $version, [
                     'action' => 'progress', 'status' => 'READY_FOR_PICKUP', 'note' => 'Counter check complete.',
@@ -57,15 +60,16 @@ function raceCheckout(string $action, array $staff, int $id, string $version): a
             if (!is_resource($process)) {
                 throw new RuntimeException('Could not start a PHP test worker.');
             }
-            $workers[] = [$process, $pipes, $actor['user_id']];
+            $workers[] = [$process, $pipes, $actor];
         }
         foreach ($workers as [, $pipes]) {
             if (fgets($pipes[1]) !== "ready\n") {
                 throw new RuntimeException('Worker did not connect to the test database.');
             }
         }
-        foreach ($workers as [, $pipes, $actorId]) {
-            fwrite($pipes[0], json_encode([$action, $actorId, $id, $version], JSON_THROW_ON_ERROR) . "\n");
+        foreach ($workers as [, $pipes, $actor]) {
+            $args = [$action, $actor['user_id'], $actor['target_id'] ?? $id, $actor['item_id'] ?? $version];
+            fwrite($pipes[0], json_encode($args, JSON_THROW_ON_ERROR) . "\n");
             fclose($pipes[0]);
         }
         $results = [];

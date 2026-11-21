@@ -28,6 +28,7 @@ async function press(page, name) {
 }
 
 async function checkWidth(page) {
+  await page.waitForLoadState('load');
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
     'Page exceeds viewport: ' + page.url());
 }
@@ -60,6 +61,41 @@ try {
   const main = await manager.locator('#rt-main').boundingBox();
   assert(main.x >= sidebar.x + sidebar.width, 'Sidebar covers the queue');
   await manager.getByRole('link', { name: 'Open device' }).click();
+  await manager.getByRole('link', {name:'Open estimate'}).click();
+  await manager.locator('summary').filter({hasText:'Prepare a revised estimate'}).click();
+  await manager.locator('[name=labor_description]').fill('Diagnosis');
+  await manager.locator('[name=labor_amount]').fill('350');
+  await manager.locator('[name=part_id]').selectOption(String(fixture.part));
+  await manager.locator('[name=parts_amount]').fill('2400');
+  await press(manager,'Review draft');
+  await press(manager,'Confirm and save');
+  await manager.locator('[name=confirm]').check();
+  await press(manager,'Review sharing');
+  await press(manager,'Confirm and save');
+  await manager.locator('[name=decision]').selectOption('APPROVED');
+  await manager.locator('[name=customer_name]').fill('Pickup Test');
+  await manager.locator('[name=reference]').fill('Customer agreed at counter');
+  await manager.locator('[name=confirm]').check();
+  await press(manager,'Review response');
+  await press(manager,'Confirm and save');
+  await press(manager,'Reserve quoted quantity');
+  await manager.getByText('Reserved for this device', {exact:false}).waitFor();
+  const deviceUrl = base + '/admin/device.php?id=' + fixture.device;
+  const tech = await login('technician',360);
+  async function stage(status) {
+    await tech.goto(deviceUrl);
+    await tech.locator('select[name=status]').selectOption(status);
+    await press(tech,'Review progress');
+    await press(tech,'Confirm change');
+  }
+  await stage('IN_PROGRESS');
+  await tech.getByRole('link',{name:'Open estimate'}).click();
+  await press(tech,'Record installation');
+  await tech.getByText('available · Installed', {exact:false}).waitFor();
+  await stage('TESTING');
+  await stage('READY_FOR_PICKUP');
+  await tech.context().close();
+  await manager.goto(deviceUrl);
   await manager.getByRole('link', { name: 'Open billing and handover' }).click();
   await manager.locator('[name=confirm]').check();
   await press(manager, 'Review bill issuance');
@@ -75,7 +111,7 @@ try {
   await press(cashier, 'Search');
   await cashier.getByRole('link', { name: 'Open cash record' }).click();
   await checkWidth(cashier);
-  assert.equal(await cashier.locator('#cash-amount').inputValue(), '100.00');
+  assert.equal(await cashier.locator('#cash-amount').inputValue(), '2750.00');
   await cashier.locator('[name=confirm]').check();
   await press(cashier, 'Review payment');
   await press(cashier, 'Confirm cash received');

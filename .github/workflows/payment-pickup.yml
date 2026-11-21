@@ -1,7 +1,7 @@
-name: Payment and pickup
+name: PHP shop workflow checks
 on:
   push:
-    branches: [Workspace-Design, PHP-Counter-Handover, PHP-Bill-Corrections]
+    branches: [Workspace-Design, PHP-Counter-Handover, PHP-Bill-Corrections, PHP-Stock-Pilot]
     paths:
       - '.github/workflows/payment-pickup.yml'
       - 'tests/payment-pickup.php'
@@ -12,6 +12,10 @@ on:
       - 'css/**'
       - 'js/**'
       - 'tests/payment-browser.mjs'
+      - 'tests/checkout-concurrency.php'
+      - 'tests/stock-pilot.php'
+      - 'app/inventory/**'
+      - 'database/stock_reservations.sql'
   workflow_dispatch:
 
 permissions:
@@ -32,17 +36,21 @@ jobs:
               -e 's/^USE repairtrack;$/USE repairtrack_test_pickup;/' database/schema.sql | mysql -h 127.0.0.1 -u root
       - name: Run PHP payment and pickup check
         run: |
-          php -r 'foreach (["pdo_mysql","mbstring"] as $extension) { if (!extension_loaded($extension)) { exit(1); } }'
-          cat > config/config.php <<'PHP'
+          php -r 'foreach (["pdo_mysql","mbstring","fileinfo"] as $extension) { if (!extension_loaded($extension)) { exit(1); } }'
+          mkdir -p "$RUNNER_TEMP/repairtrack-evidence"
+          cat > config/config.php <<PHP
           <?php
           return [
               'host' => '127.0.0.1',
               'database' => 'repairtrack_test_pickup',
               'username' => 'root',
               'password' => 'root',
+              'intake_storage_path' => '$RUNNER_TEMP/repairtrack-evidence',
+              'intake_hmac_key' => str_repeat('a', 64),
           ];
           PHP
           php tests/payment-pickup.php
+          php tests/payment-pickup.php --stock-pilot
       - name: Walk through billing and pickup in Chrome
         run: |
           npm install --no-save --package-lock=false playwright-core@1.56.1

@@ -216,6 +216,9 @@ function cashCancelDevice(PDO $pdo, array $device, int $actorId, string $reason)
     if ($parts->fetchColumn()) {
         throw new DomainException('Review installed parts before using diagnostic-only checkout.');
     }
+    if ($device['quote_id']) {
+        stockReleaseQuote($pdo, (int) $device['quote_id']);
+    }
     $pdo->prepare("UPDATE ticket_devices SET repair_status = 'CANCELLED',
         public_summary = 'Approved for as-is return.' WHERE ticket_device_id = ?")->execute([$id]);
     $pdo->prepare("UPDATE repair_quotes SET quote_status = 'SUPERSEDED'
@@ -297,6 +300,7 @@ function cashIssueFinalBill(
                     'Every device needs a current approved estimate before the final bill can be issued.',
                 );
             }
+            stockCheckInstalled($pdo, (int) $device['ticket_device_id'], (int) $quote['quote_id']);
             $items = $pdo->prepare(
                 'SELECT quote_item_id, item_type, description, quantity, unit_price, line_total
                 FROM repair_quote_items WHERE quote_id = ? ORDER BY quote_item_id',
