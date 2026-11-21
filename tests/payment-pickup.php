@@ -92,6 +92,18 @@ if ($browserFixture) {
     exit();
 }
 
+// Add a second device for the PHP regression while keeping the browser fixture single-device.
+$delayed = insertFixture($pdo,
+    "INSERT INTO ticket_devices (ticket_id,child_sequence,item_code,device_type_snapshot,reported_symptoms,
+        condition_notes,serial_number_snapshot,accessory_checklist_completed,repair_status,custody_state,physical_location_id)
+     VALUES (?,2,?,'Laptop','No display','Checked',?,1,'READY_FOR_PICKUP','AT_LOCATION',?)",
+    [$ticket, $run . '-02', $run . '-device-2', $location]);
+$secondQuote = insertFixture($pdo,
+    "INSERT INTO repair_quotes (ticket_device_id,version_no,quote_status,labor_amount,total_amount,prepared_by_user_id)
+     VALUES (?,1,'APPROVED',100,100,?)", [$delayed, $manager['user_id']]);
+$pdo->prepare("INSERT INTO repair_quote_items (quote_id,item_type,description,quantity,unit_price,line_total)
+    VALUES (?,'LABOR','Display repair',1,100,100)")->execute([$secondQuote]);
+
 $version = cashTicketVersion(cashPageTicket($pdo,$manager,$ticket));
 $bill = cashIssueFinalBill($pdo,$manager['user_id'],$ticket,$version);
 $pay = static function (array $cashier, string $version, string $amount) use ($pdo,$bill): void {
@@ -107,13 +119,22 @@ $secondView = cashBillDetails($pdo,$second,$bill);
 $pay($first,$firstView['version'],'40.00');
 expectRefusal(fn() => $pay($second,$secondView['version'],'100.00'), 'bill changed');
 $current = cashBillDetails($pdo,$second,$bill);
-expectResult($current['balance_cents'] === 6000, 'Expected a PHP 60 balance.');
+expectResult($current['balance_cents'] === 16000, 'Expected a PHP 160 balance.');
 expectRefusal(fn() => $pickup($current['version']), 'full bill balance');
-expectRefusal(fn() => $pay($second,$current['version'],'60.01'), 'remaining balance');
-$pay($second,$current['version'],'60.00');
+expectRefusal(fn() => $pay($second,$current['version'],'160.01'), 'remaining balance');
+$pay($second,$current['version'],'160.00');
 
 $paid = cashBillDetails($pdo,$second,$bill);
 expectResult($paid['balance_cents'] === 0 && count($paid['payments']) === 2, 'Payment history mismatch.');
+// Simulate a final check finding a fault after the bill has been paid.
+$pdo->prepare("UPDATE ticket_devices SET repair_status = 'TESTING' WHERE ticket_device_id = ?")->execute([$delayed]);
+$preview = cashHandoverPreview($pdo, $second, $ticket);
+expectResult(str_contains(implode(' ', cashHandoverBlockers($paid, $preview)), $run . '-02 is testing'),
+    'Preview must name the delayed device.');
+expectRefusal(fn() => $pickup($paid['version']), $run . '-02 is testing');
+expectResult(cashHandoverPreview($pdo, $second, $ticket)['devices'][0]['custody_state'] === 'AT_LOCATION',
+    'Refused handover must leave the ready device at the branch.');
+$pdo->prepare("UPDATE ticket_devices SET repair_status = 'READY_FOR_PICKUP' WHERE ticket_device_id = ?")->execute([$delayed]);
 $pickup($paid['version']);
 $closed = cashBillDetails($pdo,$second,$bill);
 $returned = cashHandoverPreview($pdo,$second,$ticket)['devices'][0];

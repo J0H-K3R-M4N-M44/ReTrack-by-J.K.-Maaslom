@@ -437,6 +437,36 @@ function cashRecordPayment(
     }
 }
 
+// Use the same eligibility rules in the preview and on locked records at confirmation.
+function cashHandoverBlockers(array $bill, array $ticket): array
+{
+    if ($bill['bill_status'] !== 'ISSUED' || $bill['case_state'] !== 'OPEN') {
+        return ['Only an issued bill on an open ticket can be handed over.'];
+    }
+
+    $blockers = [];
+    if (cashAmountCents((string) $bill['total_amount']) !==
+        cashAmountCents((string) $bill['amount_paid'])) {
+        $blockers[] = 'Collect the full bill balance before releasing the device.';
+    }
+    if (!$ticket['devices']) {
+        $blockers[] = 'This ticket has no devices to return.';
+    }
+    foreach ($ticket['devices'] as $device) {
+        $code = $device['item_code'];
+        if ($device['repair_status'] !== 'READY_FOR_PICKUP') {
+            $status = strtolower(str_replace('_', ' ', $device['repair_status']));
+            $blockers[] = $code . ' is ' . $status . '. Mark it ready for pickup before handover.';
+        }
+        if ($device['custody_state'] !== 'AT_LOCATION' || !$device['physical_location_id'] ||
+            (int) $device['location_branch_id'] !== (int) $ticket['accountable_branch_id']) {
+            $blockers[] = $code . ' must be received at the assigned branch before handover.';
+        }
+    }
+
+    return $blockers;
+}
+
 function cashCompleteHandover(
     PDO $pdo,
     int $actorId,
@@ -471,27 +501,10 @@ function cashCompleteHandover(
         if ($bill['bill_status'] !== 'ISSUED' || $bill['case_state'] !== 'OPEN') {
             throw new DomainException('Only an issued bill on an open ticket can be handed over.');
         }
-        if (
-            cashAmountCents((string) $bill['total_amount']) !==
-            cashAmountCents((string) $bill['amount_paid'])
-        ) {
-            throw new DomainException('Collect the full bill balance before releasing the device.');
-        }
         $ticket = cashPageTicketForHandover($pdo, $actor, (int) $bill['ticket_id']);
-        if (!$ticket['devices']) {
-            throw new DomainException('This ticket has no devices to return.');
-        }
-        foreach ($ticket['devices'] as $device) {
-            if (
-                $device['repair_status'] !== 'READY_FOR_PICKUP' ||
-                $device['custody_state'] !== 'AT_LOCATION' ||
-                !$device['physical_location_id'] ||
-                (int) $device['location_branch_id'] !== (int) $ticket['accountable_branch_id']
-            ) {
-                throw new DomainException(
-                    'All devices must be ready and present at the assigned branch before handover.',
-                );
-            }
+        $blockers = cashHandoverBlockers($bill, $ticket);
+        if ($blockers) {
+            throw new DomainException($blockers[0]);
         }
 
         $relationshipLabel = $relationship === 'CUSTOMER'

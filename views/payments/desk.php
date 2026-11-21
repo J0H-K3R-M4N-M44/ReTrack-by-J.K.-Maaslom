@@ -95,17 +95,7 @@
 
     <?php elseif ($bill): ?>
         <?php
-        $handoverReady = $bill['bill_status'] === 'ISSUED' &&
-            $bill['case_state'] === 'OPEN' &&
-            $bill['balance_cents'] === 0 &&
-            count($handover['devices']) > 0;
-        foreach ($handover['devices'] as $device) {
-            $handoverReady = $handoverReady &&
-                $device['repair_status'] === 'READY_FOR_PICKUP' &&
-                $device['custody_state'] === 'AT_LOCATION' &&
-                $device['physical_location_id'] &&
-                (int) $device['location_branch_id'] === (int) $handover['accountable_branch_id'];
-        }
+        $handoverBlockers = cashHandoverBlockers($bill, $handover);
         ?>
         <section class="dashboard-card">
             <div class="payments-heading-row">
@@ -176,8 +166,12 @@
         <?php elseif ($pageAction === 'handover'): ?>
             <section class="dashboard-card payments-next-action">
                 <h2><?= $review ? 'Review customer handover' : 'Return repaired devices' ?></h2>
-                <?php if (!$handoverReady): ?>
-                    <p class="payments-note">Handover requires a fully paid bill and every device present at the branch in Ready for pickup status.</p>
+                <?php if ($handoverBlockers): ?>
+                    <ul class="payments-note">
+                        <?php foreach ($handoverBlockers as $blocker): ?>
+                            <li><?= h($blocker) ?></li>
+                        <?php endforeach; ?>
+                    </ul>
                 <?php elseif ($review && $pageAction === 'handover'): ?>
                     <dl class="staff-review"><div><dt>Recipient</dt><dd><?= h($formValues['recipient']) ?> · <?= $formValues['relationship'] === 'CUSTOMER' ? 'Customer' : 'Authorized representative' ?></dd></div><div><dt>Device check</dt><dd>Confirmed with recipient</dd></div></dl>
                     <form method="post" class="staff-actions">
