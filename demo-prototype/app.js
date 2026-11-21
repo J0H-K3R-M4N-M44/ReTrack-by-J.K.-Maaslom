@@ -325,7 +325,10 @@ function ticketCard(t) {
   return `<article class="list-item"><div><h3>${esc(t.id)} · ${esc(t.devices[0].name)}</h3><p>${esc(t.customer)} · ${esc(t.branch)}</p>${t.issued ? [...new Set(t.devices.map((device) => device.status))].map(badge).join(' ') : badge('Draft')} <small>${t.devices.length} device${t.devices.length > 1 ? 's' : ''}</small></div>${btn('Open', 'open-ticket', `data-id="${t.id}"`)}</article>`;
 }
 // Static lists use the route page. Search results keep their page beside the filter.
-function pageOf(rows, route, draw, emptyMessage, requested = Number(location.hash.split('/')[1])) {
+function pageOf(rows, route, draw, emptyMessage, requested) {
+  const routeParts = location.hash.slice(1).split('/');
+  const routePage = routeParts.pop();
+  if (requested === undefined && routeParts.join('/') === route) requested = Number(routePage);
   const size = 10;
   const pages = Math.max(1, Math.ceil(rows.length / size));
   const page = Math.max(1, Math.min(Number.isInteger(requested) ? requested : 1, pages));
@@ -478,13 +481,12 @@ function team() {
       'Balance work within the selected branch.',
       btn('Add demo staff', 'add-staff', '', 'primary')
     ) +
-    `<div class="grid three">${state.staff
+    `<div class="grid three">${pageOf(state.staff
       .filter((s) => state.branch === 'All branches' || s.branch === state.branch)
-      .map(
+      , 'team',
         (s) =>
-          `<section class="card"><h2>${esc(s.name)}</h2><p class="muted">${esc(s.role)} · ${esc(s.branch)}</p>${badge(s.active ? 'Active' : 'Inactive')}<p class="metric">${state.tickets.filter((t) => t.assigned === s.name).length}</p><small>Assigned tickets</small><div class="actions">${btn(s.active ? 'Deactivate' : 'Activate', 'toggle-staff', `data-name="${esc(s.name)}"`)}</div></section>`
-      )
-      .join('')}</div>`
+          `<section class="card"><h2>${esc(s.name)}</h2><p class="muted">${esc(s.role)} · ${esc(s.branch)}</p>${badge(s.active ? 'Active' : 'Inactive')}<p class="metric">${state.tickets.filter((t) => t.issued && t.branch === s.branch && t.assigned === s.name && t.devices.some((d) => d.status !== 'Returned')).length}</p><small>Open assigned tickets</small><div class="actions">${btn(s.active ? 'Deactivate' : 'Activate', 'toggle-staff', `data-name="${esc(s.name)}"`)}</div></section>`
+      , 'No staff in this branch.')}</div>`
   );
 }
 function inventory() {
@@ -494,27 +496,21 @@ function inventory() {
       'Every receipt, use and transfer creates a movement record.',
       btn('Receive stock', 'receive-stock', '', 'primary')
     ) +
-    `<div class="grid"><section class="card"><h2>Branch stock</h2><div class="list">${state.stock
+    `<div class="grid"><section class="card"><h2>Branch stock</h2><div class="list">${pageOf(state.stock
       .filter((s) => state.branch === 'All branches' || s.branch === state.branch)
-      .map(
+      , 'inventory/stock',
         (s) =>
           `<article class="list-item"><div><h3>${esc(CATALOG.find((c) => c.id === s.id).name)}</h3><p>${esc(s.branch)} · ${money(CATALOG.find((c) => c.id === s.id).price)} catalog price</p>${badge(s.qty < 3 ? 'Low stock' : 'Available')}</div><strong class="metric">${s.qty}</strong></article>`
-      )
-      .join(
-        ''
-      )}</div><div class="actions">${btn('Transfer parts', 'stock-transfer')}</div></section><section class="card"><h2>Parts requests</h2>${partsHTML()}<h2 class="section">Movement history</h2>${timeline(state.stockLog.slice(0, 8))}${state.stockLog.length ? '' : empty('No stock movements yet.')}</section></div>`
+      , 'No stock in this branch.')}</div><div class="actions">${btn('Transfer parts', 'stock-transfer')}</div></section><section class="card"><h2>Parts requests</h2>${partsHTML()}<h2 class="section">Movement history</h2>${pageOf(state.stockLog.filter((event) => state.branch === 'All branches' || event.branches?.includes(state.branch)),
+      'inventory/movements', (event) => timeline([event]), 'No stock movements in this view.')}</section></div>`
   );
 }
 function partsHTML() {
   const rows = scope().flatMap((t) => t.parts.map((p, i) => ({ t, p, i })));
-  return rows.length
-    ? rows
-        .map(
-          ({ t, p, i }) =>
-            `<article class="list-item section"><div><h3>${esc(p.name)} × ${p.qty}</h3><p>${t.id} · Device ${(p.device || 0) + 1}</p>${badge(p.status)}</div>${p.status === 'Requested' && role === 'Admin' ? btn('Approve & reserve', 'approve-part', `data-id="${t.id}" data-index="${i}"`) : p.status === 'Reserved' ? btn('Record usage', 'consume-part', `data-id="${t.id}" data-index="${i}"`) : ''}</article>`
-        )
-        .join('')
-    : empty('No parts requests.');
+  const route = location.hash.startsWith('#inventory') ? 'inventory/requests' : 'parts';
+  return pageOf(rows, route,
+    ({ t, p, i }) =>
+            `<article class="list-item section"><div><h3>${esc(p.name)} × ${p.qty}</h3><p>${t.id} · Device ${(p.device || 0) + 1}</p>${badge(p.status)}</div>${p.status === 'Requested' && role === 'Admin' ? btn('Approve & reserve', 'approve-part', `data-id="${t.id}" data-index="${i}"`) : p.status === 'Reserved' ? btn('Record usage', 'consume-part', `data-id="${t.id}" data-index="${i}"`) : ''}</article>`, 'No parts requests.');
 }
 function parts() {
   return (
@@ -541,7 +537,10 @@ function logistics() {
 function transfers() {
   return (
     header('Device custody', 'Device transfers and parts movements use separate records.') +
-    `<section class="list">${state.transfers.map((x, i) => `<article class="card"><div class="row between"><h2>${x.ticket} · ${esc(x.type)}</h2>${badge(x.status)}</div><p>${esc(x.from)} to ${esc(x.to)}</p><p class="muted">${esc(x.evidence || 'Handoff evidence pending')}</p><div class="actions">${x.status === 'In transit' ? btn('Confirm handoff', 'receive-transfer', `data-index="${i}"`, 'primary') : ''}</div></article>`).join('') || empty('Open a repair and choose Transfer / delivery to start a handoff.')}</section>`
+    `<section class="list">${pageOf(state.transfers.map((transfer, index) => ({ transfer, index }))
+      .filter(({ transfer }) => state.branch === 'All branches' ||
+        [transfer.from, transfer.to].includes(state.branch)), 'transfers',
+      ({ transfer: x, index: i }) => `<article class="card"><div class="row between"><h2>${x.ticket} · ${esc(x.type)}</h2>${badge(x.status)}</div><p>${esc(x.from)} to ${esc(x.to)}</p><p class="muted">${esc(x.evidence || 'Handoff evidence pending')}</p><div class="actions">${x.status === 'In transit' ? btn('Confirm handoff', 'receive-transfer', `data-index="${i}"`, 'primary') : ''}</div></article>`, 'No handoffs for this branch.')}</section>`
   );
 }
 function finance() {
@@ -869,6 +868,7 @@ function action(name, el) {
           p.status = 'Reserved';
           state.stockLog.unshift({
             at: now(),
+            branches: [target.branch],
             text: `Reserved ${p.qty} ${p.name} for ${target.id}`,
           });
         } else {
@@ -878,7 +878,7 @@ function action(name, el) {
             break;
           }
           p.status = 'Consumed';
-          state.stockLog.unshift({ at: now(), text: `Used ${p.qty} ${p.name} for ${target.id}` });
+          state.stockLog.unshift({ at: now(), branches: [target.branch], text: `Used ${p.qty} ${p.name} for ${target.id}` });
         }
         record(`${target.id}: part ${p.status.toLowerCase()}`, target);
         render();
@@ -1496,7 +1496,7 @@ function submit(kind, form) {
           state.stock.find((s) => s.id === part.id && s.branch === v.to).qty += qty;
         } else source.qty += qty;
         const text = `${kind === 'stock-transfer' ? 'Transferred' : 'Received'} ${qty} ${part.name}. ${v.reason}`;
-        state.stockLog.unshift({ at: now(), text });
+        state.stockLog.unshift({ at: now(), text, branches: [v.branch, v.to].filter(Boolean) });
         record(text, null, false, 'Administration', v.branch);
         break;
       }
