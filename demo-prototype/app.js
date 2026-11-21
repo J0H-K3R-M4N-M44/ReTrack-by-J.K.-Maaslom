@@ -1269,9 +1269,16 @@ function action(name, el) {
       formModal(
         'Review customer request',
         'review-request',
-        `<p>${esc(t.requests[context.index].text)}</p>${select('Decision', 'decision', ['Accepted for review', 'Declined', 'Cancellation approved'])}${area('Explanation and disclosed charges', 'explanation')}`,
+        `<p>${esc(t.requests[context.index].text)}</p>${select('Decision', 'decision', ['Accepted for review', 'Declined', 'Cancellation approved'])}${area('Reason for decision', 'explanation')}<fieldset hidden disabled><legend>As-is return</legend><label>Agreed diagnostic fee (₱ for this request)<input name="fee" type="number" min="0" max="99999999" step="0.01" required></label><small>Enter 0 for a free return. Unperformed repairs and unused parts are excluded.</small><label><input type="checkbox" name="agreed" required> Customer agreed to this amount.</label></fieldset>`,
         'Record decision'
       );
+      {
+        const form = $('[data-form="review-request"]');
+        const fields = form.querySelector('fieldset');
+        form.elements.decision.onchange = () => {
+          fields.hidden = fields.disabled = form.elements.decision.value !== 'Cancellation approved';
+        };
+      }
       break;
     case 'transfer':
       formModal(
@@ -1483,10 +1490,14 @@ function deviceQuote(t, index) {
   return [...t.quotes].reverse().find((q) => (q.device || 0) === index);
 }
 function approvedTotal(t) {
+  // The agreed fee belongs to the request, even if it covers multiple devices.
+  const fees = t.requests.reduce((sum, request) => request.status === 'Approved for as-is return'
+    ? sum + (request.diagnosticFee || 0) : sum, 0);
   return t.devices.reduce((sum, d, i) => {
+    if (d.returnAsIs) return sum;
     const quote = deviceQuote(t, i);
     return sum + (quote?.status === 'Approved' ? quote.total : 0);
-  }, 0);
+  }, fees);
 }
 // Keep the entered intake values before moving to another step.
 function rememberIntake() {
@@ -1966,7 +1977,12 @@ function submit(kind, form) {
             requireGate(candidates.length === 1, 'This request cannot be matched to one current declined quote. Review the ticket before changing custody.');
             affected = candidates;
           }
+          affected = affected.filter(device => !device.returnAsIs && device.status !== 'Returned');
+          requireGate(affected.length > 0, 'These devices already have a return decision.');
+          requireGate(v.agreed && /^\d{1,8}(?:\.\d{1,2})?$/.test(v.fee), 'Confirm the agreed fee or enter zero for a free return.');
           const parts = t.parts.filter(part => affected.includes(t.devices[part.device || 0]));
+          requireGate(!parts.some(part => part.status === 'Consumed'), 'Review installed parts before approving an as-is return.');
+          r.diagnosticFee = Number(v.fee);
           releaseUnusedParts(t, parts, 'Released', 'cancellation approved');
           for (const part of parts) {
             if (part.status === 'Requested') part.status = 'Cancelled';
@@ -1982,7 +1998,8 @@ function submit(kind, form) {
           r.status = 'Approved for as-is return';
         } else r.status = v.decision;
         r.response = v.explanation;
-        record(`${t.id}: ${r.type} ${r.status.toLowerCase()}. ${v.explanation}`, t, true);
+        if (r.diagnosticFee !== undefined) r.response += ' Agreed diagnostic fee: ' + money(r.diagnosticFee) + '.';
+        record(`${t.id}: ${r.type} ${r.status.toLowerCase()}. ${r.response}`, t, true);
         break;
       }
       case 'transfer':

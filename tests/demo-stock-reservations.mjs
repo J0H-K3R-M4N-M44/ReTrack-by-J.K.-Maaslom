@@ -46,17 +46,31 @@ try {
     await page.locator('[data-action=approve-part]').click();
     await quantities(4, 5, 'Reserved');
   }
-  async function cancel() {
+  async function cancel(hasInstalledParts = false) {
     await visit('repair');
     await page.locator('[data-action=review-request]').click();
     await dialog.locator('[name=decision]').selectOption('Cancellation approved');
+    await dialog.locator('[name=fee]').fill('350');
+    await dialog.locator('[name=agreed]').check();
     await dialog.locator('[name=explanation]').fill('Approved as-is return.');
-    await confirm();
+    if (hasInstalledParts) {
+      await dialog.locator('[type=submit]').click();
+      await page.getByText('Review installed parts before approving an as-is return.').waitFor();
+      await dialog.locator('[aria-label="Close dialog"]').click();
+    } else {
+      await confirm();
+    }
   }
   await fixture();
   await reserve();
   await cancel();
   await quantities(5, 5, 'Released');
+  const cancelledId = await page.evaluate(() => state.tickets[1].id);
+  await visit('finance');
+  await page.locator('#finance-search').fill(cancelledId);
+  await page.locator('[data-action=bill]').click();
+  await page.waitForFunction(() => readStoredDemo().tickets[1].bill?.total === 350);
+  assert.equal(await page.evaluate(() => deviceQuote(state.tickets[1], 0).total), 2750);
 
   await fixture();
   await reserve();
@@ -79,7 +93,7 @@ try {
   await page.locator('[data-action=consume-part]').click();
   await quantities(5, 4, 'Consumed');
   await page.evaluate(() => {activeTicket = state.tickets[1].id;});
-  await cancel();
+  await cancel(true);
   await quantities(5, 4, 'Consumed');
 
   await fixture();
