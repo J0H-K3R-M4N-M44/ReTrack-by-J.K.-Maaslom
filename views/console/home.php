@@ -99,16 +99,24 @@ require __DIR__ . '/../workspace/navigation.php';
                 ) ?>"><?= h(dashboardStatusLabel($status)) ?></span><small><?= count(
     $cards,
 ) ?> on this page</small></h3>
-                <?php foreach (
-                    $cards
-                    as $row
-                ): ?><article class="board-card"><a href="device.php?id=<?= (int) $row[
-    'ticket_device_id'
-] ?>&amp;return=<?= h(urlencode($returnQuery)) ?>"><?= h($row['item_code']) ?></a><p><?= h(
-    dashboardDeviceLabel($row),
-) ?></p><p><?= h($row['technician'] ?: 'Needs assignment') ?></p><small>Repair started: <?= h(
-    workspaceDate($row['repair_started_at']),
-) ?></small></article><?php endforeach; ?>
+                <?php foreach ($cards as $row): ?>
+                    <article class="board-card">
+                        <a href="device.php?id=<?= (int) $row['ticket_device_id'] ?>&amp;return=<?= h(urlencode($returnQuery)) ?>">
+                            <?= h($row['item_code']) ?>
+                        </a>
+                        <p><?= h(dashboardDeviceLabel($row)) ?></p>
+                        <p><?= h($row['technician'] ?: 'Needs assignment') ?></p>
+                        <details class="board-preview">
+                            <summary>Repair details<span class="sr-only"> for <?= h($row['item_code']) ?></span></summary>
+                            <dl>
+                                <dt>Ticket</dt><dd><?= h($row['ticket_code']) ?></dd>
+                                <dt>Branch</dt><dd><?= h($row['branch_name']) ?></dd>
+                                <dt>Custody</dt><dd><?= h(ucfirst(strtolower(str_replace('_', ' ', $row['custody_state'])))) ?></dd>
+                                <dt>Repair started</dt><dd><?= h(workspaceDate($row['repair_started_at'])) ?></dd>
+                            </dl>
+                        </details>
+                    </article>
+                <?php endforeach; ?>
                 </section>
             <?php
             endforeach; ?>
