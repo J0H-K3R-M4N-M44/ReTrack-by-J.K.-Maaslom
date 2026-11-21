@@ -53,7 +53,7 @@ function intakeUpdateDraft(
         if ((int) $values['intake_branch_id'] !== (int) $before['intake_branch_id']) {
             throw new DomainException('A saved draft must stay at its original branch.');
         }
-        $errors = intakeValidateDevices($pdo, $values, intakeBranches($pdo, $userId));
+        $errors = intakeValidateDevices($pdo, $values, intakeBranches($pdo, $userId), count($before['devices']));
         if ($errors !== []) {
             throw new DomainException(implode(' ', $errors));
         }

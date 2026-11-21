@@ -106,11 +106,11 @@ function intakeIssueEntries(array $draft, array $values): array
     $entries = [];
     foreach ($draft['devices'] as $index => $device) {
         $details = $index === 0 ? $values : intakeIssueValues(
-            ($values['extra_devices'][$index - 1] ?? []) + [
+            [
                 'terms_version' => $values['terms_version'],
                 'signature_confirmed' => $values['signature_confirmed'],
                 'duplicate_confirmed' => $values['duplicate_confirmed'],
-            ],
+            ] + ($values['extra_devices'][$index - 1] ?? []),
         );
         $entries[] = [$device + $draft, $details];
     }

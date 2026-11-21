@@ -52,32 +52,26 @@
 
   // The server repeats all checks. This only helps staff correct mistakes sooner.
   const validateStep = (index) => {
-    const make = form.querySelector('[name="make"]');
-    const model = form.querySelector('[name="model"]');
-    if (make && model)
-      make.setCustomValidity(
-        make.value.trim() || model.value.trim() ? '' : 'Enter a brand or model.'
-      );
-    const otherDevice = form.querySelector('[name="device_other"]');
-    if (otherDevice) {
-      otherDevice.required = form.querySelector('[name="device_type"]').value === 'Other';
-    }
-    for (const [group, field] of [
-      ['problems', 'reported_symptoms'],
-      ['conditions', 'condition_notes'],
-    ]) {
-      const selected = [...form.querySelectorAll('[name="' + group + '[]"]:checked')].map(
-        (input) => input.value
-      );
-      const details = form.querySelector('[name="' + field + '"]');
-      let message = '';
-      if (!selected.length && !details.value.trim())
-        message = 'Select an option or add a short description.';
-      if (selected.includes('Other') && !details.value.trim())
-        message = 'Please describe Other briefly.';
-      if (group === 'conditions' && selected.includes('No visible damage') && selected.length > 1)
-        message = 'Choose No visible damage by itself, or select the observed damage.';
-      details.setCustomValidity(message);
+    for (const device of steps[index].querySelectorAll('[data-intake-device]')) {
+      const make = device.querySelector('[data-device-field="make"]');
+      const model = device.querySelector('[data-device-field="model"]');
+      make.setCustomValidity(make.value.trim() || model.value.trim() ? '' : 'Enter a brand or model.');
+      device.querySelector('[data-device-other]').required =
+        device.querySelector('[data-device-type]').value === 'Other';
+
+      for (const group of device.querySelectorAll('[data-device-choices]')) {
+        const selected = [...group.querySelectorAll('input:checked')].map((input) => input.value);
+        const details = group.querySelector('textarea');
+        let message = '';
+        if (!selected.length && !details.value.trim())
+          message = 'Select an option or add a short description.';
+        if (selected.includes('Other') && !details.value.trim())
+          message = 'Please describe Other briefly.';
+        if (group.dataset.deviceChoices === 'conditions' &&
+            selected.includes('No visible damage') && selected.length > 1)
+          message = 'Choose No visible damage by itself, or select the observed damage.';
+        details.setCustomValidity(message);
+      }
     }
     const requiredFields = [...steps[index].querySelectorAll('input, select, textarea')].filter(
       (field) => !field.disabled && !field.closest('[hidden]')
@@ -104,7 +98,8 @@
 
   // Enter in the customer step advances instead of submitting hidden fields.
   form.addEventListener('submit', (event) => {
-    if (event.submitter?.value === 'add-device') return;
+    const intent = event.submitter?.value;
+    if (currentStep === 1 && (intent === 'add-device' || intent?.startsWith('remove-device-'))) return;
     updateCustomerFields();
     if (currentStep === 0) {
       event.preventDefault();
@@ -113,6 +108,17 @@
     }
     if (!validateStep(currentStep)) event.preventDefault();
     // A valid submission opens server-side review; it cannot save a draft yet.
+  });
+  form.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' || event.isComposing || event.target.tagName !== 'INPUT' ||
+        !['text', 'email', 'tel'].includes(event.target.type)) return;
+    event.preventDefault();
+    updateCustomerFields();
+    if (currentStep === 0) {
+      if (validateStep(0)) showStep(1, true);
+    } else {
+      form.requestSubmit(form.querySelector('[value="review"]'));
+    }
   });
   [...nextButtons, ...backButtons].forEach((button) => {
     button.hidden = false;

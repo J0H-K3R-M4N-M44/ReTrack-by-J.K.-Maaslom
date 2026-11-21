@@ -7,6 +7,9 @@ startAppSession();
 $user = requireAccount();
 header('Cache-Control: no-store, private');
 $role = $user['role'];
+if (requestText($_GET, 'view') === 'reports') {
+    redirectToStaffReport($_GET);
+}
 $descriptions = [
     'ADMIN' => ['Repair operations', 'Assign technicians and inspect branch repair records.'],
     'MANAGER' => [

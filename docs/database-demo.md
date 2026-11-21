@@ -6,10 +6,10 @@ This fixture inserts **963 fictional rows into all 33 existing tables**: the 32-
 
 | File | Purpose |
 | --- | --- |
-| `database/create_demo_database.sql` | Creates the empty, separate demo database using a snapshot of the current schema and password-reset table. |
-| `database/seed_demo.sql` | Inserts connected sample records in one transaction. Refuses to seed any nonempty table. |
-| `database/check_demo_integrity.sql` | Read-only table counts and 141 relationship/business-consistency checks. |
-| `database/test_demo_constraints.sql` | Nine intentionally invalid writes that must be rejected; all row changes are rolled back. |
+| `tests/fixtures/demo/create_demo_database.sql` | Creates the empty, separate demo database using a snapshot of the current schema and password-reset table. |
+| `tests/fixtures/demo/seed_demo.sql` | Inserts connected sample records in one transaction. Refuses to seed any nonempty table. |
+| `tests/fixtures/demo/check_demo_integrity.sql` | Read-only table counts and 141 relationship/business-consistency checks. |
+| `tests/fixtures/demo/test_demo_constraints.sql` | Nine intentionally invalid writes that must be rejected; all row changes are rolled back. |
 | `docs/seed-counts.json` | Expected row counts immediately after a successful seed. |
 | `assets/demo/` | Two clearly marked SVG placeholders referenced by photo and acknowledgment records. |
 
@@ -32,10 +32,10 @@ Enter your local MySQL password. If your local root account has no password, pre
 3. At the `MariaDB>` or `mysql>` prompt, run these files in order:
 
 ```sql
-SOURCE C:/xampp/htdocs/qwert/database/create_demo_database.sql;
-SOURCE C:/xampp/htdocs/qwert/database/seed_demo.sql;
-SOURCE C:/xampp/htdocs/qwert/database/check_demo_integrity.sql;
-SOURCE C:/xampp/htdocs/qwert/database/test_demo_constraints.sql;
+SOURCE C:/xampp/htdocs/qwert/tests/fixtures/demo/create_demo_database.sql;
+SOURCE C:/xampp/htdocs/qwert/tests/fixtures/demo/seed_demo.sql;
+SOURCE C:/xampp/htdocs/qwert/tests/fixtures/demo/check_demo_integrity.sql;
+SOURCE C:/xampp/htdocs/qwert/tests/fixtures/demo/test_demo_constraints.sql;
 ```
 
 Run each command separately. Stop if a file reports an error. Do not use a client's `--force` option to ignore errors. The client account needs permission to create the demo database, tables and stored procedures. MySQL Workbench can also open and execute these SQL files in the same order.

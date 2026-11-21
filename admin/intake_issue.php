@@ -74,11 +74,7 @@ try {
             $submitted = $_POST['extra_devices'] ?? [];
             foreach (array_slice($draft['devices'], 1) as $index => $device) {
                 $details = is_array($submitted[$index] ?? null) ? $submitted[$index] : [];
-                $values['extra_devices'][] = intakeIssueValues($details + [
-                    'terms_version' => $values['terms_version'],
-                    'signature_confirmed' => $values['signature_confirmed'],
-                    'duplicate_confirmed' => $values['duplicate_confirmed'],
-                ]);
+                $values['extra_devices'][] = intakeIssueValues($details);
             }
             $errors = intakeValidateIssueEntries($pdo, $draft, $values, $userId);
             if (!$errors) {
@@ -90,15 +86,30 @@ try {
                     }
                     foreach ($kinds as $kind) {
                         $file = $_FILES[$kind] ?? [];
-                        $evidence[$kind] = intakeStoreUpload(is_array($file) ? $file : []);
+                        try {
+                            $evidence[$kind] = intakeStoreUpload(is_array($file) ? $file : []);
+                        } catch (DomainException $error) {
+                            $label = match ($kind) {
+                                'signed_form' => 'Signed intake form',
+                                'photo' => 'Device 1 condition photo',
+                                default => 'Device ' . substr($kind, 6) . ' condition photo',
+                            };
+                            throw new DomainException($label . ': ' . $error->getMessage(), 0, $error);
+                        }
                     }
+                } catch (DomainException $error) {
+                    intakeDiscardEvidence($evidence);
+                    $errors[] = $error->getMessage();
+                    http_response_code(409);
                 } catch (Throwable $error) {
                     intakeDiscardEvidence($evidence);
                     throw $error;
                 }
-                $_SESSION['issue_forms'][$formKey]['values'] = $values;
-                $_SESSION['issue_forms'][$formKey]['evidence'] = $evidence;
-                $review = true;
+                if (!$errors) {
+                    $_SESSION['issue_forms'][$formKey]['values'] = $values;
+                    $_SESSION['issue_forms'][$formKey]['evidence'] = $evidence;
+                    $review = true;
+                }
             }
         } else {
             throw new DomainException('Use the intake review buttons to continue.');

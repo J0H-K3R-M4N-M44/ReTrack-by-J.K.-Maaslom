@@ -3,14 +3,14 @@
 ## Purpose and scope
 Customers should quickly learn what is happening, where their device was last confirmed, and what they need to do next. Staff should see a short queue and one clear next action.
 
-This blueprint is the implementation target. The current application supports admin login, dashboard data and single-device draft intake only. Wireframe interactions are demonstrations, not live repairs, approvals, chat, payments or QR scanning.
+This blueprint is the implementation target. The current application supports staff login, dashboard data, multi-device intake drafts, evidence-backed issuance, customer tracking, role-based workspaces and cashier handover. Remaining wireframe interactions are demonstrations until their PHP workflow is connected.
 
 ## First working journey
 1. Staff signs in and works within an assigned branch.
 2. Customer: search before creating a record; collect a name and one contact method.
-3. Device and problem: type, brand/model, optional serial, customer description and visible condition.
-4. Review: show all entered details; Back retains values; Save draft records the draft atomically.
-5. Issue review (next implementation): confirm accessories, physical location and approved acknowledgment/evidence rules. Incomplete records stay drafts. The applied schema still requires signature metadata; do not bypass it.
+3. Device and problem: add up to five devices, each with type, brand/model, optional serial, selected symptoms and observed condition.
+4. Review: show all entered customer and device details; Back retains values; Save draft records every device atomically.
+5. Issue review: confirm each device’s accessories, physical location and condition photo, plus the signed intake form and approved acknowledgment rules. Incomplete records stay drafts.
 6. Issue: generate a separate public reference and random secret tracking credential, with a QR link. Store access credentials safely and support revocation.
 7. Customer enters the code or opens the QR link to see a customer-safe status and custody timeline.
 8. Staff records diagnosis, approved work, testing and handover. Cash collection and physical return are separate recorded actions.

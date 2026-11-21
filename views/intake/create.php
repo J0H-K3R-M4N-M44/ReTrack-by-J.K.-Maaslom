@@ -318,102 +318,16 @@
                             <fieldset class="intake-step" data-intake-step>
                                 <h2 tabindex="-1">What device needs service?</h2>
                                 <p>Enter what you can identify. The serial number is optional; never guess or make one up.</p>
-                                <?php $customDevice =
-                                    $values['device_type'] !== '' &&
-                                    !in_array($values['device_type'], intakeDeviceTypes(), true); ?>
-                                <label for="device-type">Device type
-                                    <select id="device-type" name="device_type" required>
-                                        <option value="">Choose a type</option>
-                                        <?php foreach (intakeDeviceTypes() as $deviceType): ?>
-                                            <option value="<?php echo h(
-                                                $deviceType,
-                                            ); ?>" <?php echo $values['device_type'] ===
-    $deviceType ||
-($customDevice && $deviceType === 'Other')
-    ? 'selected'
-    : ''; ?>><?php echo h($deviceType); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </label>
-                                <label for="device-other">Other device name
-                                    <input id="device-other" name="device_other" maxlength="80" value="<?= h(
-                                        $customDevice ? $values['device_type'] : '',
-                                    ) ?>" placeholder="Only needed for Other">
-                                </label>
-                                <label for="device-make">Brand / make
-                                    <input id="device-make" name="make" maxlength="100" value="<?php echo h(
-                                        $values['make'],
-                                    ); ?>" placeholder="For example, Lenovo">
-                                </label>
-                                <label for="device-model">Model
-                                    <input id="device-model" name="model" maxlength="160" value="<?php echo h(
-                                        $values['model'],
-                                    ); ?>" placeholder="For example, ThinkPad T14">
-                                </label>
-                                <label for="serial-number">Serial number <span class="form-optional">optional</span>
-                                    <input id="serial-number" name="serial_number" maxlength="190" value="<?php echo h(
-                                        $values['serial_number'],
-                                    ); ?>" autocomplete="off">
-                                </label>
-                                <div class="intake-help-box form-wide">Enter a brand, a model, or both. If the customer cannot find the serial number, leave it blank.</div>
-                                <input type="hidden" name="quick_choices" value="1">
-                                <?php foreach (
-                                    [
-                                        'reported_symptoms' => [
-                                            'problems',
-                                            'Reported problem',
-                                            intakeProblemChoices(),
-                                            'reported-symptoms',
-                                        ],
-                                        'condition_notes' => [
-                                            'conditions',
-                                            'Visible damage or condition',
-                                            intakeConditionChoices(),
-                                            'condition-notes',
-                                        ],
-                                    ]
-                                    as $field => [$key, $label, $choices, $inputId]
-                                ):
-                                    $choiceState = intakeChoiceState($values[$field], $choices); ?>
-                                <fieldset class="form-wide intake-choice-group">
-                                    <legend><?= h($label) ?></legend>
-                                    <p>Select all that apply. These are observations, not a diagnosis.</p>
-                                    <div class="intake-choice-grid">
-                                    <?php foreach ($choices as $choice): ?>
-                                        <label><input type="checkbox" name="<?= h(
-                                            $key,
-                                        ) ?>[]" value="<?= h($choice) ?>" <?= in_array(
-    $choice,
-    $choiceState['selected'],
-    true,
-)
-    ? 'checked'
-    : '' ?>> <span><?= h($choice) ?></span></label>
-                                    <?php endforeach; ?>
-                                    </div>
-                                    <label for="<?= h($inputId) ?>">Additional details / Other
-                                        <textarea id="<?= h($inputId) ?>" name="<?= h(
-    $field,
-) ?>" rows="2" maxlength="<?= $field === 'reported_symptoms'
-    ? 2800
-    : 1800 ?>" placeholder="Optional unless Other is selected"><?= h(
-    $choiceState['details'],
-) ?></textarea>
-                                    </label>
-                                </fieldset>
-                                <?php
-                                endforeach; ?>
-                                <?php foreach ($values['extra_devices'] as $index => $device): ?>
-                                    <fieldset class="form-wide">
-                                        <legend>Device <?= $index + 2 ?></legend>
-                                        <?php foreach ($device as $key => $value): ?>
-                                            <label><?= h(ucwords(str_replace('_', ' ', $key))) ?>
-                                                <input name="extra_devices[<?= $index ?>][<?= h($key) ?>]" value="<?= h($value) ?>">
-                                            </label>
-                                        <?php endforeach; ?>
-                                    </fieldset>
+                                <?php $devices = [intakeDeviceFields($values), ...$values['extra_devices']]; ?>
+                                <?php foreach ($devices as $index => $device): ?>
+                                    <?php require __DIR__ . '/device-fields.php'; ?>
                                 <?php endforeach; ?>
-                                <button class="secondary-btn form-wide" name="intent" value="add-device" formnovalidate>Add another device</button>
+                                <div class="intake-step-actions form-wide">
+                                    <button class="secondary-btn" type="submit" name="intent" value="add-device"
+                                        <?= count($devices) >= max(INTAKE_DEVICE_LIMIT, $savedDeviceCount) ? 'disabled' : '' ?>>
+                                        Add another device
+                                    </button>
+                                </div>
                                 <div class="intake-step-actions form-wide">
                                     <button class="secondary-btn" type="button" data-step-back hidden><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back</button>
                                     <button class="logout-btn" type="submit" name="intent" value="review">Review details <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>

@@ -11,6 +11,21 @@ function consoleActiveSql(): string
 {
     return "t.case_state = 'OPEN' AND d.repair_status NOT IN ('COMPLETED', 'CANCELLED')";
 }
+
+function consoleCanViewReports(array $user): bool
+{
+    return in_array($user['role'] ?? '', ['ADMIN', 'MANAGER', 'TECHNICIAN', 'CASHIER'], true);
+}
+
+// Old bookmarks and console view links open the same report with the same filters.
+function redirectToStaffReport(array $input): never
+{
+    $filters = array_intersect_key($input, array_flip(['days', 'branch', 'page']));
+    $query = http_build_query($filters);
+    header('Location: reports.php' . ($query === '' ? '' : '?' . $query));
+    exit();
+}
+
 function consoleView(array $user, array $input): string
 {
     $allowed = match ($user['role']) {
@@ -47,20 +62,27 @@ function technicianActiveCount(PDO $pdo, int $technicianId): int
     $query->execute([$technicianId]);
     return (int) $query->fetchColumn();
 }
+// Both the queue preview and the full report count the first recorded start of each device.
+function consoleStartsByDay(PDO $pdo, string $scope, array $params, string $fromUtc, string $untilUtc): array
+{
+    $query = $pdo->prepare("SELECT DATE(CONVERT_TZ(d.repair_started_at, '+00:00', '+08:00')) AS day,
+        COUNT(*) AS started FROM ticket_devices d JOIN repair_tickets t ON t.ticket_id = d.ticket_id
+        WHERE $scope AND d.repair_started_at >= ? AND d.repair_started_at < ? GROUP BY day");
+    $query->execute([...$params, $fromUtc, $untilUtc]);
+    return $query->fetchAll();
+}
+
 function consoleStartTrend(PDO $pdo, array $user): array
 {
     [$scope, $params] = consoleScope($user);
     $today = new DateTimeImmutable('today', new DateTimeZone('Asia/Manila'));
     $from = $today->modify('-6 days');
-    $query = $pdo->prepare("SELECT DATE(CONVERT_TZ(d.repair_started_at, '+00:00', '+08:00')) AS day,
-        COUNT(*) AS total FROM ticket_devices d JOIN repair_tickets t ON t.ticket_id = d.ticket_id
-        WHERE $scope AND d.repair_started_at >= ? AND d.repair_started_at < ? GROUP BY day");
-    $query->execute([
-        ...$params,
+    $rows = consoleStartsByDay(
+        $pdo, $scope, $params,
         $from->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
         $today->modify('+1 day')->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
-    ]);
-    $totals = array_column($query->fetchAll(), 'total', 'day');
+    );
+    $totals = array_column($rows, 'started', 'day');
     $days = [];
     for ($offset = 0; $offset < 7; $offset++) {
         $day = $from->modify('+' . $offset . ' days');

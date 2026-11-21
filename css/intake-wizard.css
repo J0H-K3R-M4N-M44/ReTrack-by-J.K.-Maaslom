@@ -360,3 +360,20 @@
     padding: 10px 8px;
   }
 }
+
+.intake-device-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.intake-device-choices {
+  min-width: 0;
+  margin: 8px 0 0;
+  padding: 0;
+  border: 0;
+}
+@media (max-width: 600px) {
+  .intake-device-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -27,11 +27,10 @@ For an existing database, run `php tools/migrate.php` to see pending upgrades, t
 
 ## Local setup
 
-1. In MySQL Workbench, open and run `database/schema.sql`. It creates the `repairtrack` database and starter tables. It uses `CREATE TABLE IF NOT EXISTS` and does not drop existing tables.
-2. Copy `config/config.example.php` to `config/config.php`.
-3. Edit `config/config.php` for your local MySQL host, port, database, username, and password. The local password belongs only in your untracked `config/config.php`.
-4. From the project folder, run `php tools/create_admin.php`. Enter an administrator name, email, and password of at least 12 characters. The command stores a password hash and assigns the account to active branches; it does not create a default login.
-5. Start Apache and MySQL, then open `http://localhost/ReTrack-by-J.K.-Maaslom/admin/login.php` (adjust the folder name to match your XAMPP `htdocs` directory).
+1. Start MySQL. Copy `config/config.example.php` to `config/config.php` if you have no local config. Set the database to **repairtrack** and enter your local MySQL connection details.
+2. From Git Bash inside the repository, run `bash tools/setup-db.sh --seed` for the schema and a fictional shop with 24 repair cases. Use `bash tools/setup-db.sh` for schema only.
+3. Save the generated staff password printed after commit. Sign in as `technician@sim.example.test`, `cashier@sim.example.test`, `manager@sim.example.test` or `intake_agent@sim.example.test`. The simulation occupies the reserved branch code SIM-SOGOD. A repeat seed stops before adding more records.
+4. To create your own administrator after seeding, run `/c/xampp/php/php.exe tools/create_admin.php`. Start Apache or your usual PHP server and open `admin/login.php`.
 
 If PDO reports that the MySQL driver is missing, enable `pdo_mysql` in the PHP configuration used by Apache and the command line.
 
@@ -58,12 +57,13 @@ Managers can issue one final bill for a ticket after every device is ready and h
 - Single-use, expiring account password reset links
 - A database-backed dashboard summary and working dashboard section navigation
 - A searchable repair workbench with numbered pages, pending intake drafts, and current status
-- An administrator intake workflow for customer matching, device details, server-side review, and reopening/editing single-device drafts
-- A customer roster with ticket totals, plus a report summary grouped by repair status
+- A branch-scoped staff intake workflow for customer matching, device details, and reviewing and editing drafts of up to five devices
+- A customer roster with ticket totals
+- [Staff reports](docs/staff-workspace.md#dates-tables-and-analytics) for technician milestones, cashier collections and branch operations, with 7/30/90-day filters and daily figures
 - A public landing page with the existing MP4 hero background, scroll navigation, responsive sections, and reduced-motion support
 - A role-based page wireframe for customer, counter officer, technician, and branch administrator workflows
 
-Single-device ticket issuance captures accessories, condition photos, signed intake paperwork and branch storage. Staff-recorded quote approval and counter-cash customer pickup are available on Payments-Inventory. Parts operations, COD delivery, refunds and public self-approval remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
+Ticket issuance captures an accessory checklist, condition photo and storage location for each device, with one signed intake form covering the ticket. Staff-recorded quote approval and counter-cash customer pickup are available on Payments-Inventory. Parts operations, COD delivery, refunds and public self-approval remain to be built. This is a local learning build, not a hardened public service. Do not expose it to the internet or use real customer data until access controls, audit handling, HTTPS, backups, and recovery workflows are complete.
 
 ## Development branches
 

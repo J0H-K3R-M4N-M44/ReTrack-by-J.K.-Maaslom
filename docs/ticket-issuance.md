@@ -6,7 +6,7 @@ Draft → intake checks → confirmation → issued ticket receipt.
 
 The draft editor links to an issuance page. On desktop, two columns place the saved customer/device summary beside the remaining intake checks. On mobile they stack. Required checks are a physical storage location, accessory checklist, an overall-condition photo, and an image of the customer-signed intake form covering condition and the shop's terms. If the draft has no serial number, record identifying details instead. The final confirmation shows the values and uploaded images before an Issue ticket button appears.
 
-This first version accepts JPEG/PNG uploads of existing signed paperwork. It does not supply legal terms or draw signatures. Administrators must identify the actual terms version on that paperwork. It supports one device per draft and keeps the accountable branch equal to the intake branch.
+This first version accepts JPEG/PNG uploads of existing signed paperwork. It does not supply legal terms or draw signatures. Administrators must identify the actual terms version on that paperwork. A new draft accepts up to five devices. Each device has its own condition photo, accessory checklist and storage location. One signed form must cover every device. The accountable branch stays the same as the intake branch.
 
 ## Local setup (no schema migration)
 
@@ -15,7 +15,7 @@ Keep your existing database settings. Add these two entries from `config/config.
 - `intake_storage_path`: create an absolute private folder such as `C:/repairtrack-private/intake`, outside both `htdocs` and the project directory. PHP needs read/write access. Uploads never go in the public assets folder.
 - `intake_hmac_key`: generate 32 random bytes once using `php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"`, then paste the 64 hexadecimal characters into this setting. Keep it private and stable; changing it changes duplicate fingerprints.
 
-Enable PHP `fileinfo` alongside the existing extensions. Set `upload_max_filesize = 5M` and `post_max_size = 12M` or greater in the PHP configuration used by Apache, then restart Apache. Both JPEG/PNG images must be at most 5 MB, 20 megapixels and 6000 pixels on either side. File bytes and image metadata are checked; SVG, PDF and executable uploads are rejected. The system records an administrator's attestation that the actual signed form is legible and covers condition and terms. It does not recognize or legally verify a signature in an image.
+Enable PHP `fileinfo` alongside the existing extensions. Set `upload_max_filesize = 5M` and `post_max_size = 32M` or greater in the PHP configuration used by Apache, then restart Apache. Each JPEG/PNG image must be at most 5 MB, 20 megapixels and 6000 pixels on either side. File bytes and image metadata are checked; SVG, PDF and executable uploads are rejected. The system records an administrator's attestation that the actual signed form is legible and covers condition and terms. It does not recognize or legally verify a signature in an image.
 
 Choose an active BRANCH_BIN or WORKBENCH location in the intake branch. The seed database provides example locations; no location-management UI is added here. Existing drafts with prior photos, accessories or acknowledgments are blocked for manual review rather than overwriting previous evidence.
 
@@ -56,7 +56,7 @@ Expired reviews are cleaned on the next issuance request in that session. Closin
 
 `tests/ticket-issuance.php` runs only from CLI against a disposable `repairtrack_test_` database. It creates fictional drafts and test image evidence. `tests/ticket-issuance-browser.mjs` exercises real upload, review, issue, receipt and access flows with JavaScript disabled. Reuse the isolated setup documented in [admin milestone tests](admin-milestone.md), add the private folder/key settings, and set `REPAIRTRACK_PRIVATE_DIR` for the browser checks. Run the existing admin PHP tests, then the issuance PHP tests, then the browser suites. Test images are deliberately tiny fixtures, not customer signatures.
 
-Remaining scope: multi-device issuance, electronic signature drawing, issue correction tools, public tracking, branch transfers, repair work, quotes, payments and inventory actions.
+Electronic signature drawing and corrections to issued evidence remain outside this intake flow.
 
 ### Verified result
 

@@ -18,7 +18,7 @@ Shared login and password recovery; branch-scoped staff accounts; reviewed intak
 | 6 | Customer consultation and requests | Technician/customer messages, upgrades, cancellations and approval responses need real storage, permissions and audited decisions. |
 | 7 | Notifications and usable history screens | Current audit/status records are not a full notification inbox or searchable admin history. Add role/device scope, read state and grouped delivery. SMS/email repair alerts remain unimplemented. |
 | 8 | Branch and store operations UI | Branch/location setup and technician skills/availability management are incomplete. |
-| 9 | Trends and operational reports | Status totals and seven-day repair-start counts exist; turnaround trends, damage categories, workload history and finance reports still need definitions and reliable data. |
+| 9 | Diagnosis, demand and historical workload analysis | Staff reports cover 7/30/90-day repair milestones, intake-to-return time, gross counter collections and outstanding peso balances. Damage causes, upgrade demand and workload attribution at the time of reassignment need reliable structured records. |
 | 10 | Deployment and recovery verification | Validate on the target MySQL version, configure actual mail delivery/HTTPS, test backups/restores and concurrent edits, and establish retention and monitoring. Local test success is not production certification. |
 
 ## Recommended next milestone

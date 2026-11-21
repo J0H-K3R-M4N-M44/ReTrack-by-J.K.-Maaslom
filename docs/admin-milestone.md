@@ -9,7 +9,7 @@ This milestone completes the administrator draft-intake workflow. It does not co
 3. Start intake. Search for an existing customer first, or enter a name and one phone/email contact. Search displays up to 20 matches; narrow the search if necessary. Searching again reloads the form, so do this before typing unsaved device details.
 4. Enter device type, brand/model, reported problem and visible condition. Serial number is optional. Only active branches assigned to the administrator can accept a draft.
 5. Select Review details. PHP validates the fields and renders the review. Confirm the review, then save. Enter on the first JavaScript step advances to device details; it cannot save. Without JavaScript, both entry sections are visible and the same server review is required.
-6. Open the draft link from the workbench to edit it. Existing customer contact details are not overwritten. Saved drafts stay at their original branch. Only single-device DRAFT records can be edited; issued records and multi-device drafts are rejected with an explanation.
+6. Open the draft link from the workbench to edit it. Existing customer contact details are not overwritten. Saved drafts stay at their original branch. Drafts can contain up to five devices. You can remove a device added on the current form before saving. Previously saved devices can be edited in place. Issued records are closed to draft edits.
 
 Customer creation, contact creation, ticket/device changes and the audit entry share a transaction. A failed write rolls everything back. Each form has a session-bound, one-use key that expires after 30 minutes; up to 20 open forms are retained. Repeated submission is rejected. Editing locks the draft and compares its saved version with the database so an older form cannot overwrite a newer change. This protects repeated submissions of a form, not two independently created new-intake forms.
 
@@ -59,7 +59,7 @@ Mail tests use a local sink and never contact an external provider. MySQL 8 and 
 
 ### Repeating tests
 
-Use a disposable copy of the site and a fresh database named `repairtrack_test_admin`. In copies of `database/create_demo_database.sql` and `database/seed_demo.sql`, replace every `repairtrack_demo` with `repairtrack_test_admin`, then import them in that order. Point only the disposable site's ignored `config/config.php` at that database. Do not use live data.
+Use a disposable copy of the site and a fresh database named `repairtrack_test_admin`. In copies of `tests/fixtures/demo/create_demo_database.sql` and `tests/fixtures/demo/seed_demo.sql`, replace every `repairtrack_demo` with `repairtrack_test_admin`, then import them in that order. Point only the disposable site's ignored `config/config.php` at that database. Do not use live data.
 
 Run `php tests/admin-intake.php` once against the fresh fixture. It deliberately inserts and edits records. Run `node tests/login-regression.cjs` from the site root for the small JavaScript regression check.
 

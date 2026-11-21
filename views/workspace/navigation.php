@@ -1,5 +1,6 @@
 <?php
 // The page sets $workspaceUser and $currentSection after its normal access check.
+require_once __DIR__ . '/../../app/console/workspace.php';
 $workspaceRole = $workspaceUser['role'];
 $navigation = [];
 if ($workspaceRole === 'ADMIN') {
@@ -7,7 +8,7 @@ if ($workspaceRole === 'ADMIN') {
         'overview' => ['Overview', 'dashboard.php?tab=overview', 'overview'],
         'workbench' => ['Workbench', 'dashboard.php?tab=workbench', 'bench'],
         'customers' => ['Customers', 'dashboard.php?tab=customers', 'people'],
-        'reports' => ['Reports', 'dashboard.php?tab=reports', 'chart'],
+        'reports' => ['Reports', 'reports.php', 'chart'],
         'staff' => ['Staff accounts', 'staff.php', 'people'],
     ];
 }
@@ -23,6 +24,13 @@ if (in_array($workspaceRole, ['ADMIN', 'MANAGER', 'INTAKE_AGENT'], true)) {
 }
 if (in_array($workspaceRole, ['ADMIN', 'MANAGER', 'CASHIER'], true)) {
     $navigation['cash'] = ['Cash desk', 'staff_home.php?view=cash', 'cash'];
+}
+if ($workspaceRole !== 'ADMIN' && consoleCanViewReports($workspaceUser)) {
+    $navigation['reports'] = ['Reports', 'reports.php', 'chart'];
+}
+require_once __DIR__ . '/../../app/console/activity.php';
+if (activityGroups($workspaceRole)) {
+    $navigation['activity'] = ['Staff activity', 'activity.php', 'clock'];
 }
 $navigation['learning'] = ['Learning center', 'learning.php', 'file'];
 $symbols = [

@@ -12,6 +12,7 @@ $userId = (int) $admin['user_id'];
 $errors = [];
 $review = false;
 $showDeviceStep = false;
+$savedDeviceCount = 0;
 
 try {
     $pdo = getPDO();
@@ -33,25 +34,45 @@ try {
             unavailablePage('This form expired or was already saved. Open intake again.', 409);
         }
         $draftId = $formState['draft_id'];
+        $savedDeviceCount = $formState['device_count'] ?? 0;
         $values = intakeReadValues($values, $_POST);
         [$values, $choiceErrors] = intakeQuickValues($values, $_POST);
         $rawDevices = $_POST['extra_devices'] ?? [];
         $values['extra_devices'] = [];
-        foreach (is_array($rawDevices) ? $rawDevices : [] as $rawDevice) {
-            if (is_array($rawDevice)) {
-                $values['extra_devices'][] = intakeReadValues(intakeDeviceFields(), $rawDevice);
+        $limit = max(INTAKE_DEVICE_LIMIT, $savedDeviceCount);
+        if (!is_array($rawDevices) || count($rawDevices) >= $limit) {
+            unavailablePage('This intake contains too many devices. Reopen the draft.', 400);
+        }
+        foreach ($rawDevices as $rawDevice) {
+            if (!is_array($rawDevice)) {
+                unavailablePage('The device details are incomplete. Reopen the draft.', 400);
+            }
+            $number = count($values['extra_devices']) + 2;
+            $device = intakeReadValues(intakeDeviceFields(), $rawDevice);
+            [$device, $deviceErrors] = intakeQuickValues($device, $rawDevice);
+            $values['extra_devices'][] = $device;
+            foreach ($deviceErrors as $message) {
+                $choiceErrors[] = 'Device ' . $number . ': ' . $message;
             }
         }
         $intent = requestText($_POST, 'intent');
-        $showDeviceStep = in_array($intent, ['add-device', 'edit', 'review'], true);
+        $showDeviceStep = true;
         $digest = hash('sha256', json_encode($values, JSON_THROW_ON_ERROR));
         if ($intent === 'add-device') {
-            $values['extra_devices'][] = intakeDeviceFields();
+            if (count($values['extra_devices']) + 1 < $limit) {
+                $values['extra_devices'][] = intakeDeviceFields();
+            }
+            unset($_SESSION['intake_forms'][$formKey]['review_hash']);
+        } elseif (preg_match('/^remove-device-([1-9][0-9]*)$/D', $intent, $matches)) {
+            $index = (int) $matches[1];
+            if ($index >= $savedDeviceCount && isset($values['extra_devices'][$index - 1])) {
+                array_splice($values['extra_devices'], $index - 1, 1);
+            }
             unset($_SESSION['intake_forms'][$formKey]['review_hash']);
         } elseif ($intent === 'edit') {
             unset($_SESSION['intake_forms'][$formKey]['review_hash']);
         } else {
-            $errors = array_merge($choiceErrors, intakeValidateDevices($pdo, $values, $branches));
+            $errors = array_merge($choiceErrors, intakeValidateDevices($pdo, $values, $branches, $savedDeviceCount));
             if ($errors === [] && $intent === 'review') {
                 $_SESSION['intake_forms'][$formKey]['review_hash'] = $digest;
                 $review = true;
@@ -86,6 +107,7 @@ try {
         if ($draftId > 0) {
             $draft = intakeLoadDraft($pdo, $draftId, $userId);
             $version = intakeDraftVersion($draft);
+            $savedDeviceCount = count($draft['devices']);
             foreach ($values as $key => $value) {
                 if (array_key_exists($key, $draft)) {
                     $values[$key] = (string) ($draft[$key] ?? '');
@@ -102,6 +124,7 @@ try {
         $formKey = bin2hex(random_bytes(24));
         $_SESSION['intake_forms'][$formKey] = [
             'draft_id' => $draftId,
+            'device_count' => $savedDeviceCount,
             'version' => $version,
             'expires' => time() + 1800,
         ];

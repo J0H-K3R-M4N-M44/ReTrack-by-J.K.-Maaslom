@@ -15,7 +15,7 @@ Every action is branch-scoped, requires an active staff account and CSRF token, 
 
 ## Database upgrade
 
-Fresh installations already include `repair_bill_payments` in `database/schema.sql` and `database/create_demo_database.sql`. Existing installations should be backed up, then upgraded with `php tools/migrate.php --apply`. The migration runner reports and applies `payment_handover.sql` along with any earlier pending staff migrations. It does not create a new database.
+Fresh installations already include `repair_bill_payments` in `database/schema.sql` and `tests/fixtures/demo/create_demo_database.sql`. Existing installations should be backed up, then upgraded with `php tools/migrate.php --apply`. The migration runner reports and applies `payment_handover.sql` along with any earlier pending staff migrations. It does not create a new database.
 
 ## Scope
 

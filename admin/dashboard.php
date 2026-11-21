@@ -8,11 +8,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     unavailablePage('Open the dashboard using its link.', 405);
 }
 $tab = requestText($_GET, 'tab', 'overview');
-if (!in_array($tab, ['overview', 'workbench', 'customers', 'reports'], true)) {
+$admin = requireAdmin();
+if ($tab === 'reports') {
+    require_once __DIR__ . '/../app/console/workspace.php';
+    redirectToStaffReport($_GET);
+}
+if (!in_array($tab, ['overview', 'workbench', 'customers'], true)) {
     $tab = 'overview';
 }
 
-$admin = requireAdmin();
 $admin_username = h($admin['full_name']);
 
 $metricsAvailable = true;
@@ -126,11 +130,8 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                         <i class="nav-icon fa-solid fa-users" aria-hidden="true"></i>
                         <span>Customer roster</span>
                     </a>
-                    <a class="nav-item<?= $tab === 'reports'
-                        ? ' is-active'
-                        : '' ?>" href="?tab=reports"<?= $tab === 'reports'
-    ? ' aria-current="page"'
-    : '' ?>>
+                    <a class="nav-item" href="activity.php"><i class="nav-icon fa-solid fa-bell" aria-hidden="true"></i><span>Staff activity</span></a>
+                    <a class="nav-item" href="reports.php">
                         <i class="nav-icon fa-solid fa-file-invoice" aria-hidden="true"></i>
                         <span>Reports and records</span>
                     </a>
@@ -429,31 +430,6 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                     } ?>
                 </section>
 
-                <section class="dashboard-panel dashboard-card" data-dashboard-panel="reports"<?= $tab !==
-                'reports'
-                    ? ' hidden'
-                    : '' ?>>
-                    <div class="eyebrow">Records and assets</div>
-                    <h2>Reports and service records</h2>
-                    <?php if (!$metricsAvailable): ?>
-                        <div class="empty-state"><i class="fa-solid fa-database" aria-hidden="true"></i><strong>Report data unavailable</strong><span>Check the database connection and try again.</span></div>
-                    <?php elseif ($statusCounts === []): ?>
-                        <div class="empty-state"><i class="fa-solid fa-file-invoice" aria-hidden="true"></i><strong>No status data yet</strong><span>Repair status totals will appear after the first ticket is issued.</span></div>
-                    <?php else: ?>
-                        <dl class="status-list">
-                            <?php foreach ($statusCounts as $statusCount): ?>
-                                <div>
-                                    <dt><?php echo h(
-                                        dashboardStatusLabel(
-                                            (string) $statusCount['repair_status'],
-                                        ),
-                                    ); ?></dt>
-                                    <dd><?php echo (int) $statusCount['total']; ?></dd>
-                                </div>
-                            <?php endforeach; ?>
-                        </dl>
-                    <?php endif; ?>
-                </section>
             </div>
         </main>
     </div>

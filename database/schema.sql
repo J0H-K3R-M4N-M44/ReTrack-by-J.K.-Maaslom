@@ -1,14 +1,12 @@
--- RepairTrack local-demo database baseline
--- Target: MySQL 8.0.16+ / MariaDB version with compatible CHECK and JSON support.
--- Encoding: utf8mb4. Demo notifications are SIMULATED. No SMS/WhatsApp provider is called.
--- IMPORTANT: This is a starter schema, not production-hardened deployment configuration.
+-- RepairTrack application schema. Run tools/setup-db.sh from Git Bash.
+-- MySQL 8.0.16+. Setup data is added separately with tools/seed.php.
 
 CREATE DATABASE IF NOT EXISTS repairtrack
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 USE repairtrack;
 SET NAMES utf8mb4;
-SET time_zone = '+00:00'; -- Store timestamps in UTC; display local time in Asia/Manila in PHP.
+SET time_zone = '+00:00';
 
 CREATE TABLE IF NOT EXISTS branches (
   branch_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -38,6 +36,20 @@ CREATE TABLE IF NOT EXISTS users (
   PRIMARY KEY (user_id),
   UNIQUE KEY uq_users_email (email),
   KEY idx_users_role_active (role, is_active)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  reset_token_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  token_hash CHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (reset_token_id),
+  UNIQUE KEY uq_password_reset_token_hash (token_hash),
+  KEY idx_password_reset_user_expiry (user_id, expires_at),
+  CONSTRAINT fk_password_reset_user
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS user_branch_assignments (
@@ -656,45 +668,10 @@ CREATE TABLE IF NOT EXISTS audit_events (
   KEY idx_audit_actor (actor_user_id, created_at),
   CONSTRAINT fk_audit_user FOREIGN KEY (actor_user_id) REFERENCES users(user_id)
 ) ENGINE=InnoDB;
-
--- Optional low-risk demo seed data. No users or default passwords are seeded.
-INSERT IGNORE INTO branches (branch_code, branch_name, address) VALUES
-  ('BR-A', 'RepairTrack Demo Branch A', 'Demo address - replace before presentation'),
-  ('BR-B', 'RepairTrack Demo Branch B', 'Demo address - replace before presentation'),
-  ('BR-C', 'RepairTrack Demo Branch C', 'Demo address - replace before presentation');
-
--- After inserting branches, create locations for each branch. Repeat safely on re-run.
-INSERT INTO storage_locations (branch_id, location_code, location_name, location_type)
-SELECT b.branch_id, 'INTAKE', 'Intake / Receiving', 'BRANCH_BIN'
-FROM branches b
-WHERE b.branch_code IN ('BR-A','BR-B','BR-C')
-  AND NOT EXISTS (
-    SELECT 1 FROM storage_locations sl
-    WHERE sl.branch_id = b.branch_id AND sl.location_code = 'INTAKE'
-  );
-
-INSERT INTO storage_locations (branch_id, location_code, location_name, location_type)
-SELECT b.branch_id, 'REPAIR-BENCH', 'Repair Bench', 'WORKBENCH'
-FROM branches b
-WHERE b.branch_code IN ('BR-A','BR-B','BR-C')
-  AND NOT EXISTS (
-    SELECT 1 FROM storage_locations sl
-    WHERE sl.branch_id = b.branch_id AND sl.location_code = 'REPAIR-BENCH'
-  );
-
-INSERT INTO storage_locations (branch_id, location_code, location_name, location_type)
-SELECT b.branch_id, 'IN-TRANSIT', 'In Transit', 'TRANSIT'
-FROM branches b
-WHERE b.branch_code IN ('BR-A','BR-B','BR-C')
-  AND NOT EXISTS (
-    SELECT 1 FROM storage_locations sl
-    WHERE sl.branch_id = b.branch_id AND sl.location_code = 'IN-TRANSIT'
-  );
-
--- Operational enforcement is deliberately implemented in PHP service transactions:
--- 1. Gate ticket issuance on complete fields, required photos, acknowledgments, and duplicate check.
--- 2. Generate the ticket code and opaque tracking token only at issuance.
--- 3. Keep condition/creation evidence immutable through normal UI edits; use correction notes.
--- 4. Enforce status transitions and role permissions in a single service layer.
--- 5. Update inventory_transactions and branch_inventory in one database transaction with row locks.
--- 6. Set notifications to SIMULATED for local-demo; unique dedupe_key prevents repeated mock sends.
+CREATE TABLE IF NOT EXISTS staff_activity_reads (
+  user_id BIGINT UNSIGNED NOT NULL,
+  event_group ENUM('repairs','payments','pickups') NOT NULL,
+  event_id BIGINT UNSIGNED NOT NULL,
+  PRIMARY KEY (user_id, event_group, event_id),
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB;

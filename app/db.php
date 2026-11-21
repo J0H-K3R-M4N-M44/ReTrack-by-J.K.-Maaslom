@@ -14,23 +14,35 @@ function getPDO(): PDO
         return $pdo;
     }
 
-    $configFile = __DIR__ . '/../config/config.php';
+    $config = databaseConfig();
+    $pdo = connectDatabase($config, $config['database'] ?? 'repairtrack');
+    return $pdo;
+}
 
+function databaseConfig(): array
+{
+    $configFile = __DIR__ . '/../config/config.php';
     if (!is_file($configFile)) {
         throw new RuntimeException(
             'Missing config/config.php. Copy config/config.example.php and add your MySQL settings.',
         );
     }
 
-    $config = require $configFile;
+    return require $configFile;
+}
 
+// Initial setup connects to MySQL before the repairtrack database exists.
+function connectDatabase(array $config, ?string $database): PDO
+{
     $host = $config['host'] ?? 'localhost';
     $port = (int) ($config['port'] ?? 3306);
-    $database = $config['database'] ?? 'repairtrack';
     $username = $config['username'] ?? 'root';
     $password = $config['password'] ?? '';
 
-    $dsn = "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4";
+    $dsn = "mysql:host={$host};port={$port};charset=utf8mb4";
+    if ($database !== null) {
+        $dsn .= ";dbname={$database}";
+    }
 
     $pdo = new PDO($dsn, $username, $password, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,

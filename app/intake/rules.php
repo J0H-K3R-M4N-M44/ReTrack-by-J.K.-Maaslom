@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+const INTAKE_DEVICE_LIMIT = 5;
+
 // Form choices are not database migrations. Keep stored enum values compatible.
 function intakeDeviceTypes(): array
 {
@@ -171,8 +173,11 @@ function intakeDeviceFields(array $values = []): array
     return array_intersect_key($values, $defaults) + $defaults;
 }
 
-function intakeValidateDevices(PDO $pdo, array $values, array $branches): array
+function intakeValidateDevices(PDO $pdo, array $values, array $branches, int $savedDeviceCount = 0): array
 {
+    if (count($values['extra_devices'] ?? []) + 1 > max(INTAKE_DEVICE_LIMIT, $savedDeviceCount)) {
+        return ['This draft has reached its device limit.'];
+    }
     $errors = intakeValidate($pdo, $values, $branches);
     foreach ($values['extra_devices'] ?? [] as $index => $device) {
         foreach (intakeValidateDevice($device) as $error) {

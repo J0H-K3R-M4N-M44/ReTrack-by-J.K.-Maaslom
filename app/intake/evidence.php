@@ -75,7 +75,7 @@ function intakeStoreUpload(array $file): array
         !is_string($file['tmp_name'] ?? null) ||
         !is_uploaded_file($file['tmp_name'])
     ) {
-        throw new DomainException('Select both required images again. Each must be at most 5 MB.');
+        throw new DomainException('Choose a JPEG or PNG image up to 5 MB.');
     }
     $image = intakeInspectImage($file['tmp_name']);
     $name = bin2hex(random_bytes(24)) . ($image['mime'] === 'image/png' ? '.png' : '.jpg');

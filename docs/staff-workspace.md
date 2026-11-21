@@ -24,7 +24,15 @@ Repair start timestamps are stored in UTC and displayed in Philippine time. The 
 
 Tables and history lists use ten rows per page, visible result counts, search and navigation. Numeric amounts align right. Search and selected view remain in pagination links. Mobile tables scroll within their container.
 
-Seven-day repair-start trends show dates and exact counts on hover, keyboard focus or tap. Escape dismisses the detail. Counts reflect the user's current assigned scope, not historical technician attribution. Admin metric details show snapshot date/count. These are not financial or turnaround reports.
+Open **Reports** from the workspace menu or **Reports and records** from the admin dashboard. Choose 7, 30 or 90 Philippine calendar days and, for a multi-branch account, a branch. Each report includes today. Chart bars show exact figures on hover, focus or tap. The daily table shows up to ten dates per page, newest first. Its links keep the selected period and branch.
+
+| Account | During the selected period | Current snapshot |
+| --- | --- | --- |
+| Technician | First repair starts, entries into testing and transitions to ready for pickup on devices currently assigned to the technician. A second test run counts again. Adding a note at the same stage has no effect. | Active assigned devices by stage. |
+| Cashier | Gross peso counter collections across the selected branches, the number of payment records and devices handed back to customers. Split payments count individually. A later bill void leaves its recorded receipts in gross cash. | Remaining peso balances on issued bills for open tickets, after all recorded payments. |
+| Manager or administrator | Devices on newly issued tickets, first repair starts and recorded customer returns. Average intake-to-return time includes each returned device with a valid pair of timestamps, including intake before the selected period. | All issued devices by current status. |
+
+Reports use the ticket's current accountable branch. Reassignment changes which branch or technician can see the device's history. An absent start or handover timestamp contributes no event. A database error displays a retry link. The existing schema and migrations supply all reporting data.
 
 ## Customer access
 
@@ -45,6 +53,8 @@ Use only a disposable `repairtrack_test_*` database. Import the original demo sc
 5. `node tests/workspace-browser.mjs`
 
 Browser scripts use Playwright, `CHROME_PATH`, `REPAIRTRACK_TEST_URL` and `REPAIRTRACK_TEST_SITE`. Fixture scripts change data; recreate the disposable database before repeating. Do not deploy generated fixture files or screenshots.
+
+On a disposable schema, run `php tests/staff-reports.php` for report calculations and scope. For browser checks, save the output of `php tests/staff-reports.php --browser-fixture` outside the web root, set `REPAIRTRACK_REPORT_FIXTURE` to its path and `REPAIRTRACK_TEST_URL` to the local site, then run `node tests/reports-browser.mjs`.
 
 Counter cash is recorded as append-only payment rows. COD, online payments, refunds, bill voiding, and digital signatures are not part of this milestone. See `system-gaps.md` for the remaining work. Validate the migration on the target MySQL installation before deploying.
 
