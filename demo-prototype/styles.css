@@ -988,3 +988,21 @@ dialog::backdrop {
     color: #555;
   }
 }
+
+@media (max-width: 760px) {
+  .mobile-nav nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+    gap: 4px;
+  }
+  .mobile-nav nav a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 4px 8px;
+  }
+  .mobile-nav [aria-current="page"] {
+    font-weight: 700;
+    text-decoration: underline;
+  }
+}
