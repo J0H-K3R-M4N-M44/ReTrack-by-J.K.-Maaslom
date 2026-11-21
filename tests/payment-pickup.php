@@ -92,6 +92,33 @@ if ($browserFixture) {
     exit();
 }
 
+if (in_array('--cancel', $argv, true) || in_array('--cancel-free', $argv, true)) {
+    $fee = in_array('--cancel-free', $argv, true) ? '0.00' : '350.00';
+    $pdo->prepare("UPDATE repair_quotes SET total_amount=2750, parts_amount=2650 WHERE quote_id=?")->execute([$quote]);
+    $pdo->prepare("INSERT INTO repair_quote_items (quote_id,item_type,description,quantity,unit_price,line_total)
+        VALUES (?,'PART','Unused SSD',1,2650,2650)")->execute([$quote]);
+    $version = cashTicketVersion(cashPageTicket($pdo, $manager, $ticket));
+    $decision = ['amount' => $fee, 'reason' => 'Customer agreed at the counter.', 'confirm' => 'yes'];
+    $issue = fn(array $values) => cashIssueFinalBill($pdo, $manager['user_id'], $ticket, $version, $values);
+    expectRefusal(fn() => $issue(['confirm' => 'no'] + $decision), 'agreed');
+    $bill = $issue($decision);
+    expectRefusal(fn() => $issue($decision), 'ticket changed');
+    $record = cashBillDetails($pdo, $first, $bill);
+    expectResult($record['total_amount'] === $fee, 'Cancellation fee was replaced by the quote.');
+    expectResult(quoteLatest($pdo, $device)['total_amount'] === '2750.00', 'Original estimate changed.');
+    if ($fee !== '0.00') {
+        cashRecordPayment($pdo, $first['user_id'], $bill, $record['version'], $fee, bin2hex(random_bytes(32)));
+        $record = cashBillDetails($pdo, $first, $bill);
+    }
+    cashCompleteHandover($pdo, $first['user_id'], $bill, $record['version'], 'Pickup Test', 'CUSTOMER', 'yes');
+    $closed = cashBillDetails($pdo, $first, $bill);
+    $returned = cashHandoverPreview($pdo, $first, $ticket)['devices'][0];
+    expectResult($closed['closure_outcome'] === 'ALL_CANCELLED' && $returned['repair_status'] === 'CANCELLED'
+        && $returned['custody_state'] === 'WITH_CUSTOMER', 'Cancellation handover was lost.');
+    echo "PASS: cancellation, fee $fee, stale retry, quote preservation and return.\n";
+    exit();
+}
+
 // Add a second device for the PHP regression while keeping the browser fixture single-device.
 $delayed = insertFixture($pdo,
     "INSERT INTO ticket_devices (ticket_id,child_sequence,item_code,device_type_snapshot,reported_symptoms,

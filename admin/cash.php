@@ -58,14 +58,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             unset($_SESSION['cash_forms'][$formKey]['values'], $formState['values']);
         } elseif ($intent === 'save' && isset($formState['values'])) {
             $formValues = $formState['values'];
-            if ($pageAction === 'issue') {
+            if (in_array($pageAction, ['issue', 'cancel'], true)) {
                 $billId = cashIssueFinalBill(
                     $pdo,
                     (int) $user['user_id'],
                     $pageId,
                     $formState['version'],
+                    $pageAction === 'cancel' ? $formValues : null,
                 );
-                $_SESSION['cash_saved'] = 'Final bill issued from the approved estimates.';
+                $_SESSION['cash_saved'] = $pageAction === 'cancel'
+                    ? 'As-is return approved. The diagnostic fee is the full bill.'
+                    : 'Final bill issued from the approved estimates.';
             } elseif ($pageAction === 'payment') {
                 cashRecordPayment(
                     $pdo,
@@ -121,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 try {
     if ($pageAction !== '') {
-        if ($pageAction === 'issue') {
+        if (in_array($pageAction, ['issue', 'cancel'], true)) {
             $ticket = cashPageTicket($pdo, $user, $pageId);
         } else {
             $bill = cashBillDetails($pdo, $user, $pageId);
@@ -141,9 +144,9 @@ try {
             exit();
         }
         if (in_array($user['role'], ['ADMIN', 'MANAGER'], true)) {
-            $formKey = cashStartForm('issue', $ticketId, cashTicketVersion($ticket));
+            $pageAction = requestText($_GET, 'cash_action') === 'cancel' ? 'cancel' : 'issue';
+            $formKey = cashStartForm($pageAction, $ticketId, cashTicketVersion($ticket));
             $formState = $_SESSION['cash_forms'][$formKey];
-            $pageAction = 'issue';
             $pageId = $ticketId;
         }
     } elseif (isset($_GET['bill_id']) && ctype_digit(requestText($_GET, 'bill_id'))) {
@@ -182,20 +185,20 @@ try {
 
 // Replace an old review token when another staff member changed the record meanwhile.
 if ($formState && $pageAction !== '') {
-    $currentVersion = $pageAction === 'issue'
+    $currentVersion = in_array($pageAction, ['issue', 'cancel'], true)
         ? cashTicketVersion($ticket)
         : $bill['version'];
     if (!hash_equals($formState['version'], $currentVersion)) {
         unset($_SESSION['cash_forms'][$formKey]);
         $_SESSION['cash_saved'] = 'Another staff member updated this record. Check the latest details.';
         // The balance may now be zero or the ticket closed. Reopen its current step.
-        $parameter = $pageAction === 'issue' ? 'ticket_id' : 'bill_id';
+        $parameter = in_array($pageAction, ['issue', 'cancel'], true) ? 'ticket_id' : 'bill_id';
         header('Location: cash.php?' . $parameter . '=' . $pageId, true, 303);
         exit();
     }
 }
 
-if ($pageAction === 'issue' && !$formState) {
+if (in_array($pageAction, ['issue', 'cancel'], true) && !$formState) {
     $formKey = cashStartForm('issue', (int) $ticket['ticket_id'], cashTicketVersion($ticket));
     $formState = $_SESSION['cash_forms'][$formKey];
 }
@@ -227,7 +230,7 @@ function cashPostedValues(string $action, array $input): array
             'amount' => trim(requestText($input, 'amount')),
             'confirm' => requestText($input, 'confirm'),
         ],
-        'correction', 'refund' => [
+        'cancel', 'correction', 'refund' => [
             'amount' => trim(requestText($input, 'amount')),
             'reason' => trim(requestText($input, 'reason')),
             'confirm' => requestText($input, 'confirm'),
@@ -243,6 +246,9 @@ function cashPostedValues(string $action, array $input): array
 
 function cashValidateReview(string $action, array $values): void
 {
+    if ($action === 'cancel') {
+        cashCancellationFee($values);
+    }
     if ($action === 'issue' && $values['confirm'] !== 'yes') {
         throw new DomainException('Confirm the ready devices and approved estimates before issuing the bill.');
     }
