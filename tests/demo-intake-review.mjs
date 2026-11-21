@@ -57,6 +57,7 @@ try {
     assert.equal(await page.evaluate(() => ticket().issued), false);
     await devices.nth(1).getByRole('checkbox').check();
     await issue.click();
+    await dialog.waitFor({ state: "hidden" });
     assert.deepEqual(await page.evaluate(() => ticket().devices.map(d => [d.serial, d.photo, d.ack])),
       [['AS-101', 'first.jpg', true], ['AS-102', 'second.jpg', true]]);
     assert.equal(await page.evaluate(() => ticket().issued), true);
