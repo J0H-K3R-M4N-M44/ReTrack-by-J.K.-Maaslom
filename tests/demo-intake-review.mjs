@@ -15,6 +15,7 @@ try {
     await page.goto(pathToFileURL(resolve('demo-prototype/index.html')).href);
     await page.evaluate(() => {
       state.settings.photosRequired = true;
+      saveDemo();
       setRole('Cashier');
       go('intake');
     });

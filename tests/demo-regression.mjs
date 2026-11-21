@@ -10,7 +10,8 @@ const browser = await chromium.launch({
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
   headless: true,
 });
-const page = await browser.newPage();
+const session = await browser.newContext();
+const page = await session.newPage();
 const errors = [];
 page.on('pageerror', (error) => errors.push(error.message));
 const url = pathToFileURL(resolve('demo-prototype/index.html')).href;
@@ -60,23 +61,62 @@ try {
     }
   }
 
-  const result = await page.evaluate(() => {
+  // Use the same forms a cashier uses, including the durable receipt and cross-tab lock.
+  await page.evaluate(() => {
     state = seedDemo();
-    role = 'Cashier';
-    activeTicket = state.tickets.find((item) => item.bill)?.id;
-    const item = ticket();
-    context = { id: item.id };
-    const form = document.createElement('form');
-    form.innerHTML = '<input name="amount"><input name="method" value="Counter cash">';
-    const before = item.payments.length;
-    form.elements.amount.value = String(balance(item) + 1);
-    submit('cash', form);
-    const rejected = item.payments.length === before;
-    form.elements.amount.value = String(balance(item));
-    submit('cash', form);
-    return { rejected, remaining: balance(item), recorded: item.payments.length === before + 1 };
+    state.branch = 'Central Branch';
+    saveDemo(true);
+    setRole('Cashier');
+    go('finance');
   });
-  assert.deepEqual(result, { rejected: true, remaining: 0, recorded: true });
+  const collect = page.locator('[data-action=cash][data-id="RT-1044"]');
+  await collect.click();
+  const form = page.locator('[data-form=cash]');
+  await form.locator('[name=amount]').fill('650.01');
+  await form.getByRole('checkbox').check();
+  await form.getByRole('button', { name: 'Issue cash receipt' }).click();
+  await form.getByRole('status').filter({hasText: 'remaining balance'}).waitFor();
+  await form.locator('[name=amount]').fill('650');
+  await form.getByRole('button', { name: 'Issue cash receipt' }).click();
+  const release = page.locator('[data-action=release][data-id="RT-1044"]');
+  await release.click();
+  const handover = page.locator('[data-form=release]');
+  await handover.locator('[name=evidence]').fill('Device checked at the counter.');
+
+  // Another cashier reverses part of the payment while the first cashier is holding the device.
+  const second = await page.context().newPage();
+  await second.goto(url);
+  await second.evaluate(() => { setRole('Cashier'); go('finance'); });
+  await second.locator('[data-action=refund][data-id="RT-1044"]').click();
+  const refund = second.locator('[data-form=refund]');
+  await refund.locator('[name=amount]').fill('100');
+  await refund.locator('[name=reason]').fill('Cash count corrected.');
+  // Full browser storage must leave the modal open and the saved balance untouched.
+  await second.evaluate(() => {
+    const write = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      Storage.prototype.setItem = write;
+      throw new DOMException('Full', 'QuotaExceededError');
+    };
+  });
+  await refund.getByRole('button', {name: 'Save correction'}).click();
+  await second.getByText('Change not saved.', {exact: false}).waitFor();
+  assert.equal(await second.evaluate(() => balance(readStoredDemo().tickets[2])), 0);
+  await refund.getByRole('button', {name: 'Save correction'}).click();
+  await second.locator('dialog').waitFor({state: 'hidden'});
+  await handover.getByRole('button', {name: 'Confirm device return'}).click();
+  await page.getByText('The ticket changed.', {exact: false}).waitFor();
+  const actual = await page.evaluate(() => {
+    const ticket = readStoredDemo().tickets.find(item => item.id === 'RT-1044');
+    return [balance(ticket), ticket.custody, ticket.payments.length, ticket.refunds.length];
+  });
+  assert.deepEqual(actual, [100, 'At branch', 1, 1]);
+  assert.equal(await second.evaluate(() => {
+    verified = true;
+    const current = readStoredDemo().tickets.find(item => item.id === 'RT-1044');
+    return portalHistory(current).includes('Cash count corrected.');
+  }), false, 'The customer timeline must omit the internal correction reason.');
+  await second.close();
 
   await page.evaluate(() => {
     role = 'Customer';

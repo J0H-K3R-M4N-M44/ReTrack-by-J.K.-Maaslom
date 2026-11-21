@@ -288,12 +288,12 @@ function assignCustomerIds() {
 }
 assignCustomerIds();
 // Save only to this browser; this does not write to the PHP database.
-let writingInventory = false;
 function saveDemo(reset = false) {
   try {
     const savedRevision = JSON.parse(localStorage.getItem(DEMO_VERSION) || '{}').stockRevision;
     if (!reset && savedRevision !== state.stockRevision) return false;
-    const next = writingInventory || reset ? { ...state, stockRevision: crypto.randomUUID() } : state;
+    // Keep the existing revision field so older saved demos detect stale tabs too.
+    const next = { ...state, stockRevision: crypto.randomUUID() };
     localStorage.setItem(DEMO_VERSION, JSON.stringify(next));
     state.stockRevision = next.stockRevision;
     return true;

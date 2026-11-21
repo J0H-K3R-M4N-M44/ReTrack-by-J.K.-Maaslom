@@ -75,7 +75,14 @@ function record(text, ticket = null, isPublic = false, group = 'Repairs', branch
   }
   if (ticket) ticket.events.unshift(event);
   const saved = saveDemo();
-  if (writingInventory && !saved) throw Error('Inventory was not saved. Refresh the workspace and retry.');
+  if (!saved) {
+    // Show the last saved ticket instead of a draft, bill or repair that only exists on screen.
+    const branch = state.branch;
+    state = readStoredDemo();
+    state.branch = branch;
+    assignCustomerIds();
+    throw Error('Change not saved. Check the latest record and available browser storage, then retry.');
+  }
   return saved;
 }
 
@@ -594,7 +601,15 @@ function portalTabs(tabs, tab) {
 }
 function portalHistory(t, custodyOnly = false) {
   const events = t.events.filter(event => event.public && (!custodyOnly || event.custody));
-  if (verified) return timeline(events);
+  if (verified) {
+    // Legacy cash events also contain staff explanations and receiver details.
+    return timeline(events.map(event => {
+      if (event.group !== 'Cash desk') return event;
+      const text = event.custody ? 'Devices returned to the customer.' :
+        event.receiptId ? 'Cash payment received.' : 'Billing updated. See Costs for the current balance.';
+      return { ...event, text };
+    }));
+  }
   // Old public records can contain staff-entered evidence. Never render their text before the PIN.
   const safe = events.filter(event => event.custody || event.group === 'Repairs')
     .map(event => ({ at: event.at, text: event.custody ? 'Device custody updated.' : 'Repair progress updated.' }));
@@ -783,10 +798,26 @@ function transfers() {
       ({ transfer: x, index: i }) => `<article class="card"><div class="row between"><h2>${x.ticket} · ${esc(x.type)}</h2>${badge(x.status)}</div><p>${esc(x.from)} to ${esc(x.to)}</p><p class="muted">${esc(x.evidence || 'Handoff evidence pending')}</p><div class="actions">${mayReceiveTransfer(x) ? btn('Confirm handoff', 'receive-transfer', `data-index="${i}"`, 'primary') : x.status === 'In transit' && x.type === 'Branch transfer' ? `<small>Awaiting receipt at ${esc(x.to)}</small>` : ''}</div></article>`, 'No handoffs for this branch.')}</section>`
   );
 }
+function checkoutTicket(id) {
+  const target = state.tickets.find(ticket => ticket.id === id);
+  requireGate(target && ['Cashier', 'Admin'].includes(role) &&
+    (state.branch === 'All branches' || state.branch === target.branch),
+    'Reopen the ticket in its assigned cash desk.');
+  return target;
+}
+
+// Keep a review tied to the cash and custody details the cashier actually saw.
+function checkoutVersion(ticket) {
+  return JSON.stringify([ticket.bill, ticket.payments, ticket.refunds, ticket.custody,
+    ticket.branch, ticket.location, ticket.devices, ticket.parts]);
+}
+
 function releaseBlocker(t) {
   if (!t.issued) return 'Issue the ticket before handover.';
   if (!t.bill || balance(t) > 0) return 'Settle the bill before release.';
   if (t.custody === 'In transit') return 'Confirm the transfer handoff before release.';
+  if (t.custody === 'Returned') return 'All devices have already been returned.';
+  if (t.custody !== 'At branch' || t.location !== t.branch) return 'Receive the devices at their assigned branch before counter release.';
   return deviceHandoverBlocker(t);
 }
 function deviceHandoverBlocker(t) {
@@ -1396,7 +1427,8 @@ function action(name, el) {
       break;
     case 'bill':
       {
-        const target = state.tickets.find((t) => t.id === context.id);
+        const target = checkoutTicket(context.id);
+        requireGate(target.issued && target.devices.length > 0, 'Issue a ticket with at least one device before billing.');
         if (
           !target.devices.every((d) =>
             ['Ready for pickup', 'Returned', 'Cancelled'].includes(d.status)
@@ -1444,6 +1476,7 @@ function action(name, el) {
       showCashReceipt(state.tickets.find((t) => t.id === context.id));
       break;
     case 'refund':
+      context.checkoutReview = checkoutVersion(checkoutTicket(context.id));
       formModal(
         'Correct a cash payment',
         'refund',
@@ -1455,7 +1488,8 @@ function action(name, el) {
       correctionPreview($('[data-form=refund]'));
       break;
     case 'release': {
-      const target = state.tickets.find((item) => item.id === context.id) || t;
+      const target = checkoutTicket(context.id);
+      context.checkoutReview = checkoutVersion(target);
       const blocker = releaseBlocker(target);
       if (blocker) {
         toast(blocker);
@@ -1470,6 +1504,7 @@ function action(name, el) {
       break;
     }
     case 'remit':
+      context.checkoutReview = checkoutVersion(checkoutTicket(context.id));
       formModal(
         'Confirm COD remittance',
         'remit',
@@ -1516,28 +1551,12 @@ function requireGate(ok, message) {
   if (!ok) throw Error(message);
 }
 // Only one browser tab may confirm the same pending handoff.
-async function confirmHandoff(form) {
-  const button = form.querySelector('[type=submit]');
-  if (button.disabled) return;
-  button.disabled = true;
-  try {
-    if (!navigator.locks) {
-      form.querySelector('[role=status]').textContent = 'Open the demo on localhost or HTTPS to confirm a handoff.';
-      return;
-    }
-    await navigator.locks.request(DEMO_VERSION + '/inventory', () => {
-      if (form.isConnected && $('#modal').open) submit('receive-transfer', form);
-    });
-  } finally {
-    button.disabled = false;
-  }
-}
-// Reservations, cancellation, and device dispatch all change the same branch stock.
-async function inventoryChange(control, operation) {
+// Cash, custody and inventory share a ticket. Read current records inside the same browser lock.
+async function withCurrentRecords(control, operation) {
   if (control.disabled) return;
   control.disabled = true;
   try {
-    requireGate(navigator.locks, 'Open this demo on localhost or HTTPS to update inventory.');
+    requireGate(navigator.locks, 'Open this demo on localhost or HTTPS to save this change.');
     await navigator.locks.request(DEMO_VERSION + '/inventory', () => {
       if (!control.isConnected || (control.closest('dialog') && !$('#modal').open)) return;
       const latest = readStoredDemo();
@@ -1545,12 +1564,10 @@ async function inventoryChange(control, operation) {
       const before = structuredClone(latest);
       state = latest;
       assignCustomerIds();
-      writingInventory = true;
       try {
         operation();
       } finally {
-        writingInventory = false;
-        // A failed write must not leave a phantom reservation in this tab.
+        // Roll back an uncommitted change if validation or browser storage fails.
         if (state.stockRevision === before.stockRevision) state = before;
       }
     });
@@ -1573,7 +1590,7 @@ async function receiveCash(form) {
   const message = form.querySelector('[role=status]');
   try {
     requireGate(navigator.locks, 'Open the demo on localhost or HTTPS to record cash safely.');
-    await navigator.locks.request(DEMO_VERSION + '/cash', () => {
+    await navigator.locks.request(DEMO_VERSION + '/inventory', () => {
       requireGate(form.isConnected && $('#modal').open && ['Cashier', 'Admin'].includes(role), 'Reopen the cash desk.');
       const latest = readStoredDemo();
       const target = latest.tickets.find(ticket => ticket.id === id);
@@ -1588,6 +1605,7 @@ async function receiveCash(form) {
         branch: target.branch, receiptId: payment.id };
       const entry = { ticketId: id, payment, event };
       localStorage.setItem(receiptPrefix + payment.id, JSON.stringify(entry));
+      latest.branch = state.branch;
       includeReceipt(latest, entry);
       state = latest;
       assignCustomerIds();
@@ -1609,6 +1627,15 @@ function submit(kind, form) {
     d = t.devices[activeDevice] || t.devices[0];
   tick();
   try {
+    if (['refund', 'release', 'remit'].includes(kind)) {
+      const target = checkoutTicket(context.id);
+      if (checkoutVersion(target) !== context.checkoutReview) {
+        closeModal();
+        render();
+        toast('The ticket changed. Check its current balance and custody before trying again.');
+        return;
+      }
+    }
     switch (kind) {
       case 'track': {
         const found = state.tickets.find(
@@ -2027,9 +2054,8 @@ function submit(kind, form) {
         break;
       case 'receive-transfer': {
         // A second receiver may already have completed the handoff in another tab.
-        const latest = readStoredDemo();
-        const x = latest.transfers[context.index],
-          target = latest.tickets.find(t => t.id === x?.ticket);
+        const x = state.transfers[context.index],
+          target = state.tickets.find(t => t.id === x?.ticket);
         requireGate(target && x.ticket === context.transferTicket && mayReceiveTransfer(x),
           'This handoff must be pending in the receiving workspace.');
         requireGate(x.status === 'In transit' && target.custody === 'In transit', 'This handoff is no longer pending.');
@@ -2047,20 +2073,13 @@ function submit(kind, form) {
           target.custody = 'At branch';
           target.assigned = '';
         }
-        const previous = state;
-        latest.branch = state.branch;
-        state = latest;
-        assignCustomerIds();
         target.location = x.to;
         x.receivedBy = demoAccounts[role];
         x.receivedAt = now();
         x.dispatchEvidence = x.evidence;
         x.status = 'Received';
         x.evidence = v.evidence;
-        if (!record(`${target.id}: handoff confirmed at ${x.to}`, target, true, 'Collections')) {
-          state = previous;
-          throw Error('Receipt could not be saved. Check browser storage and retry.');
-        }
+        record(`${target.id}: handoff confirmed at ${x.to}`, target, true, 'Collections');
         closeModal();
         render();
         toast('Physical handoff recorded.');
@@ -2133,6 +2152,7 @@ function submit(kind, form) {
         break;
       }
       case 'release':
+        requireGate(v.evidence.trim(), 'Enter the receiver and handover evidence.');
         requireGate(canRelease(t), releaseBlocker(t));
         t.devices.forEach((d) => (d.status = 'Returned'));
         t.location = 'Customer';
@@ -2144,6 +2164,8 @@ function submit(kind, form) {
           role === 'Cashier' || role === 'Admin',
           'A cashier or administrator confirms cash remittance.'
         );
+        requireGate(v.evidence.trim(), 'Enter the cash handoff reference.');
+        requireGate(t.payments.some(p => p.method === 'COD' && !p.remitted), 'No COD receipt awaits remittance.');
         t.payments.filter((p) => p.method === 'COD').forEach((p) => (p.remitted = true));
         record(`${t.id}: COD remittance confirmed. ${v.evidence}`, t, false, 'Cash desk');
         break;
@@ -2155,9 +2177,8 @@ function submit(kind, form) {
         break;
     }
     closeModal();
-    const saved = saveDemo();
     render();
-    toast(saved ? 'Demo update saved in this browser.' : 'Updated for this tab. Browser storage is unavailable.');
+    toast('Demo update saved in this browser.');
   } catch (error) {
     if (kind === 'receive-transfer') form.querySelector('[role=status]').textContent = error.message;
     else toast(error.message);
@@ -2248,9 +2269,15 @@ document.addEventListener('click', (e) => {
       window.print();
       return;
     }
-    if (['approve-part', 'release-part', 'consume-part'].includes(el.dataset.action))
-      inventoryChange(el, () => action(el.dataset.action, el));
-    else action(el.dataset.action, el);
+    if (['approve-part', 'release-part', 'consume-part', 'bill'].includes(el.dataset.action))
+      withCurrentRecords(el, () => action(el.dataset.action, el));
+    else {
+      try {
+        action(el.dataset.action, el);
+      } catch (error) {
+        toast(error.message);
+      }
+    }
   }
   const anchor = e.target.closest('[data-section]');
   if (anchor) {
@@ -2270,11 +2297,12 @@ document.addEventListener('submit', (e) => {
   if (form) {
     e.preventDefault();
     if (form.dataset.form === 'cash') receiveCash(form);
-    else if (form.dataset.form === 'receive-transfer') confirmHandoff(form);
+    else if (form.dataset.form === 'intake' && intakeStep === 2)
+      withCurrentRecords(e.submitter || form.querySelector('button.primary'), () => submit('intake', form));
     else if (form.dataset.form === 'practice-role') checkRoleStep(form);
     else if (form.dataset.form.startsWith('practice-')) checkPractice(form.dataset.form, form);
-    else if (['transfer', 'review-request', 'receive-stock', 'stock-transfer', 'request-part'].includes(form.dataset.form))
-      inventoryChange(form.querySelector('[type=submit]'), () => submit(form.dataset.form, form));
+    else if (['receive-transfer', 'transfer', 'review-request', 'receive-stock', 'stock-transfer', 'request-part', 'refund', 'release', 'remit'].includes(form.dataset.form))
+      withCurrentRecords(form.querySelector('[type=submit]'), () => submit(form.dataset.form, form));
     else submit(form.dataset.form, form);
   }
 });
