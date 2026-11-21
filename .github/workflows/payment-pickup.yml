@@ -1,7 +1,7 @@
 name: Payment and pickup
 on:
   push:
-    branches: [Workspace-Design, PHP-Counter-Handover, PHP-Bill-Corrections]
+    branches: [Workspace-Design, Repair-Board-Preview, main]
     paths:
       - '.github/workflows/payment-pickup.yml'
       - 'tests/payment-pickup.php'
