@@ -122,7 +122,12 @@ function loadStaffReport(PDO $pdo, array $user, array $period, ?int $branchId): 
 {
     $role = $user['role'];
     $definition = staffReportDefinition($role);
-    [$scope, $parameters] = consoleScope($user);
+    // Cash reports refer to tickets/bills and have no device (d) alias. Keeping
+    // this separate prevents a later device-scope rollout from breaking money
+    // queries or granting cash access through physical repair custody.
+    [$scope, $parameters] = $role === 'CASHIER'
+        ? consoleTicketFinanceScope($user)
+        : consoleScope($user);
     if ($branchId !== null) {
         $scope .= ' AND t.accountable_branch_id = ?';
         $parameters[] = $branchId;
