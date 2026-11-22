@@ -39,6 +39,9 @@ if (activityGroups($workspaceRole)) {
     }
     $navigation['activity'] = ['Staff activity', 'activity.php', 'clock'];
 }
+if (in_array($workspaceRole, ['ADMIN', 'MANAGER', 'COURIER'], true)) {
+    $navigation['handovers'] = ['Device handovers', 'transfers.php', 'bench'];
+}
 $navigation['learning'] = ['Learning center', 'learning.php', 'file'];
 $symbols = [
     'overview' => 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',

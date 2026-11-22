@@ -37,7 +37,7 @@ require __DIR__ . '/../workspace/navigation.php';
         ): ?><p>Read-only access. Customer contacts and private notes are hidden.</p><?php endif; ?>
         <?php if (
             $isCourier
-        ): ?><p>Branch manifests only. Confirm handover changes with your manager; dispatch and receipt actions are not available here.</p><?php endif; ?>
+        ): ?><p><a href="transfers.php">Open device handovers</a> to dispatch devices or confirm receipt.</p><?php endif; ?>
     </div>
     <section id="work-list" class="dashboard-card workspace-list rt-card">
         <?php $listTitle = match ($view) {

@@ -1,7 +1,7 @@
 name: Staff activity isolation
 on:
   push:
-    branches: [Tracking-And-Activity-UX, Intake-Evidence-Checks, Intake-Customer-Search, main]
+    branches: [Tracking-And-Activity-UX, Intake-Evidence-Checks, Intake-Customer-Search, Device-Handovers, main]
     paths:
       - '.github/workflows/staff-activity.yml'
       - 'tests/*.php'
@@ -59,6 +59,8 @@ jobs:
           MYSQL_PWD: root
         run: |
           set -euo pipefail
+          php -l admin/transfers.php
+          php tests/device-handovers.php
           php tests/staff-reports.php
           php tests/seeded-workflow.php
           php tests/migrations.php

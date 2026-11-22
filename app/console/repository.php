@@ -248,7 +248,7 @@ function consoleSave(PDO $pdo, int $actorId, int $id, string $version, array $in
 function consoleTransfers(PDO $pdo, array $user, array $input): array
 {
     $sql = "SELECT x.device_transfer_item_id, x.item_status, x.sent_condition_note,
-        x.receipt_condition_note, t.transfer_code, t.dispatched_at,
+        x.receipt_condition_note, t.transfer_code, t.dispatched_at, t.to_branch_id,
         f.branch_name AS origin, b.branch_name AS destination, d.item_code, l.location_name AS destination_location
         FROM device_transfer_items x JOIN device_transfers t ON t.device_transfer_id = x.device_transfer_id
         JOIN branches f ON f.branch_id = t.from_branch_id JOIN branches b ON b.branch_id = t.to_branch_id
