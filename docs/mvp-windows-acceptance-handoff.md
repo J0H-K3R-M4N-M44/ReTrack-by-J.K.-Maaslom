@@ -33,6 +33,10 @@ Before backing up, stop fictional shop activity for a maintenance window: a MySQ
 
 The completed Linux CI rehearsal verified **47 tables, two cash entries totaling PHP 375, customer custody and byte-identical private file directories**. It does not prove that an arbitrary real Windows machine or actively used production database can be restored.
 
+### Supplemental candidate-only file-integrity test
+
+The candidate adds [a read-only Windows fictional evidence comparator](windows-evidence-integrity-check.md) and corresponding Windows-runner synthetic tests. It checks source/restored file names and SHA-256 hashes without copying, deleting or importing files. This is an optional **verification step after manually making a separate fictional restored directory**; it does not itself perform SQL backup/restore, prove Windows/XAMPP compatibility, or satisfy the 20 existing UAT cases. Execute additional [UAT-21/UAT-22](mvp-uat-checklist.md) for storage locations and parts-request roles.
+
 ## 4. Human decision register
 
 | Gate | Evidence to collect | Current status |
