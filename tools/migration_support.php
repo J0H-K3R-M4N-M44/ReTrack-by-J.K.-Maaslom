@@ -86,12 +86,16 @@ function migrationPending(PDO $pdo): array
     if (!migrationHasTable($pdo, 'stock_quarantines')) {
         $pending[] = 'stock_quarantine.sql';
     }
+    if (!migrationHasTable($pdo, 'stock_quarantine_dispositions') ||
+        !migrationHasTable($pdo, 'stock_count_reviews')) {
+        $pending[] = 'stock_approvals.sql';
+    }
     return $pending;
 }
 function migrationPrintStatus(array $pending): void
 {
     foreach (
-        ['password_reset.sql', 'staff_workspace.sql', 'payment_handover.sql', 'staff_activity.sql', 'bill_corrections.sql', 'stock_reservations.sql', 'stock_quarantine.sql']
+        ['password_reset.sql', 'staff_workspace.sql', 'payment_handover.sql', 'staff_activity.sql', 'bill_corrections.sql', 'stock_reservations.sql', 'stock_quarantine.sql', 'stock_approvals.sql']
         as $filename
     ) {
         echo (in_array($filename, $pending, true) ? '[pending] ' : '[ready]   ') . $filename . "\n";
