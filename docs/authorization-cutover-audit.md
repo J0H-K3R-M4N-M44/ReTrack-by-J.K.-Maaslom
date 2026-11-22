@@ -80,4 +80,4 @@ An isolated eight-stage rehearsal is now scripted in `tests/mysql-integrity-roun
 
 ## Current review outcome
 
-**Phase 2 may be reviewed as read-only. Phase 3 is blocked** pending integration CI, disposable-database backfill rehearsal, explicit scope split, and all negative authorization tests. Preserve `main` untouched until those release gates are satisfied.
+**Phases 1–2 and Phase 3 scope preparation may be reviewed. Operational Phase 3 remains blocked** pending verified integration CI, the disposable MySQL backfill rehearsal, an atomic authorization/stock cutover design, and all negative/concurrency tests. The new SQL scopes alone do not grant partial ownership. Preserve `main` untouched until those release gates are satisfied.
