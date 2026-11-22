@@ -21,7 +21,7 @@ function integritySchema(PDO $pdo): array {
     $column = $pdo->query("SELECT COLUMN_TYPE, IS_NULLABLE FROM information_schema.COLUMNS
         WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='ticket_devices'
         AND COLUMN_NAME='repair_branch_id'")->fetch(PDO::FETCH_ASSOC);
-    if (!$column || !str_contains(strtolower((string)$column['COLUMN_TYPE']), 'bigint unsigned')
+    if (!$column || !preg_match('/^bigint(?:\(\d+\))? unsigned$/i', (string)$column['COLUMN_TYPE'])
         || $column['IS_NULLABLE'] !== 'YES') $problems['repair_branch_column'] = 1;
     $index = $pdo->query("SELECT GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR ',')
         FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE()
