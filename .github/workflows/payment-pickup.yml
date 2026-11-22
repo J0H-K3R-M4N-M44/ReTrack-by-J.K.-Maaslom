@@ -1,7 +1,7 @@
 name: PHP shop workflow checks
 on:
   push:
-    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, PHP-Bill-Corrections-Integration, PHP-Stock-Cancellation-Integration, Stock-Transfer-Integrity, Stock-Returns-Integrity, Branch-Repair-Acceptance, Stock-Quarantine-Counts, Stock-Disposition-Approvals, Parts-Transfers-Reconciliation, Parts-Loss-Resolution, Loss-Status-Schema-Hotfix, Parts-Loss-Recovery, Inventory-Evidence-Attachments, Inventory-Loss-Valuation, Verified-Parts-Cost-Register, Periodic-Stocktaking-Signoff, main]
+    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, PHP-Bill-Corrections-Integration, PHP-Stock-Cancellation-Integration, Stock-Transfer-Integrity, Stock-Returns-Integrity, Branch-Repair-Acceptance, Stock-Quarantine-Counts, Stock-Disposition-Approvals, Parts-Transfers-Reconciliation, Parts-Loss-Resolution, Loss-Status-Schema-Hotfix, Parts-Loss-Recovery, Inventory-Evidence-Attachments, Inventory-Loss-Valuation, Verified-Parts-Cost-Register, Periodic-Stocktaking-Signoff, Partial-Ticket-Ownership, main]
     paths:
       - '.github/workflows/payment-pickup.yml'
       - 'tests/payment-pickup.php'
@@ -25,6 +25,8 @@ on:
       - 'tests/part-acquisition-costs.php'
       - 'tests/stocktaking.php'
       - 'database/inventory_stocktaking.sql'
+      - 'database/device_repair_branches.sql'
+      - 'tests/repair-branch-migration.php'
       - 'database/part_acquisition_cost_records.sql'
       - 'database/stock_transfer_loss_valuations.sql'
       - 'database/stock_transfer_evidence.sql'
@@ -78,6 +80,8 @@ jobs:
           php -l app/inventory/stocktaking.php
           php -l admin/stocktaking.php
           php -l tests/stocktaking.php
+          php -l tests/repair-branch-migration.php
+          php -l app/intake/issuance.php
           php -l admin/acquisition_costs.php
           php -l tests/part-acquisition-costs.php
           php -l tests/stock-valuation.php
@@ -144,6 +148,16 @@ jobs:
           php tools/migrate.php --apply --yes
           STOCKTAKES_AFTER=$(MYSQL_PWD=root mysql -N -h 127.0.0.1 -u root repairtrack_test_pickup -e "SELECT CONCAT(COUNT(*), ':', SUM(status='SIGNED_OFF')) FROM inventory_stocktakes")
           test "$STOCKTAKES_BEFORE" = "$STOCKTAKES_AFTER"
+          # Rehearse the additive device-branch migration against existing issued
+          # repairs, then simulate an interrupted backfill and FK/index repair.
+          php tools/migrate.php --apply --yes
+          REPAIR_ROWS_BEFORE=$(MYSQL_PWD=root mysql -N -h 127.0.0.1 -u root repairtrack_test_pickup -e "SELECT CONCAT((SELECT COUNT(*) FROM ticket_devices), ':', (SELECT COUNT(*) FROM repair_bills), ':', (SELECT COUNT(*) FROM inventory_transactions), ':', (SELECT COUNT(*) FROM audit_events))")
+          MYSQL_PWD=root mysql -h 127.0.0.1 -u root repairtrack_test_pickup -e "ALTER TABLE ticket_devices DROP FOREIGN KEY fk_td_repair_branch, DROP INDEX idx_td_repair_branch, DROP COLUMN repair_branch_id"
+          php tools/migrate.php --apply --yes
+          REPAIR_ROWS_AFTER=$(MYSQL_PWD=root mysql -N -h 127.0.0.1 -u root repairtrack_test_pickup -e "SELECT CONCAT((SELECT COUNT(*) FROM ticket_devices), ':', (SELECT COUNT(*) FROM repair_bills), ':', (SELECT COUNT(*) FROM inventory_transactions), ':', (SELECT COUNT(*) FROM audit_events))")
+          test "$REPAIR_ROWS_BEFORE" = "$REPAIR_ROWS_AFTER"
+          php tests/repair-branch-migration.php
+          php tools/migrate.php --status
       - name: Walk through billing and pickup in Chrome
         run: |
           npm install --no-save --package-lock=false playwright-core@1.56.1
