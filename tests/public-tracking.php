@@ -112,14 +112,19 @@ checkPublic(
 );
 // Customer estimates are read-only and resolve to the newest revision only.
 // Create fictional versions in the disposable fixture; never expose staff fields.
-$firstView = publicRepair($pdo, $newCode);
-checkPublic($firstView['devices'][0]['estimate'] === null, 'Unshared quote should not appear');
+// Seeded demo devices may already have quote history. Append new versions instead
+// of relying on a blank fixture or overwriting an existing customer decision.
+$versionQuery = $pdo->prepare(
+    'SELECT COALESCE(MAX(version_no), 0) FROM repair_quotes WHERE ticket_device_id=?',
+);
+$versionQuery->execute([$fixture['device']]);
+$firstVersion = (int) $versionQuery->fetchColumn() + 1;
 $pdo->prepare(
     "INSERT INTO repair_quotes
     (ticket_device_id, version_no, quote_status, labor_amount, parts_amount,
      other_amount, total_amount, prepared_by_user_id)
-    VALUES (?, 1, 'DRAFT', 325.35, 0, 0, 325.35, ?)",
-)->execute([$fixture['device'], $manager['user_id']]);
+    VALUES (?, ?, 'DRAFT', 325.35, 0, 0, 325.35, ?)",
+)->execute([$fixture['device'], $firstVersion, $manager['user_id']]);
 $firstQuoteId = (int) $pdo->lastInsertId();
 $draftView = publicRepair($pdo, $newCode);
 checkPublic($draftView['devices'][0]['estimate'] === null, 'Draft estimate leaked');
@@ -131,7 +136,7 @@ $pdo->prepare(
 )->execute([$firstQuoteId]);
 $sharedView = publicRepair($pdo, $newCode);
 checkPublic($sharedView['devices'][0]['estimate']['total'] === '325.35', 'Shared total absent');
-checkPublic($sharedView['devices'][0]['estimate']['revision'] === 1, 'Wrong shared version');
+checkPublic($sharedView['devices'][0]['estimate']['revision'] === $firstVersion, 'Wrong shared version');
 checkPublic(!$sharedView['devices'][0]['estimate']['expired'], 'Future estimate treated as expired');
 checkPublic(str_contains(publicNextStep($sharedView['devices'][0]), 'decision'), 'No response instruction');
 
@@ -153,8 +158,8 @@ $pdo->prepare(
     "INSERT INTO repair_quotes
     (ticket_device_id, version_no, quote_status, labor_amount, parts_amount,
      other_amount, total_amount, prepared_by_user_id)
-    VALUES (?, 2, 'DRAFT', 99, 0, 0, 99, ?)",
-)->execute([$fixture['device'], $manager['user_id']]);
+    VALUES (?, ?, 'DRAFT', 99, 0, 0, 99, ?)",
+)->execute([$fixture['device'], $firstVersion + 1, $manager['user_id']]);
 $secondQuoteId = (int) $pdo->lastInsertId();
 $newDraftView = publicRepair($pdo, $newCode);
 checkPublic($newDraftView['devices'][0]['estimate'] === null,
