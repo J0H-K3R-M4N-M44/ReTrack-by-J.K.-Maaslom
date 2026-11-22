@@ -51,3 +51,12 @@ checkTransfer(publicCustody(trackedCustody($pdo,'SIM-RT-002','1001'))==='At Rece
 $q=$pdo->prepare('SELECT COUNT(*) FROM device_custody_events e JOIN device_transfers t USING(device_transfer_id) WHERE t.transfer_code=?');
 $q->execute([$code]);
 checkTransfer((int)$q->fetchColumn()===5,'five custody events retained');
+
+if (getenv('HANDOVER_BROWSER_FIXTURE')) {
+    $password = bin2hex(random_bytes(16));
+    $pdo->prepare('UPDATE users SET password_hash=? WHERE user_id IN (?,?)')
+        ->execute([password_hash($password,PASSWORD_DEFAULT),$sender,$receiver]);
+    file_put_contents(getenv('HANDOVER_BROWSER_FIXTURE'),json_encode([
+        'origin'=>$origin,'destination'=>$bin,'password'=>$password
+    ],JSON_THROW_ON_ERROR));
+}

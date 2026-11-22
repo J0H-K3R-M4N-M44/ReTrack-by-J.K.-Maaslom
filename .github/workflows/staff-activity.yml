@@ -12,6 +12,7 @@ on:
       - 'tests/activity-browser.mjs'
       - 'tests/intake-receipt-browser.mjs'
       - 'tests/intake-search-browser.mjs'
+      - 'tests/device-handovers-browser.mjs'
       - 'views/**'
       - 'css/**'
       - 'js/**'
@@ -60,7 +61,14 @@ jobs:
         run: |
           set -euo pipefail
           php -l admin/transfers.php
+          export HANDOVER_BROWSER_FIXTURE="$RUNNER_TEMP/handover-fixture.json"
+          umask 077
           php tests/device-handovers.php
+          php -S 127.0.0.1:8742 > "$RUNNER_TEMP/handover-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"; rm -f "$HANDOVER_BROWSER_FIXTURE"' EXIT
+          curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
+          node tests/device-handovers-browser.mjs
           php tests/staff-reports.php
           php tests/seeded-workflow.php
           php tests/migrations.php
