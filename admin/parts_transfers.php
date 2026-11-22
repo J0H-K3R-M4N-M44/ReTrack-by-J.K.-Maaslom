@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../app/auth.php';
 require_once __DIR__ . '/../app/intake/repository.php';
-require_once __DIR__ . '/../app/inventory/recoveries.php';
+require_once __DIR__ . '/../app/inventory/evidence.php';
 startAppSession();
 $user = requireRoles(['ADMIN','MANAGER']);
 header('Cache-Control: no-store, private');
@@ -69,6 +69,11 @@ try {
                 requestText($_POST,'reason'),requestText($_POST,'confirm')==='yes');
             $_SESSION['parts_transfer_notice'] =
                 'Independent recovery decision saved. Only approved quantities enter usable stock.';
+        } elseif ($action==='attach-evidence') {
+            stockEvidenceUpload($pdo,(int)$user['user_id'],requestText($_POST,'case_type'),
+                (int)requestText($_POST,'case_id'),$_FILES['evidence'] ?? []);
+            $_SESSION['parts_transfer_notice'] =
+                'Private inspection evidence attached to the pending investigation.';
         } else {
             throw new DomainException('Choose a valid parts transfer action.');
         }
@@ -155,7 +160,8 @@ I physically counted these usable parts, checked the manifest and handed over th
 <section class="dashboard-card rt-card"><h2>Transfer ledger</h2>
 <p><?= (int)$results['total'] ?> manifest items · 10 per page. A partial receipt creates an exception.
 A confirmed operational loss closes the missing quantity without crediting any unreceived stock.
-Evidence references describe privately retained inspection records; files are not uploaded on this page.</p>
+Investigation photos or PDFs may now be attached privately before approval;
+each access requires an authorized staff login.</p>
 <?php if (!$results['records']): ?><p>No parts manifests match this branch and search.</p><?php endif; ?>
 <?php foreach ($results['records'] as $item):
 $isRecipient=(int)$item['to_branch_id']===$branch;
@@ -177,6 +183,10 @@ $canDecideRecovery=$isOrigin && $recoveryStatus==='PENDING' &&
     (int)$item['initiated_by_user_id']!==(int)$user['user_id'] &&
     (int)$item['reported_by_user_id']!==(int)$user['user_id'] &&
     (int)$item['recovery_reported_by']!==(int)$user['user_id'];
+$lossFiles=$item['loss_case_id']
+    ? stockEvidenceList($pdo,(int)$user['user_id'],'LOSS',(int)$item['loss_case_id']) : [];
+$recoveryFiles=$item['recovery_id']
+    ? stockEvidenceList($pdo,(int)$user['user_id'],'RECOVERY',(int)$item['recovery_id']) : [];
 ?>
 <article class="dashboard-card">
 <h3><?= h($item['transfer_code']) ?> · <?= h($item['part_name']) ?></h3>
@@ -191,6 +201,28 @@ $canDecideRecovery=$isOrigin && $recoveryStatus==='PENDING' &&
 <p>Investigation reference: <?= h($item['evidence_reference']) ?></p>
 <p>Investigation: <?= h($item['report_reason']) ?></p>
 <?php if ($item['review_reason']): ?><p>Review: <?= h($item['review_reason']) ?></p><?php endif; ?>
+<?php if ($lossFiles): ?>
+<p>Private loss evidence:
+<?php foreach ($lossFiles as $file): ?>
+<a href="stock_evidence.php?id=<?= (int)$file['evidence_id'] ?>">
+<?= h($file['original_filename']) ?></a>
+<?php endforeach; ?></p>
+<?php endif; ?>
+<?php if ($lossStatus==='PENDING' && count($lossFiles)<6): ?>
+<details><summary>Attach private loss evidence</summary>
+<form method="post" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+<input type="hidden" name="branch" value="<?= $branch ?>">
+<input type="hidden" name="q" value="<?= h($q) ?>">
+<input type="hidden" name="case_type" value="LOSS">
+<input type="hidden" name="case_id" value="<?= (int)$item['loss_case_id'] ?>">
+<label>Inspection photo or PDF (maximum 5 MB)
+<input type="file" name="evidence" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" required></label>
+<p>Stored privately; no public link. Only assigned sending/receiving branch managers
+may download. PDFs are served as downloads rather than displayed in the browser.</p>
+<button name="action" value="attach-evidence" class="secondary-btn">Attach loss evidence</button>
+</form></details>
+<?php endif; ?>
 <?php if ($lossStatus==='APPROVED'): ?>
 <p>Approved loss originally <?= h((string)$item['loss_quantity']) ?> ·
   Independently recovered <?= h((string)$item['recovered_approved_quantity']) ?> ·
@@ -204,6 +236,26 @@ $canDecideRecovery=$isOrigin && $recoveryStatus==='PENDING' &&
 <?= h($item['recovery_report_reason']) ?></p>
 <?php if ($item['recovery_review_reason']): ?>
 <p>Independent recovery decision: <?= h($item['recovery_review_reason']) ?></p>
+<?php endif; ?>
+<?php if ($recoveryFiles): ?>
+<p>Private recovery evidence:
+<?php foreach ($recoveryFiles as $file): ?>
+<a href="stock_evidence.php?id=<?= (int)$file['evidence_id'] ?>">
+<?= h($file['original_filename']) ?></a>
+<?php endforeach; ?></p>
+<?php endif; ?>
+<?php if ($recoveryStatus==='PENDING' && count($recoveryFiles)<6): ?>
+<details><summary>Attach private recovery evidence</summary>
+<form method="post" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+<input type="hidden" name="branch" value="<?= $branch ?>">
+<input type="hidden" name="q" value="<?= h($q) ?>">
+<input type="hidden" name="case_type" value="RECOVERY">
+<input type="hidden" name="case_id" value="<?= (int)$item['recovery_id'] ?>">
+<label>Recovery inspection photo or PDF (maximum 5 MB)
+<input type="file" name="evidence" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" required></label>
+<button name="action" value="attach-evidence" class="secondary-btn">Attach recovery evidence</button>
+</form></details>
 <?php endif; ?>
 <?php endif; ?>
 <?php if ($lossStatus==='PENDING'): ?>
