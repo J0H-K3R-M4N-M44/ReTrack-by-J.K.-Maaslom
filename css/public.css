@@ -158,3 +158,94 @@
 .public-estimate-total strong {
   font-size: 1.2rem;
 }
+
+
+/* MVP tracking: make the latest stage and recorded custody obvious at a glance. */
+.public-glance {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 24px;
+}
+.public-glance-item {
+  min-width: 0;
+  background: var(--steel-900);
+  border: 1px solid var(--steel-600);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.public-glance-item > span {
+  display: block;
+  color: #bac9d0;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+}
+.public-glance-item > strong {
+  display: block;
+  font-size: 1rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.public-glance .public-status {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  font-size: 0.95rem;
+  border-radius: 9px;
+  padding: 4px 9px;
+}
+.public-progress {
+  margin-bottom: 24px;
+}
+.public-progress h3 {
+  margin: 0 0 12px;
+}
+.public-progress-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.public-progress-steps li {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: #aabcc7;
+  overflow-wrap: anywhere;
+}
+.public-progress-dot {
+  display: block;
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--steel-600);
+}
+.public-progress-steps .is-done,
+.public-progress-steps .is-current {
+  color: var(--soft-white);
+  font-weight: 600;
+}
+.public-progress-steps .is-done .public-progress-dot {
+  background: #98b5a8;
+}
+.public-progress-steps .is-current .public-progress-dot {
+  background: var(--gold-300);
+  box-shadow: 0 0 0 2px rgba(255, 190, 93, 0.15);
+}
+.public-progress-note {
+  font-size: 0.8rem;
+  color: #bac9d0;
+  margin: 12px 0 0;
+}
+@media (max-width: 480px) {
+  .public-glance { grid-template-columns: minmax(0, 1fr); }
+  .public-progress-steps { gap: 3px; }
+  .public-progress-steps li { font-size: 0.67rem; }
+}
