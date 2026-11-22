@@ -3,7 +3,7 @@
 -- A successful result has 0 violations in every row. The PHP runner also checks
 -- constraints, snapshots, and deliberate negative tests.
 SELECT DATABASE() AS selected_database,
-       IF(DATABASE() LIKE 'repairtrack_test_%', 'DISPOSABLE TEST SCHEMA', 'NOT A TEST SCHEMA - DO NOT MUTATE') AS safety_context;
+       IF(DATABASE() REGEXP '^repairtrack_test_', 'DISPOSABLE TEST SCHEMA', 'NOT A TEST SCHEMA - DO NOT MUTATE') AS safety_context;
 
 SELECT check_name, violations FROM (
   SELECT 'issued device lacks repair branch' AS check_name,
