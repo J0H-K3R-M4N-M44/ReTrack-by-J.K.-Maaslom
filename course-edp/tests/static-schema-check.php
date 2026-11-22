@@ -11,8 +11,8 @@ if (!is_string($schema) || !is_string($seed) || !is_string($actions)) {
 
 preg_match_all('/\bCREATE TABLE\s+([a-z_]+)\s*\(/i', $schema, $matches);
 $tables = $matches[1];
-if (count($tables) !== 22 || count(array_unique($tables)) !== 22) {
-    throw new RuntimeException('Expected exactly 22 unique classroom tables.');
+if (count($tables) !== 23 || count(array_unique($tables)) !== 23) {
+    throw new RuntimeException('Expected exactly 23 unique classroom tables.');
 }
 if (!preg_match('/\bUSE\s+repairtrack_edp\s*;/i', $schema)
     || !preg_match('/\bUSE\s+repairtrack_edp\s*;/i', $seed)) {
@@ -41,7 +41,8 @@ foreach ([
     'repair_started_at', 'portal_code CHAR(5)', 'portal_pin_hash',
     'UNIQUE KEY uq_portal_code', 'UNIQUE KEY uq_payment_request_key',
     'CHECK (amount > 0)', 'ticket_status_events', 'media_assets',
-    'chk_media_path', 'chk_ticket_state_fields',
+    'chk_media_path', 'chk_ticket_state_fields', 'repair_bill_items',
+    'uq_one_active_issued_bill', 'return_handover_at', 'item_code VARCHAR(32)',
 ] as $required) {
     if (!str_contains($schema, $required)) {
         throw new RuntimeException("Required schema element missing: $required");
@@ -55,10 +56,11 @@ foreach (['DRAFT', 'IN_PROGRESS', 'READY_FOR_PICKUP', 'SOGOD-DEMO', 'OTHER', 'CA
 if (preg_match('/\bVALUES\s*\(1\s*,\s*\x27COUNTER\x27/i', $seed)) {
     throw new RuntimeException('Seed must resolve branch ID by stable branch code.');
 }
-foreach (['edpChangeRepairStatus', 'edpRecordCashPayment', 'FOR UPDATE', 'SAVEPOINT',
+foreach (['edpChangeRepairStatus', 'edpRecordCashPayment', 'edpAssignTechnician',
+    'edpConfirmPickup', 'edpPaidCentsForUpdate', 'FOR UPDATE', 'SAVEPOINT',
     'allowed_status_transitions', 'APPROVED', 'COUNTER_CASH'] as $required) {
     if (!str_contains($actions, $required)) {
         throw new RuntimeException("Academic action safeguard missing: $required");
     }
 }
-echo "PASS: 22 tables, customer/branch ownership FKs, guarded actions, fictional seed, and no destructive SQL.\n";
+echo "PASS: 23 tables, customer/branch ownership FKs, guarded actions, fictional seed, and no destructive SQL.\n";

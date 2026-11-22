@@ -1,4 +1,4 @@
--- RepairTrack EDP classroom schema (v2). New, ISOLATED database only.
+-- RepairTrack EDP classroom schema (v3). New, ISOLATED database only.
 -- The script deliberately contains no DROP, ALTER, REPLACE or destructive migration.
 -- It never selects or changes the historical database named `repairtrack`.
 -- A second execution will fail on CREATE TABLE rather than overwrite existing records.
@@ -151,6 +151,9 @@ CREATE TABLE repair_tickets (
   issued_at DATETIME NULL,
   closed_at DATETIME NULL,
   created_by_user_id INT UNSIGNED NOT NULL,
+  terms_version VARCHAR(40) NULL,
+  terms_signed_at DATETIME NULL,
+  terms_signature_path VARCHAR(500) NULL COMMENT 'Opaque reference to protected signed intake file',
   PRIMARY KEY (ticket_id),
   UNIQUE KEY uq_ticket_code (ticket_code),
   UNIQUE KEY uq_portal_code (portal_code),
@@ -165,21 +168,29 @@ CREATE TABLE repair_tickets (
   CONSTRAINT chk_portal_credentials CHECK ((portal_code IS NULL AND portal_pin_hash IS NULL) OR
                                            (portal_code IS NOT NULL AND portal_pin_hash IS NOT NULL)),
   CONSTRAINT chk_ticket_state_fields CHECK (
-    (ticket_state = 'DRAFT' AND ticket_code IS NULL AND issued_at IS NULL AND closed_at IS NULL)
+    (ticket_state = 'DRAFT' AND ticket_code IS NULL AND issued_at IS NULL AND closed_at IS NULL
+     AND portal_code IS NULL AND portal_pin_hash IS NULL AND terms_signed_at IS NULL)
     OR
     (ticket_state <> 'DRAFT' AND customer_id IS NOT NULL AND
-     ticket_code IS NOT NULL AND issued_at IS NOT NULL AND
-     (ticket_state IN ('OPEN') OR closed_at IS NOT NULL))
+     ticket_code IS NOT NULL AND portal_code IS NOT NULL AND portal_pin_hash IS NOT NULL AND
+     terms_version IS NOT NULL AND terms_signed_at IS NOT NULL AND terms_signature_path IS NOT NULL AND
+     issued_at IS NOT NULL AND
+     ((ticket_state = 'OPEN' AND closed_at IS NULL) OR (ticket_state IN ('CLOSED','CANCELLED') AND closed_at IS NOT NULL)))
   )
 ) ENGINE=InnoDB;
 
 CREATE TABLE ticket_devices (
   ticket_device_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   ticket_id BIGINT UNSIGNED NOT NULL,
-  customer_id BIGINT UNSIGNED NOT NULL COMMENT 'Must match both the ticket and device owner',
+  customer_id BIGINT UNSIGNED NULL COMMENT 'Draft may be device-first; must match ticket/customer at issue',
   branch_id INT UNSIGNED NOT NULL COMMENT 'Must match the ticket accountable branch',
-  customer_device_id BIGINT UNSIGNED NOT NULL,
+  customer_device_id BIGINT UNSIGNED NULL,
   sequence_no SMALLINT UNSIGNED NOT NULL,
+  item_code VARCHAR(32) NULL COMMENT 'Unique per-device tracking label, created at issuance',
+  device_type_code VARCHAR(30) NULL COMMENT 'Draft device category before customer device exists',
+  make_snapshot VARCHAR(100) NULL,
+  model_snapshot VARCHAR(160) NULL,
+  serial_snapshot VARCHAR(190) NULL,
   status_code VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
   assigned_technician_id INT UNSIGNED NULL,
   location_id INT UNSIGNED NULL,
@@ -187,10 +198,14 @@ CREATE TABLE ticket_devices (
   diagnosis TEXT NULL,
   condition_notes TEXT NULL,
   accessories VARCHAR(255) NULL,
+  custody_state ENUM('UNKNOWN','AT_LOCATION','IN_TRANSIT','WITH_CUSTOMER') NOT NULL DEFAULT 'UNKNOWN',
+  return_handover_at DATETIME NULL,
+  return_handover_by INT UNSIGNED NULL,
   repair_started_at DATETIME NULL COMMENT 'First entry into IN_PROGRESS (UTC); never reset',
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (ticket_device_id),
   UNIQUE KEY uq_ticket_device_sequence (ticket_id, sequence_no),
+  UNIQUE KEY uq_ticket_device_item_code (item_code),
   UNIQUE KEY uq_ticket_device_once (ticket_id, customer_device_id),
   UNIQUE KEY uq_td_ticket_pair (ticket_device_id, ticket_id),
   KEY idx_device_status (status_code, updated_at),
@@ -202,11 +217,20 @@ CREATE TABLE ticket_devices (
   CONSTRAINT fk_td_ticket_branch FOREIGN KEY (ticket_id, branch_id)
     REFERENCES repair_tickets(ticket_id, branch_id),
   CONSTRAINT fk_td_status FOREIGN KEY (status_code) REFERENCES repair_statuses(status_code),
+  CONSTRAINT fk_td_device_type FOREIGN KEY (device_type_code) REFERENCES device_types(device_type_code),
+  CONSTRAINT fk_td_handover_user FOREIGN KEY (return_handover_by) REFERENCES users(user_id),
   CONSTRAINT fk_td_tech_branch FOREIGN KEY (assigned_technician_id, branch_id)
     REFERENCES user_branch_assignments(user_id, branch_id),
   CONSTRAINT fk_td_location_branch FOREIGN KEY (location_id, branch_id)
     REFERENCES storage_locations(location_id, branch_id),
-  CONSTRAINT chk_td_sequence CHECK (sequence_no >= 1)
+  CONSTRAINT chk_td_sequence CHECK (sequence_no >= 1),
+  CONSTRAINT chk_td_issued CHECK (status_code = 'DRAFT' OR
+    (customer_id IS NOT NULL AND customer_device_id IS NOT NULL AND item_code IS NOT NULL
+     AND device_type_code IS NOT NULL)),
+  CONSTRAINT chk_td_handover CHECK (
+    (return_handover_at IS NULL AND return_handover_by IS NULL AND custody_state <> 'WITH_CUSTOMER')
+    OR (return_handover_at IS NOT NULL AND return_handover_by IS NOT NULL
+        AND custody_state = 'WITH_CUSTOMER' AND status_code IN ('COMPLETED','CANCELLED')))
 ) ENGINE=InnoDB;
 
 CREATE TABLE ticket_defects (
@@ -250,6 +274,8 @@ CREATE TABLE repair_quotes (
   prepared_by_user_id INT UNSIGNED NOT NULL,
   decision_recorded_by INT UNSIGNED NULL,
   decision_at DATETIME NULL,
+  sent_at DATETIME NULL,
+  expires_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (quote_id),
   UNIQUE KEY uq_quote_version (ticket_device_id, version_no),
@@ -258,6 +284,7 @@ CREATE TABLE repair_quotes (
   CONSTRAINT fk_quote_decision_user FOREIGN KEY (decision_recorded_by) REFERENCES users(user_id),
   CONSTRAINT chk_quote_components CHECK (labor_amount >= 0 AND parts_amount >= 0 AND other_amount >= 0),
   CONSTRAINT chk_quote_total CHECK (total_amount = labor_amount + parts_amount + other_amount),
+  CONSTRAINT chk_quote_expiry CHECK (expires_at IS NULL OR (sent_at IS NOT NULL AND expires_at > sent_at)),
   CONSTRAINT chk_quote_decision CHECK (quote_status NOT IN ('APPROVED','DECLINED') OR
                                        (decision_recorded_by IS NOT NULL AND decision_at IS NOT NULL))
 ) ENGINE=InnoDB;
@@ -274,15 +301,38 @@ CREATE TABLE repair_bills (
   total_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
   created_by_user_id INT UNSIGNED NOT NULL,
   issued_at DATETIME NULL,
+  active_ticket_id BIGINT UNSIGNED GENERATED ALWAYS AS
+    (CASE WHEN bill_status='ISSUED' THEN ticket_id ELSE NULL END) STORED,
   PRIMARY KEY (bill_id),
+  UNIQUE KEY uq_one_active_issued_bill (active_ticket_id),
   UNIQUE KEY uq_bill_number (bill_number),
   UNIQUE KEY uq_bill_ticket_version (ticket_id, version_no),
+  UNIQUE KEY uq_bill_ticket_pair (bill_id, ticket_id),
   CONSTRAINT fk_bill_ticket FOREIGN KEY (ticket_id) REFERENCES repair_tickets(ticket_id),
   CONSTRAINT fk_bill_creator FOREIGN KEY (created_by_user_id) REFERENCES users(user_id),
   CONSTRAINT chk_bill_nonnegative CHECK (subtotal >= 0 AND discount_amount >= 0 AND
                                        tax_amount >= 0 AND discount_amount <= subtotal),
   CONSTRAINT chk_bill_total CHECK (total_amount = subtotal - discount_amount + tax_amount),
-  CONSTRAINT chk_bill_issued CHECK (bill_status <> 'ISSUED' OR (bill_number IS NOT NULL AND issued_at IS NOT NULL))
+  CONSTRAINT chk_bill_issued CHECK (
+    (bill_status = 'DRAFT' AND issued_at IS NULL AND bill_number IS NULL)
+    OR (bill_status IN ('ISSUED','VOIDED') AND bill_number IS NOT NULL AND issued_at IS NOT NULL))
+) ENGINE=InnoDB;
+
+-- Immutable issued-bill breakdown by repair device. No stock accounting needed.
+CREATE TABLE repair_bill_items (
+  bill_item_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  bill_id BIGINT UNSIGNED NOT NULL,
+  ticket_id BIGINT UNSIGNED NOT NULL,
+  ticket_device_id BIGINT UNSIGNED NOT NULL,
+  description VARCHAR(160) NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  PRIMARY KEY (bill_item_id),
+  UNIQUE KEY uq_bill_device (bill_id, ticket_device_id),
+  CONSTRAINT fk_bill_item_ticket FOREIGN KEY (bill_id, ticket_id)
+    REFERENCES repair_bills(bill_id, ticket_id),
+  CONSTRAINT fk_bill_item_device FOREIGN KEY (ticket_device_id, ticket_id)
+    REFERENCES ticket_devices(ticket_device_id, ticket_id),
+  CONSTRAINT chk_bill_item_amount CHECK (amount >= 0)
 ) ENGINE=InnoDB;
 
 CREATE TABLE repair_bill_payments (

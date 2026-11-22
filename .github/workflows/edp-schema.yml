@@ -28,6 +28,7 @@ jobs:
           php -l course-edp/app/actions.php
           php -l course-edp/tests/static-schema-check.php
           php -l course-edp/tests/db-integrity.php
+          php -l course-edp/tests/db-concurrency.php
           php course-edp/tests/static-schema-check.php
       - name: Create a fresh isolated MySQL schema and seed fictional catalogs
         run: |
@@ -36,11 +37,12 @@ jobs:
           sudo systemctl start mysql
           mysql -h 127.0.0.1 -u root < course-edp/schema.sql
           mysql -h 127.0.0.1 -u root < course-edp/seed_reference.sql
-          mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema="repairtrack_edp"' | grep -Fxq 22
+          mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema="repairtrack_edp"' | grep -Fxq 23
       - name: Exercise foreign keys, CHECK constraints and fictional repair records
         run: |
           set -euo pipefail
           php course-edp/tests/db-integrity.php
+          php course-edp/tests/db-concurrency.php
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM customers' | grep -Fxq 0
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM repair_bill_payments' | grep -Fxq 0
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM ticket_status_events' | grep -Fxq 0
