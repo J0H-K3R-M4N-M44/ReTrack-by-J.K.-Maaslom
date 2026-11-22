@@ -110,3 +110,14 @@
     flex-direction: column;
   }
 }
+
+/* Long bill references must wrap before they can widen a narrow counter screen. */
+.payments-page > *,
+.payments-heading-row > *,
+.payments-action > * {
+  min-width: 0;
+}
+.payments-heading-row,
+.payments-page .staff-heading {
+  overflow-wrap: anywhere;
+}
