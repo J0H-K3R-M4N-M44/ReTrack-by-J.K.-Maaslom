@@ -53,6 +53,10 @@ from the verified single-ticket *service-layer* test.
 - [Disposable SQL + evidence recovery rehearsal](mvp-recovery-rehearsal.md) passed in [CI 44996590305](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996590305), including 47 database tables and hashed private files. **No production restore performed.**
 - Broader [intake/staff](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996725335) and [payment/pickup](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996725374) suites also passed at the latest tested application checkpoint.
 
+## Staff navigation refinement and local acceptance handoff
+
+An additional automated staff keyboard test has passed, including mobile no-JavaScript destinations and Escape focus restoration. See the [accessibility report](mvp-accessibility-review.md). The [Windows/XAMPP handoff](mvp-windows-acceptance-handoff.md) now describes the operator-only acceptance and private-file restore procedure. Neither real staff UAT nor a local Windows restore has occurred.
+
 ## Practical MVP completion checklist
 
 1. Verify mainline login, intake/issuance, technician workflow, public tracking,

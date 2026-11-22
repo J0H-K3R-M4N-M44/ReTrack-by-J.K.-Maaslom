@@ -21,6 +21,12 @@
 
 The same code checkpoint also passed [staff activity & intake](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996725335) and [payment/pickup](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996725374) suites. Screenshots use fictional accounts only.
 
+## Staff workspace keyboard/no-JavaScript checkpoint
+
+A focused automated check now covers the **cashier staff workspace** as well as public tracking. On narrow screens, the ordinary More shortcut uses JavaScript, so a native link list is now rendered **only when JavaScript is disabled**, with the same role-authorized destinations and at least 44px tall links. The separate browser check verifies the keyboard-first skip link, menu search/filtered destinations, Escape dismissal with focus restored, and the no-JavaScript fallback at 320, 390 and 700px. It does not change server permissions or authorize new navigation destinations.
+
+The staff-activity regression passed on [run 44997694205](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44997694205) at implementation SHA `475c89c8`, including this new check.
+
 ## Not yet reviewed by people
 
 These checks are **not** a full site-wide audit. Still required:

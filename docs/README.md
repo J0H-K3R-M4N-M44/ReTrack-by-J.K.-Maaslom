@@ -6,6 +6,7 @@
 
 - [Full end-to-end regression report](mvp-test-report.md): one actual service-layer ticket plus independent browser journeys and broad CI evidence
 - [Manual user acceptance checklist](mvp-uat-checklist.md): 20 executable staff/customer scenarios, **awaiting human sign-off**
+- [Windows/XAMPP acceptance and recovery handoff](mvp-windows-acceptance-handoff.md): safe, operator-led next steps; **not yet executed**
 - [Focused accessibility review](mvp-accessibility-review.md): verified public keyboard/mobile checks, with remaining screen-reader/contrast work
 - [Database and private evidence recovery rehearsal](mvp-recovery-rehearsal.md): verified isolated restore and operational stop conditions
 

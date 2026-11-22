@@ -49,4 +49,6 @@ Use a **fictional-only** clean XAMPP/PHP/MySQL environment based on `MVP-Stabili
 
 A release candidate is **blocked** if customer privacy/access control, incorrect cash balances, partial issuance, stock integrity, private evidence exposure or premature device release fails. Layout/focus issues affecting task completion must also be repaired. No "accepted" status may be recorded until named testers actually execute and approve these scenarios.
 
+**Next operator instructions:** [Windows/XAMPP handoff](mvp-windows-acceptance-handoff.md). The UAT result cells above are intentionally blank.
+
 **Automated support:** [MVP test report](mvp-test-report.md); [recovery rehearsal](mvp-recovery-rehearsal.md). Automated CI passing is supporting evidence only, not UAT sign-off. Defer optional partial-device branch transfers per [MVP scope](mvp-stabilization.md).
