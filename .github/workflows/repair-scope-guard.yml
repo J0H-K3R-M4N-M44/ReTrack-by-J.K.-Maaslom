@@ -7,6 +7,7 @@ on:
       - '.github/workflows/repair-scope-guard.yml'
       - 'config/config.example.php'
       - 'app/console/**'
+      - 'app/dashboard_data.php'
       - 'app/quotes/**'
       - 'app/payments/**'
       - 'app/inventory/**'
@@ -31,6 +32,7 @@ jobs:
       - name: PHP lint and pure legacy/guarded scope assertions
         run: |
           set -euo pipefail
+          php -l app/dashboard_data.php
           php -l app/console/scopes.php
           php -l app/console/repository.php
           php -l app/quotes/repository.php
