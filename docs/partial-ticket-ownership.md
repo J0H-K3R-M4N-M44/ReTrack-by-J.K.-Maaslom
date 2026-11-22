@@ -1,6 +1,6 @@
 # Partial-ticket repair ownership: gated implementation plan
 
-Status: DESIGN ONLY — 22 November 2026. No schema migration or application behavior changed.
+Status: PHASE 1 IMPLEMENTED ON FEATURE BRANCH — 22 November 2026. Additive schema, issuance, legacy whole-ticket acceptance alignment, migration tests, and read-only rollout gate committed. **Not deployed, not merged, and no partial-ticket acceptance permitted.** Database/CI integration results have not yet been verified in this session.
 Base: main @ f817154f2e5f5ac04daf8bf0c5b3dd0167e17f0b.
 Scope: allow one device in a multi-device ticket to be repaired by another branch **after a confirmed physical transfer and independently audited acceptance**, without moving the financial ownership of the whole ticket.
 
@@ -12,6 +12,23 @@ Scope: allow one device in a multi-device ticket to be repaired by another branc
 - Current acceptance moves accountable_branch_id for the entire ticket and clears the ticket's technician assignments. tests/stock-pilot.php confirms that partial manifests cannot be accepted as whole-ticket repair handoffs.
 - app/payments/repository.php issues and settles ticket-level bills at the accountable branch and checks physical return constraints. This policy must remain intact during the pilot.
 - No repair_branch_id field or partial ownership feature exists on main.
+
+## Phase 1 implementation and verification checkpoint
+
+Feature branch: `Partial-Ticket-Ownership`. `main` is unchanged.
+
+- `database/schema.sql` and rerunnable `database/device_repair_branches.sql`: indexed, FK-backed, nullable `ticket_devices.repair_branch_id`, backfilled only where missing on issued tickets; drafts remain unassigned. Historical `updated_at` is preserved.
+- `app/intake/issuance.php`: issue every device with repair branch equal to the ticket's intake/accountable branch.
+- `app/console/transfers.php`: legacy whole-ticket acceptance continues to clear technician assignments and now also synchronizes every accepted device's repair branch.
+- `tools/simulation_data.php`: use the new column in generated fixtures.
+- `tools/migration_support.php` / `tools/migrate.php`: detect missing column, index, FK or interrupted backfill; require an explicit operator-run migration and backups.
+- `tests/repair-branch-migration.php`, `tests/stock-pilot.php`, `tests/ticket-issuance.php`: regression checks for interrupted/partial migrations and device branch alignment, including multi-device issuance and whole-ticket acceptance.
+- `tools/check_repair_branch_integrity.php`: **read-only** readiness gate, reporting only aggregated counts; refuses missing or divergent issued repair branches in Phase 1.
+- `.github/workflows/payment-pickup.yml`: enables the isolated branch, lints changed PHP and rehearses migration on an existing disposable test fixture, including a missing-column upgrade and repeat migration.
+
+**Required verification before progressing:** observe a successful GitHub Actions run for the final branch HEAD (source review alone is not proof), or reproduce the entire workflow on a disposable MySQL installation. Run `php tools/migrate.php --status` before `--apply`, with backup and application writes paused. Verify `php tools/check_repair_branch_integrity.php` after migration. No live database was migrated here; no tests were executed in the local container because MySQL/PDO MySQL are unavailable.
+
+The added column is nullable during the transitional phase because older fixture inserts and pre-issue drafts must remain compatible. Do **not** enable device-level authorization from its value yet. A future permission cutover will add strict invariants and validation for issued rows before activating mixed ownership.
 
 ## Earlier branch reuse decision
 
