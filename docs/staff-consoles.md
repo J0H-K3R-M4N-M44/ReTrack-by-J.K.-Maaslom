@@ -10,7 +10,7 @@
 | Manager | Assigned-branch repair queue, technician assignment, intake drafts and issuance. No staff-account administration or technician private notes. |
 | Intake agent | Assigned-branch queue, new intake, draft editing, evidence checks and ticket issuance. |
 | Technician | Only assigned devices within active assigned branches. Review stage changes and save private work notes. |
-| Courier | Read-only item-level transfer manifests for assigned origin/destination branches, with route, destination storage and handover condition notes. |
+| Courier | Authorized physical dispatch and receipt/exception on assigned-branch manifests, with route and condition notes. No repair ownership acceptance or cash authorization. |
 | Viewer | Read-only device status and location for assigned branches. No customer contact, intake descriptions, signatures or private notes. |
 
 Cashiers can search bills, record counter cash and finish a paid counter pickup. Managers and administrators can issue a final bill after every device on the ticket is ready and has an approved estimate. **Historical wording correction:** COD delivery settlement and courier delivery remain pending. Authorized physical device dispatch/receipt and whole-ticket repair responsibility handoff are now implemented in the later PHP custody module; partial-ticket ownership is not.

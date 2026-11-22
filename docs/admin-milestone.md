@@ -1,5 +1,7 @@
 # Administrator intake milestone
 
+> **Historical intake milestone.** This documents the initial administrator draft-intake work, not the total current system. Staff roles, evidence-backed multi-device issuance, tracking, repair, billing, logistics and inventory were added later. For the current implementation use [system overview](system-overview.md) and [intake/issuance details](ticket-issuance.md).
+
 This milestone completes the administrator draft-intake workflow. It does not complete the whole repair-management system. No tables, columns, or live configuration files change.
 
 ## Workflow

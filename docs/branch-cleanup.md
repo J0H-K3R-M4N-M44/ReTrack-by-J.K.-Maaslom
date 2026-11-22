@@ -1,5 +1,7 @@
 # Legacy branch cleanup
 
+> **Historical branch cleanup proposal (13 November 2026) — DO NOT EXECUTE WITHOUT REVALIDATION.** The branch heads/leases and any deletion list below were recorded at that earlier time. Branches may have changed. The current working references and draft PR are in [branch map](branch-map.md). This documentation update does **not** delete, force-push or merge any branch.
+
 All listed heads were verified as ancestors of Simplified-System at 39011d5382a740887369bffa43fe6d5bad69ed7e on 2026-11-13. Demo-System preserves that history.
 
 Deletion is pending: the connector has no branch-delete operation, command-line Git has no write credentials in this session, and the browser is signed out.

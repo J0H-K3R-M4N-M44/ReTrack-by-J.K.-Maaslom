@@ -1,5 +1,7 @@
 # Changing the intake without rewriting the page
 
+> **Current intake maintenance guide.** Review against [architecture](architecture.md), [ticket issuance](ticket-issuance.md) and [security](security-and-privacy.md). The intake and issue code is integrated in `main`; the unmerged feature branch additionally initializes a device repair-branch field during issue. Never skip evidence, duplicate checks or transactional role gates for a UI simplification.
+
 Read `workflow-blueprint.md` and open `wireframes/index.html` first.
 
 | Change requested | Edit |

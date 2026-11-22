@@ -1,5 +1,7 @@
 # RepairTrack wireframes
 
+> **Static prototype only.** The clickable wireframes use fictional screens and do not authenticate or persist real device/cash records. The full PHP implementation and open gaps are in [system overview](system-overview.md). Do not use prototype login, tracking codes, mock chat or simulated pickup controls as evidence of live backend features.
+
 Read [the workflow blueprint](workflow-blueprint.md) first. Open `docs/wireframes/index.html` in a browser for a clickable, responsive preview; no server or database is required.
 
 The page selector previews landing, shared staff login, customer tracking, intake, technician queue, branch overview and pickup request. Use tracking code `DEMO-123`. All content is fictional and every action is a demonstration. No values are sent or persisted.

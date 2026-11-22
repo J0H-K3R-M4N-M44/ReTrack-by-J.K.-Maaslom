@@ -1,5 +1,7 @@
 # RepairTrack: initial workflow
 
+> **Original design blueprint, not today's implementation inventory.** Many of its later-phase repair/cash/custody goals were added to PHP after this was written; others (customer chat, self-approval, COD, live location) remain open. In particular, its **60-minute session** paragraph is a proposal: current `app/auth.php` expires idle staff sessions after **30 minutes**. Use [system overview](system-overview.md), [security](security-and-privacy.md) and [release status](release-status.md) for implemented behavior.
+
 ## Purpose and scope
 Customers should quickly learn what is happening, where their device was last confirmed, and what they need to do next. Staff should see a short queue and one clear next action.
 

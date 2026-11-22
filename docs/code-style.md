@@ -1,5 +1,7 @@
 # Reading and formatting the code
 
+> **Current coding guidance.** Keep this convention for new changes while preserving existing working layouts. The codebase has additional `app/payments/`, `app/inventory/`, `app/console/scopes.php` and `tests/` modules beyond the original directory overview below. See [architecture](architecture.md) for the complete current map and [verification](testing-and-verification.md) before accepting formatting-only refactors.
+
 Use two spaces for JavaScript, CSS and HTML, and four spaces for PHP. Functions use separate lines for their bodies. Keep related statements together and add a blank line between distinct steps. Comments explain the purpose or a non-obvious rule; they should not repeat each statement.
 
 ## Where to look

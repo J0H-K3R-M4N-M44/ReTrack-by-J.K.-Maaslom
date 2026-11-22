@@ -1,5 +1,7 @@
 # RepairTrack: Current System and Simplified Plan
 
+> **Archived comparison (28 October–8 November 2026).** This captures the original foundation/simplification debate, not the installed current schema or branch topology. Current `database/schema.sql` contains **47** tables on the feature branch, and `main` has subsequently integrated repair, payment, custody and stock pilots. The older assertion that these are “planned” is historical. Use [database reference](database-reference.md), [system overview](system-overview.md) and [branch map](branch-map.md).
+
 **Status date:** 2026-10-28  
 **Original branch:** `feature/simple-foundation`
 

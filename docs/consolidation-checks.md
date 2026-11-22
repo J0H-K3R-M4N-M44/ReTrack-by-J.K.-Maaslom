@@ -1,5 +1,7 @@
 # Consolidation checks
 
+> **Historical consolidation test report.** The checks and limitations below describe the old prototype/integration checkpoint, not today's complete PHP/MySQL functionality. See [testing and verification](testing-and-verification.md) for current suites and [release status](release-status.md) for the latest verified MySQL run. Prototype test passes must not be presented as production authorization certification.
+
 ## Bugs fixed before consolidation
 
 - Opening a staff demo URL no longer silently changes a public or customer role to Admin; it opens the demo login instead.
