@@ -34,7 +34,7 @@ Invalid logins, unassigned branches and stale pages are not reasons to bypass ac
 4. If a device is in transit, contact the authorized receiving staff; do not advance stage as if the device had already been received.
 5. Reassignment removes access to the old task. Never use another staff account to work around an assignment.
 
-## Cashier: issue/collect/return boundaries
+## Cashier: counter collection and return boundaries
 
 1. Open `admin/cash.php` and locate the issued bill by permitted ticket/bill search.
 2. Verify the current bill and remaining amount, then record **physical counter cash** actually received. Partial payments are allowed; an overpayment or stale form should be rejected.

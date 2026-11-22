@@ -1,8 +1,7 @@
 # RepairTrack — MySQL integrity test round
 
-**Status: eight-stage disposable MySQL integration suite PASSED in GitHub Actions run 44989776748 on commit 83e43d5 (22 Nov 2026).**
-Branch: Partial-Ticket-Ownership. This work must not be merged or deployed until
-the integration checks are verified.
+**Verified checkpoint (22 Nov 2026): the eight-stage disposable MySQL suite PASSED on commit 738bfada in GitHub Actions run 44989851868** (and earlier at 83e43d5, run 44989776748).
+Branch: Partial-Ticket-Ownership. This proves the bounded database integrity checks only; **PR #55 stays draft/unmerged** until broader role, browser, permission-cutover and deployment gates pass. Rerun CI at the final HEAD.
 
 ## Test stages
 
@@ -62,8 +61,8 @@ authorization cutover. These remain separate release gates.
 
 **Verification record (22 Nov 2026):** Local staged PHP/Bash syntax passed.
 This working environment has no local MySQL server or pdo_mysql, but the
-**GitHub-hosted MySQL run 44989776748 passed all eight stages** at commit
-83e43d5: real fixture workflows, 17 integrity checks, snapshots of 19 tables,
+**GitHub-hosted MySQL run 44989851868 passed all eight stages** at commit
+738bfada (also passed earlier in run 44989776748): real fixture workflows, 17 integrity checks, snapshots of 19 tables,
 old-column migration rehearsal, idempotence, foreign-key/ownership negative tests,
 rollback, interrupted migration recovery and final integrity gate.
 The dedicated workflow runs again on every feature-branch commit, so confirm
