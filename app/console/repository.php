@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../dashboard_data.php';
 require_once __DIR__ . '/workspace.php';
+require_once __DIR__ . '/scopes.php';
 require_once __DIR__ . '/../intake/repository.php';
 
 // Ticket scope is shared by lists, details and writes.
@@ -9,15 +10,9 @@ require_once __DIR__ . '/../inventory/reservations.php';
 
 function consoleScope(array $user): array
 {
-    $sql = "t.record_stage = 'ISSUED' AND EXISTS (
-        SELECT 1 FROM user_branch_assignments a JOIN branches b ON b.branch_id = a.branch_id
-        WHERE a.user_id = ? AND b.is_active = 1 AND a.branch_id = t.accountable_branch_id)";
-    $params = [(int) $user['user_id']];
-    if ($user['role'] === 'TECHNICIAN') {
-        $sql .= ' AND d.assigned_technician_id = ?';
-        $params[] = (int) $user['user_id'];
-    }
-    return [$sql, $params];
+    // Preserve existing ticket-scoped behavior. Do not switch this shared helper
+    // to the proposed device scope: reports and other callers also use it.
+    return consoleCurrentDeviceScope($user);
 }
 
 function consoleDevices(PDO $pdo, array $user, array $input): array
