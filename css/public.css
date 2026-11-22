@@ -117,16 +117,5 @@
   overflow: hidden;
   clip-path: inset(50%);
 }
-@media (prefers-reduced-motion: no-preference) {
-  .public-card {
-    animation: customer-entry 240ms ease-out;
-  }
-  @keyframes customer-entry {
-    from {
-      transform: translateX(-12px);
-    }
-    to {
-      transform: translateX(0);
-    }
-  }
-}
+/* Tracking forms are deliberately stationary. Decorative entry motion can
+   interfere with form activation on slower devices and is not needed for status. */
