@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/../inventory/reservations.php';
 
 // Lock the operator's branch assignment before changing physical custody.
 function transferAuthorize(PDO $pdo, int $user, int $branch): void
@@ -78,18 +79,14 @@ function dispatchDevices(PDO $pdo, int $user, int $origin, int $destination, str
                     WHERE latest.ticket_device_id = q.ticket_device_id
                     ORDER BY latest.version_no DESC, latest.quote_id DESC LIMIT 1
                 )
-                AND i.tracks_branch_stock = 1
-                AND NOT EXISTS (
-                    SELECT 1 FROM inventory_transactions m
-                    WHERE m.ticket_device_id = q.ticket_device_id
-                    AND m.transaction_type = 'TICKET_USE'
-                    AND m.reference_code = CONCAT('QUOTE-ITEM-', i.quote_item_id)
-                ) LIMIT 1");
+                AND i.tracks_branch_stock = 1");
             $pendingPart->execute([$id]);
-            if ($pendingPart->fetchColumn()) {
-                throw new DomainException(
-                    'An approved catalog part is not installed. Complete installation at the sending branch before transfer.'
-                );
+            foreach ($pendingPart->fetchAll(PDO::FETCH_COLUMN) as $quoteItemId) {
+                if (!stockActiveInstallation($pdo, $id, (int) $quoteItemId)) {
+                    throw new DomainException(
+                        'An approved catalog part is not installed. Complete installation at the sending branch before transfer.'
+                    );
+                }
             }
             $pdo->prepare('INSERT INTO device_transfer_items (device_transfer_id,ticket_device_id,from_location_id,transit_location_id,to_location_id)
                 VALUES (?,?,?,?,?)')->execute([$manifest,$id,$from,$transit,$destination]);
