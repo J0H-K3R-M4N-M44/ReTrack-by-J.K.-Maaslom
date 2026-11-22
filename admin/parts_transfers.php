@@ -80,7 +80,8 @@ try {
                 (int)requestText($_POST,'loss_case_id'),requestText($_POST,'expected'),
                 requestText($_POST,'unit_cost'),requestText($_POST,'cost_basis'),
                 requestText($_POST,'cost_reference'),requestText($_POST,'reason'),
-                requestText($_POST,'confirm')==='yes');
+                requestText($_POST,'confirm')==='yes',
+                (int)requestText($_POST,'cost_record_id'));
             $_SESSION['parts_transfer_notice'] =
                 'PHP financial exposure submitted for independent source-branch administrator review. No cash or stock changed.';
         } elseif ($action==='decide-valuation') {
@@ -132,7 +133,8 @@ $currentSection='parts-transfers';
 <h1>Physical parts transfers</h1>
 <p>Dispatch unreserved catalog parts; record what physically arrives and report shortages.
 Device transfer manifests are managed separately.</p>
-</div><a class="secondary-btn" href="inventory.php">Branch inventory</a></header>
+</div><div><a class="secondary-btn" href="inventory.php">Branch inventory</a>
+<a class="secondary-btn" href="acquisition_costs.php?branch=<?= $branch ?>">Supplier acquisition costs</a></div></header>
 <?php if ($notice!==''): ?><p class="staff-notice" role="status"><?= h($notice) ?></p><?php endif; ?>
 <?php if ($error!==''): ?><p role="alert"><?= h($error) ?></p><?php endif; ?>
 <section class="dashboard-card rt-card">
@@ -264,7 +266,8 @@ may download. PDFs are served as downloads rather than displayed in the browser.
 <?php if ($lossStatus==='APPROVED'): ?>
 <section class="rt-card" aria-label="Internal financial loss valuation">
 <h4>PHP purchase-cost exposure · Internal only</h4>
-<p>This is a reviewed estimate of loss at documented acquisition cost. It is
+<p>Verified registry costs are preferred; manual evidence is explicitly identified as an attestation.
+This is a reviewed estimate of loss at documented acquisition cost. It is
 <strong>not</strong> a sales price, customer bill, tax figure, bank transfer or posted accounting write-off.</p>
 <?php if ($item['approved_valuation_id']): ?>
 <p>Latest approved exposure: <strong>PHP <?= h((string)$item['approved_valuation_exposure']) ?></strong>
@@ -304,7 +307,34 @@ Prepared <?= h((string)$entry['prepared_at']) ?>
 </ol></details>
 <?php endif; ?>
 <?php if ($canProposeValuation): ?>
-<details><summary>Propose a PHP purchase-cost valuation</summary>
+<?php if ($item['approved_source_cost_id']): ?>
+<details><summary>Value loss using independently verified supplier cost</summary>
+<p>The acquisition cost below belongs to this exact part at the sending branch.
+It is loaded by the server, never taken from the submitted form.</p>
+<p>Reviewed cost #<?= (int)$item['approved_source_cost_id'] ?> ·
+PHP <?= h((string)$item['approved_source_unit_cost']) ?> per unit ·
+<?= h((string)$item['approved_source_supplier']) ?> ·
+<?= h((string)$item['approved_source_reference']) ?></p>
+<form method="post">
+<input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+<input type="hidden" name="branch" value="<?= $branch ?>">
+<input type="hidden" name="q" value="<?= h($q) ?>">
+<input type="hidden" name="loss_case_id" value="<?= (int)$item['loss_case_id'] ?>">
+<input type="hidden" name="cost_record_id" value="<?= (int)$item['approved_source_cost_id'] ?>">
+<input type="hidden" name="expected" value="<?= h($item['outstanding']) ?>">
+<label>Reason this recorded purchase cost applies
+<textarea name="reason" required minlength="20" maxlength="500" rows="3"
+placeholder="Explain how the verified invoice relates to this exact lost part."></textarea></label>
+<label><input type="checkbox" name="confirm" value="yes" required>
+I confirm this exact acquisition-cost record matches the physical loss, not a sale price.</label>
+<button name="action" value="propose-valuation">Submit verified-cost valuation</button>
+</form></details>
+<?php else: ?>
+<p>No approved source-branch cost is recorded for this SKU.
+Use the <a href="acquisition_costs.php?branch=<?= (int)$item['from_branch_id'] ?>">
+purchase-cost register</a> before preparing an attested financial estimate.</p>
+<?php endif; ?>
+<details><summary>Propose a PHP purchase-cost valuation (manual evidence fallback)</summary>
 <p>Use the verified supplier acquisition cost, not the customer-facing quote price.
 For recovered parts, enter a new revision for the <strong>current</strong> unreceived quantity.
 Only an independent origin-branch ADMIN can approve it. A zero outstanding quantity
@@ -322,8 +352,8 @@ step="0.01" placeholder="2750.00"></label>
 <option value="">Choose original purchase-cost evidence</option>
 <option value="SUPPLIER_INVOICE">Supplier invoice</option>
 <option value="PURCHASE_RECEIPT">Purchase receipt</option>
-<option value="VERIFIED_COST_RECORD">Verified cost record</option>
-<option value="OTHER_VERIFIED">Other independently verified source</option>
+<option value="OTHER_VERIFIED">Other independently verified evidence</option>
+
 </select></label>
 <label>Cost document reference
 <input name="cost_reference" minlength="8" maxlength="160" required
