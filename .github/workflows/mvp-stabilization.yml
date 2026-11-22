@@ -33,6 +33,7 @@ on:
       - 'tests/staff-consoles.php'
       - '.github/workflows/mvp-stabilization.yml'
       - 'tools/local_acceptance_preflight.php'
+      - 'tools/compare_test_restore.php'
       - 'tests/local-acceptance-preflight.php'
       - 'app/dashboard_data.php'
       - 'database/schema.sql'
@@ -106,6 +107,7 @@ jobs:
         run: |
           set -euo pipefail
           php -l tests/mvp-single-ticket-journey.php
+          php -l tools/compare_test_restore.php
           sudo systemctl start mysql
           sed -e 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_journey/' \
               -e 's/^USE repairtrack;$/USE repairtrack_test_journey;/' database/schema.sql \
@@ -116,6 +118,7 @@ jobs:
           return [
               'host' => '127.0.0.1',
               'database' => 'repairtrack_test_journey',
+              'app_url' => 'http://127.0.0.1:8742',
               'username' => 'root',
               'password' => getenv('MYSQL_PWD'),
               'intake_storage_path' => getenv('RUNNER_TEMP') . '/journey-evidence',
