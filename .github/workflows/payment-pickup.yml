@@ -1,7 +1,7 @@
 name: PHP shop workflow checks
 on:
   push:
-    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, PHP-Bill-Corrections-Integration, PHP-Stock-Cancellation-Integration, Stock-Transfer-Integrity, Stock-Returns-Integrity, Branch-Repair-Acceptance, Stock-Quarantine-Counts, Stock-Disposition-Approvals, Parts-Transfers-Reconciliation, main]
+    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, PHP-Bill-Corrections-Integration, PHP-Stock-Cancellation-Integration, Stock-Transfer-Integrity, Stock-Returns-Integrity, Branch-Repair-Acceptance, Stock-Quarantine-Counts, Stock-Disposition-Approvals, Parts-Transfers-Reconciliation, Parts-Loss-Resolution, main]
     paths:
       - '.github/workflows/payment-pickup.yml'
       - 'tests/payment-pickup.php'
@@ -18,6 +18,8 @@ on:
       - 'tests/stock-pilot.php'
       - 'tests/stock-quarantine.php'
       - 'tests/parts-transfer.php'
+      - 'tests/parts-loss.php'
+      - 'database/stock_transfer_losses.sql'
       - 'database/stock_quarantine.sql'
       - 'database/stock_approvals.sql'
       - 'app/inventory/**'
@@ -57,6 +59,8 @@ jobs:
           PHP
           php -l app/inventory/stock_ops.php
           php -l app/inventory/transfers.php
+          php -l app/inventory/losses.php
+          php -l tests/parts-loss.php
           php -l admin/parts_transfers.php
           php -l tests/parts-transfer.php
           php -l app/inventory/reservations.php
@@ -65,6 +69,16 @@ jobs:
           php -l views/quotes/editor.php
           # Emulate upgrading an existing RepairTrack database on disposable test data.
           MYSQL_PWD=root mysql -h 127.0.0.1 -u root repairtrack_test_pickup -e 'DROP TABLE stock_count_reviews; DROP TABLE stock_quarantine_dispositions; DROP TABLE stock_quarantines;'
+          # Simulate an existing installation with pre-loss enum values and no loss-case table.
+          MYSQL_PWD=root mysql -h 127.0.0.1 -u root repairtrack_test_pickup -e "
+            DROP TABLE stock_transfer_loss_cases;
+            ALTER TABLE inventory_transfer_items
+              MODIFY item_status ENUM('IN_TRANSIT','RECEIVED','EXCEPTION','CANCELLED')
+              NOT NULL DEFAULT 'IN_TRANSIT';
+            ALTER TABLE inventory_transfers
+              MODIFY status ENUM('IN_TRANSIT','RECEIVED','EXCEPTION','CANCELLED')
+              NOT NULL DEFAULT 'IN_TRANSIT';
+          "
           php tools/migrate.php --apply --yes
           php tools/migrate.php --status
           php tests/payment-pickup.php
@@ -74,6 +88,7 @@ jobs:
           php tests/payment-pickup.php --stock-pilot
           php tests/payment-pickup.php --stock-operations
           php tests/payment-pickup.php --parts-transfer
+          php tests/payment-pickup.php --parts-loss
       - name: Walk through billing and pickup in Chrome
         run: |
           npm install --no-save --package-lock=false playwright-core@1.56.1
