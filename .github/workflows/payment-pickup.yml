@@ -29,6 +29,7 @@ on:
       - 'tests/repair-branch-migration.php'
       - 'tests/device-ownership-view.php'
       - 'tests/scope-separation.php'
+      - 'tests/repair-scope-isolation.php'
       - 'app/console/ownership.php'
       - 'tests/ticket-issuance.php'
       - 'tools/check_repair_branch_integrity.php'
@@ -89,6 +90,7 @@ jobs:
           php -l tests/repair-branch-migration.php
           php -l tests/device-ownership-view.php
           php -l tests/scope-separation.php
+          php -l tests/repair-scope-isolation.php
           php -l app/console/scopes.php
           php -l app/console/reports.php
           php tests/scope-separation.php
@@ -140,6 +142,7 @@ jobs:
           php tests/payment-pickup.php --cancel-free
           php tests/payment-pickup.php --concurrency
           php tests/payment-pickup.php --stock-pilot
+          php tests/payment-pickup.php --scope-isolation
           php tests/payment-pickup.php --stock-operations
           php tests/payment-pickup.php --parts-transfer
           php tests/payment-pickup.php --parts-loss
