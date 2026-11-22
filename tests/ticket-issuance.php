@@ -147,15 +147,16 @@ expect(
     'Ticket issued with opaque hash',
 );
 $query = $pdo->prepare(
-    'SELECT repair_status, item_code, custody_state FROM ticket_devices WHERE ticket_id = ?',
+    'SELECT repair_status, item_code, custody_state, repair_branch_id FROM ticket_devices WHERE ticket_id = ?',
 );
 $query->execute([$id]);
 $device = $query->fetch();
 expect(
     $device['repair_status'] === 'RECEIVED' &&
         $device['item_code'] === $code . '-01' &&
-        $device['custody_state'] === 'AT_LOCATION',
-    'Device received at location',
+        $device['custody_state'] === 'AT_LOCATION' &&
+        (int) $device['repair_branch_id'] === (int) $issued['accountable_branch_id'],
+    'Device received at the authorized repair branch',
 );
 $query = $pdo->prepare('SELECT COUNT(*) FROM ticket_intake_gate_events WHERE ticket_id = ?');
 $query->execute([$id]);
@@ -202,10 +203,14 @@ $extraEvidence = testEvidence();
 $multiEvidence['photo_2'] = $extraEvidence['photo'];
 intakeDiscardEvidence(['unused' => $extraEvidence['signed_form']]);
 $multiCode = intakeIssueTicket($pdo, $multiId, 1, $multiVersion, $multiValues, $multiEvidence);
-$items = $pdo->prepare('SELECT item_code FROM ticket_devices WHERE ticket_id = ? ORDER BY child_sequence');
+$items = $pdo->prepare('SELECT item_code, repair_branch_id FROM ticket_devices WHERE ticket_id = ? ORDER BY child_sequence');
 $items->execute([$multiId]);
-expect($items->fetchAll(PDO::FETCH_COLUMN) === [$multiCode . '-01', $multiCode . '-02'],
+$issuedItems = $items->fetchAll(PDO::FETCH_ASSOC);
+expect(array_column($issuedItems, 'item_code') === [$multiCode . '-01', $multiCode . '-02'],
     'Issued devices should have distinct item codes');
+expect(count(array_filter($issuedItems, fn(array $item): bool =>
+    (int) $item['repair_branch_id'] !== (int) $multiDraft['intake_branch_id'])) === 0,
+    'Every issued device must initialize repair ownership to its intake branch');
 
 // Save a fresh draft for browser issuance tests.
 $browserId = newIssueDraft($pdo, 'BROWSER-ISSUE-001');
