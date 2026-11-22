@@ -2,7 +2,7 @@ name: MVP dashboard usability regression
 
 on:
   push:
-    branches: [MVP-Stabilization]
+    branches: [MVP-Stabilization, Repair-Parts-Request-Workflow]
     paths:
       - 'admin/dashboard.php'
       - 'css/dashboard.css'
@@ -21,6 +21,12 @@ on:
       - 'views/staff/locations.php'
       - 'tests/storage-locations.php'
       - 'tests/storage-locations-browser.mjs'
+      - 'app/parts/requests.php'
+      - 'admin/part_requests.php'
+      - 'views/parts/requests.php'
+      - 'tests/repair-part-requests.php'
+      - 'tests/repair-part-requests-browser.mjs'
+      - 'views/console/device.php'
       - 'views/workspace/navigation.php'
       - 'views/intake/issue.php'
       - 'views/staff/manage.php'
@@ -170,8 +176,12 @@ jobs:
           php -l views/staff/locations.php
           php -l tests/storage-locations.php
           php tests/storage-locations.php
+          php -l app/parts/requests.php
+          php -l admin/part_requests.php
+          php -l views/parts/requests.php
+          php -l tests/repair-part-requests.php
           case "${{ matrix.suite }}" in
-            quotes) php tests/quotes.php ;;
+            quotes) php tests/quotes.php && php tests/repair-part-requests.php ;;
             public) php tests/public-tracking.php ;;
             *) exit 2 ;;
           esac
@@ -186,7 +196,7 @@ jobs:
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
           case "${{ matrix.suite }}" in
-            quotes) node tests/quotes-browser.mjs && node tests/storage-locations-browser.mjs ;;
+            quotes) node tests/quotes-browser.mjs && node tests/storage-locations-browser.mjs && node tests/repair-part-requests-browser.mjs ;;
             public) node tests/mvp-accessibility-browser.mjs && node tests/public-browser.mjs ;;
             *) exit 2 ;;
           esac
