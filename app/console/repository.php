@@ -257,11 +257,13 @@ function consoleSave(PDO $pdo, int $actorId, int $id, string $version, array $in
 function consoleTransfers(PDO $pdo, array $user, array $input): array
 {
     $sql = "SELECT x.device_transfer_item_id, x.item_status, x.sent_condition_note,
-        x.receipt_condition_note, t.transfer_code, t.dispatched_at, t.to_branch_id,
+        x.receipt_condition_note, t.device_transfer_id, t.transfer_code, t.dispatched_at,
+        t.from_branch_id, t.to_branch_id, d.ticket_id, rt.accountable_branch_id,
         f.branch_name AS origin, b.branch_name AS destination, d.item_code, l.location_name AS destination_location
         FROM device_transfer_items x JOIN device_transfers t ON t.device_transfer_id = x.device_transfer_id
         JOIN branches f ON f.branch_id = t.from_branch_id JOIN branches b ON b.branch_id = t.to_branch_id
         JOIN ticket_devices d ON d.ticket_device_id = x.ticket_device_id
+        JOIN repair_tickets rt ON rt.ticket_id = d.ticket_id
         JOIN storage_locations l ON l.location_id = x.to_location_id
         WHERE EXISTS (SELECT 1 FROM user_branch_assignments a JOIN branches active ON active.branch_id = a.branch_id
             WHERE a.user_id = ? AND active.is_active = 1 AND a.branch_id IN (t.from_branch_id, t.to_branch_id))

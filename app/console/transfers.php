@@ -48,7 +48,7 @@ function dispatchDevices(PDO $pdo, int $user, int $origin, int $destination, str
             VALUES (?,?,?,?,UTC_TIMESTAMP())")->execute([$code,$origin,$to,$user]);
         $manifest = (int)$pdo->lastInsertId();
         foreach ($codes as $item) {
-            $q = $pdo->prepare("SELECT d.ticket_device_id,d.physical_location_id FROM ticket_devices d
+            $q = $pdo->prepare("SELECT d.ticket_device_id,d.ticket_id,d.physical_location_id FROM ticket_devices d
                 JOIN repair_tickets t ON t.ticket_id=d.ticket_id JOIN storage_locations l ON l.location_id=d.physical_location_id
                 WHERE d.item_code=? AND t.record_stage='ISSUED' AND t.case_state='OPEN'
                 AND d.repair_status NOT IN ('COMPLETED','CANCELLED') AND d.custody_state='AT_LOCATION'
@@ -82,10 +82,21 @@ function dispatchDevices(PDO $pdo, int $user, int $origin, int $destination, str
                 AND i.tracks_branch_stock = 1");
             $pendingPart->execute([$id]);
             foreach ($pendingPart->fetchAll(PDO::FETCH_COLUMN) as $quoteItemId) {
-                if (!stockActiveInstallation($pdo, $id, (int) $quoteItemId)) {
-                    throw new DomainException(
-                        'An approved catalog part is not installed. Complete installation at the sending branch before transfer.'
-                    );
+                if (stockActiveInstallation($pdo, $id, (int) $quoteItemId)) {
+                    continue;
+                }
+                // A not-yet-installed approved part can be procured at the destination
+                // only when the entire ticket travels on this manifest. Source holds
+                // must already be released, and destination work requires explicit acceptance.
+                $allCodes = $pdo->prepare('SELECT item_code FROM ticket_devices
+                    WHERE ticket_id = ? ORDER BY ticket_device_id FOR UPDATE');
+                $allCodes->execute([(int) $row['ticket_id']]);
+                foreach ($allCodes->fetchAll(PDO::FETCH_COLUMN) as $requiredCode) {
+                    if (!in_array(strtoupper((string) $requiredCode), $codes, true)) {
+                        throw new DomainException(
+                            'Transfer every device on this ticket together before moving an uninstalled approved part.'
+                        );
+                    }
                 }
             }
             $pdo->prepare('INSERT INTO device_transfer_items (device_transfer_id,ticket_device_id,from_location_id,transit_location_id,to_location_id)
@@ -149,6 +160,143 @@ function confirmTransferItem(PDO $pdo, int $user, int $item, string $expected, s
         $pdo->commit();
     } catch (Throwable $error) {
         $pdo->rollBack();
+        throw $error;
+    }
+}
+
+/**
+ * Move repair responsibility only after every device on one ticket was received
+ * at the destination on the same manifest. Physical custody alone never changes
+ * the accountable branch or grants the destination staff repair access.
+ */
+function acceptTransferredRepair(
+    PDO $pdo,
+    int $actorId,
+    int $manifestId,
+    int $ticketId,
+    int $expectedOrigin,
+    string $reason,
+    bool $confirmed,
+): void {
+    $reason = trim($reason);
+    if ($manifestId <= 0 || $ticketId <= 0 || $expectedOrigin <= 0 || !$confirmed ||
+        mb_strlen($reason) < 10 || mb_strlen($reason) > 500) {
+        throw new DomainException('Confirm whole-ticket receipt and enter a reason of 10–500 characters.');
+    }
+    $pdo->beginTransaction();
+    try {
+        $manifest = $pdo->prepare('SELECT from_branch_id, to_branch_id, status
+            FROM device_transfers WHERE device_transfer_id = ? FOR UPDATE');
+        $manifest->execute([$manifestId]);
+        $route = $manifest->fetch();
+        if (!$route || $route['status'] !== 'RECEIVED' ||
+            (int) $route['from_branch_id'] !== $expectedOrigin) {
+            throw new DomainException('The transfer manifest changed or is not fully received.');
+        }
+        $destination = (int) $route['to_branch_id'];
+        transferAuthorize($pdo, $actorId, $destination);
+        $actor = $pdo->prepare('SELECT role, is_active FROM users WHERE user_id = ? FOR UPDATE');
+        $actor->execute([$actorId]);
+        $staff = $actor->fetch();
+        if (!$staff || !(int) $staff['is_active'] ||
+            !in_array($staff['role'], ['ADMIN', 'MANAGER'], true)) {
+            throw new DomainException('Only a receiving branch manager or administrator can accept repair responsibility.');
+        }
+
+        $ticketQuery = $pdo->prepare('SELECT ticket_id, accountable_branch_id, record_stage, case_state
+            FROM repair_tickets WHERE ticket_id = ? FOR UPDATE');
+        $ticketQuery->execute([$ticketId]);
+        $ticket = $ticketQuery->fetch();
+        if (!$ticket || $ticket['record_stage'] !== 'ISSUED' || $ticket['case_state'] !== 'OPEN' ||
+            (int) $ticket['accountable_branch_id'] !== $expectedOrigin) {
+            throw new DomainException('The repair ticket changed or belongs to another branch.');
+        }
+        $bill = $pdo->prepare("SELECT bill_id FROM repair_bills WHERE ticket_id = ?
+            AND bill_status = 'ISSUED' LIMIT 1 FOR UPDATE");
+        $bill->execute([$ticketId]);
+        if ($bill->fetchColumn()) {
+            throw new DomainException('A billed ticket cannot change repair responsibility.');
+        }
+
+        $devicesQuery = $pdo->prepare('SELECT d.ticket_device_id, d.item_code, d.repair_status,
+            d.custody_state, d.assigned_technician_id, l.branch_id AS location_branch_id
+            FROM ticket_devices d LEFT JOIN storage_locations l ON l.location_id = d.physical_location_id
+            WHERE d.ticket_id = ? ORDER BY d.ticket_device_id FOR UPDATE');
+        $devicesQuery->execute([$ticketId]);
+        $devices = $devicesQuery->fetchAll();
+        if (!$devices) {
+            throw new DomainException('A ticket without devices cannot be accepted.');
+        }
+
+        $itemsQuery = $pdo->prepare('SELECT ticket_device_id, item_status
+            FROM device_transfer_items WHERE device_transfer_id = ? FOR UPDATE');
+        $itemsQuery->execute([$manifestId]);
+        $received = [];
+        foreach ($itemsQuery->fetchAll() as $item) {
+            if ($item['item_status'] === 'RECEIVED') {
+                $received[(int) $item['ticket_device_id']] = true;
+            }
+        }
+        $oldAssignments = [];
+        foreach ($devices as $device) {
+            $id = (int) $device['ticket_device_id'];
+            if (!isset($received[$id]) || $device['custody_state'] !== 'AT_LOCATION' ||
+                (int) $device['location_branch_id'] !== $destination) {
+                throw new DomainException('Every device on this ticket must be received at the destination on this manifest.');
+            }
+            if (!in_array($device['repair_status'],
+                ['RECEIVED', 'DIAGNOSING', 'AWAITING_PARTS', 'AWAITING_CUSTOMER_APPROVAL'], true)) {
+                throw new DomainException('A repair already in progress or ready for pickup cannot be reassigned this way.');
+            }
+            $originalUse = $pdo->prepare("SELECT u.ticket_part_use_id FROM ticket_parts_used u
+                JOIN inventory_transactions movement
+                    ON movement.inventory_transaction_id = u.inventory_transaction_id
+                WHERE u.ticket_device_id = ? AND NOT EXISTS (
+                    SELECT 1 FROM inventory_transactions reversal
+                    WHERE reversal.transaction_type = 'RETURN'
+                    AND reversal.ticket_device_id = u.ticket_device_id
+                    AND reversal.reference_code = CONCAT('RETURN-USE-', movement.inventory_transaction_id)
+                ) LIMIT 1 FOR UPDATE");
+            $originalUse->execute([$id]);
+            if ($originalUse->fetchColumn()) {
+                throw new DomainException('An installed part must be returned or reviewed before changing repair responsibility.');
+            }
+            $holds = $pdo->prepare('SELECT r.reservation_id FROM stock_reservations r
+                JOIN repair_quote_items i ON i.quote_item_id = r.quote_item_id
+                JOIN repair_quotes q ON q.quote_id = i.quote_id
+                WHERE q.ticket_device_id = ? LIMIT 1 FOR UPDATE');
+            $holds->execute([$id]);
+            if ($holds->fetchColumn()) {
+                throw new DomainException('Release all source-branch part reservations before accepting the ticket.');
+            }
+            if ($device['assigned_technician_id'] !== null) {
+                $oldAssignments[(string) $id] = (int) $device['assigned_technician_id'];
+            }
+        }
+
+        $pdo->prepare('UPDATE ticket_devices SET assigned_technician_id = NULL
+            WHERE ticket_id = ? AND assigned_technician_id IS NOT NULL')->execute([$ticketId]);
+        $update = $pdo->prepare('UPDATE repair_tickets SET accountable_branch_id = ?
+            WHERE ticket_id = ? AND accountable_branch_id = ?');
+        $update->execute([$destination, $ticketId, $expectedOrigin]);
+        if ($update->rowCount() !== 1) {
+            throw new DomainException('The ticket assignment changed. Reopen the manifest.');
+        }
+        $pdo->prepare("INSERT INTO audit_events
+            (actor_type,actor_user_id,entity_type,entity_id,action,before_data,after_data,reason,created_at)
+            VALUES ('USER',?,'repair_ticket',?,'REPAIR_BRANCH_ACCEPTED',?,?,?,UTC_TIMESTAMP())")
+            ->execute([
+                $actorId, $ticketId,
+                json_encode(['accountable_branch_id'=>$expectedOrigin,'technicians'=>$oldAssignments], JSON_THROW_ON_ERROR),
+                json_encode(['accountable_branch_id'=>$destination,'manifest_id'=>$manifestId,
+                    'devices_received'=>count($devices),'technicians_cleared'=>count($oldAssignments)], JSON_THROW_ON_ERROR),
+                $reason,
+            ]);
+        $pdo->commit();
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         throw $error;
     }
 }

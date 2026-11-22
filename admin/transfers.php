@@ -19,11 +19,19 @@ try {
             if ($action==='dispatch') {
                 $code = dispatchDevices($pdo,$id,(int)requestText($_POST,'origin'),(int)requestText($_POST,'destination'),requestText($_POST,'codes'));
                 $_SESSION['transfer_notice'] = 'Dispatched manifest ' . $code;
+            } elseif ($action === 'accept-repair') {
+                acceptTransferredRepair($pdo, $id, (int) requestText($_POST, 'manifest_id'),
+                    (int) requestText($_POST, 'ticket_id'), (int) requestText($_POST, 'expected_origin'),
+                    requestText($_POST, 'accept_reason'), requestText($_POST, 'accept_confirm') === 'yes');
+                $_SESSION['transfer_notice'] = 'Receiving branch accepted repair responsibility. Assign a new technician from its queue.';
             } else {
                 confirmTransferItem($pdo,$id,(int)requestText($_POST,'item'),requestText($_POST,'expected'),$action,requestText($_POST,'note'));
                 $_SESSION['transfer_notice'] = $action==='receive'?'Receipt recorded.':'Missing device recorded.';
             }
-            header('Location: transfers.php?' . http_build_query(['q'=>$code ?? requestText($_GET,'q')]),true,303);
+            header('Location: transfers.php?' . http_build_query([
+                'q'=>$code ?? requestText($_GET,'q'),
+                'view'=>$action === 'accept-repair' ? 'history' : requestText($_GET,'view'),
+            ]),true,303);
             exit;
         } catch (DomainException $problem) {
             $error = $problem->getMessage();
@@ -59,6 +67,27 @@ try {
 <p><?= h($r['transfer_code'].' · '.$r['origin'].' → '.$r['destination'].' · '.$r['destination_location']) ?></p>
 <p><?= h(str_replace('_',' ', $r['item_status'])) ?></p>
 <?php if ($r['receipt_condition_note']): ?><p><?= h($r['receipt_condition_note']) ?></p><?php endif; ?>
+<?php if ($history && $r['item_status']==='RECEIVED' &&
+    in_array($user['role'], ['ADMIN','MANAGER'], true) &&
+    in_array((int)$r['to_branch_id'], $allowed, true) &&
+    (int)$r['accountable_branch_id']===(int)$r['from_branch_id']): ?>
+<details class="dashboard-card">
+<summary>Accept repair responsibility for the whole ticket</summary>
+<p>Only accept after every device on this ticket is received on the same manifest.
+This changes the accountable branch and clears the old technician assignments.
+It does not transfer physical parts or notify the customer automatically.</p>
+<form method="post">
+<input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+<input type="hidden" name="manifest_id" value="<?= (int)$r['device_transfer_id'] ?>">
+<input type="hidden" name="ticket_id" value="<?= (int)$r['ticket_id'] ?>">
+<input type="hidden" name="expected_origin" value="<?= (int)$r['from_branch_id'] ?>">
+<label>Reason for accepting this repair
+<textarea name="accept_reason" minlength="10" maxlength="500" rows="2" required></textarea></label>
+<label><input type="checkbox" name="accept_confirm" value="yes" required>
+I verified the complete ticket was received, reviewed its repair status, and will assign a destination technician.</label>
+<button name="action" value="accept-repair">Accept ticket at receiving branch</button>
+</form></details>
+<?php endif; ?>
 <?php if (!$history && in_array((int)$r['to_branch_id'],$allowed,true)): ?><form method="post">
 <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>"><input type="hidden" name="item" value="<?= (int)$r['device_transfer_item_id'] ?>"><input type="hidden" name="expected" value="<?= h($r['item_status']) ?>">
 <label>Receipt note (required for a discrepancy or resolution)<input maxlength="500" name="note" <?= $r['item_status']==='EXCEPTION'?'required':'' ?>></label>
