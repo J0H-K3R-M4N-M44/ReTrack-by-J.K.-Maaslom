@@ -45,7 +45,7 @@ Individual tests (only when a disposable test DB is already configured):
 
     php tests/mysql-integrity.php --check
     php tests/mysql-integrity.php --snapshot
-    php tests/mysql-integrity.php --negative
+    REPAIRTRACK_INTEGRITY_TEST=1 php tests/mysql-integrity.php --negative
     php tests/repair-branch-migration.php
 
 For manual read-only Workbench inspection, select a disposable test schema and
