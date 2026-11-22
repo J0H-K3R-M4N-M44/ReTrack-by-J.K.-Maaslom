@@ -6,6 +6,8 @@
 
 - [Current MVP requirements traceability](requirements-traceability-current.md): source/test/status/acceptance mapping and scope boundaries
 - [Deployment security issue register](mvp-deployment-security-register.md): P0 hypotheses, host-verification gates and safe handling
+- [Hosted-pilot verification record](hosted-pilot-verification-2026-11-22.md): read-only observation, network limitation and redacted host-owner evidence checklist
+- [Storage location staff workflow](staff-storage-locations.md): assigned-branch bin/workbench setup, scope and acceptance checks
 
 - [Full end-to-end regression report](mvp-test-report.md): one actual service-layer ticket plus independent browser journeys and broad CI evidence
 - [Manual user acceptance checklist](mvp-uat-checklist.md): 20 executable staff/customer scenarios, **awaiting human sign-off**
