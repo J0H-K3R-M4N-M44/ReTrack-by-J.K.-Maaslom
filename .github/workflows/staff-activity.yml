@@ -1,7 +1,7 @@
 name: Staff activity isolation
 on:
   push:
-    branches: [Tracking-And-Activity-UX, Intake-Evidence-Checks, Intake-Customer-Search, Device-Handovers, Loss-Status-Schema-Hotfix, Inventory-Evidence-Attachments, Inventory-Loss-Valuation, Verified-Parts-Cost-Register, Periodic-Stocktaking-Signoff, main]
+    branches: [Tracking-And-Activity-UX, Intake-Evidence-Checks, Intake-Customer-Search, Device-Handovers, Loss-Status-Schema-Hotfix, Inventory-Evidence-Attachments, Inventory-Loss-Valuation, Verified-Parts-Cost-Register, Periodic-Stocktaking-Signoff, Partial-Ticket-Ownership, main]
     paths:
       - '.github/workflows/staff-activity.yml'
       - 'tests/*.php'
@@ -69,6 +69,10 @@ jobs:
           trap 'kill "$server_pid"; rm -f "$HANDOVER_BROWSER_FIXTURE"' EXIT
           curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
           node tests/device-handovers-browser.mjs
+          php -l app/console/scopes.php
+          php -l app/console/reports.php
+          php -l tests/scope-separation.php
+          php tests/scope-separation.php
           php tests/staff-reports.php
           php tests/seeded-workflow.php
           php tests/migrations.php
