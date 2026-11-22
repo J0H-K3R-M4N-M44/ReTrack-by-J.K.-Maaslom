@@ -120,7 +120,7 @@ expectResult($visibleDevices(consoleProposedRepairScope($receivingTechnician)) =
     'Technician without a device assignment retained repair access.');
 
     // Confirm every negative assertion before the rollback in finally.
-    echo "PASS: two-device isolation, legacy permissions, independent ticket money and revoked-account/branch denials.\\n";
+    echo "PASS: two-device isolation, legacy permissions, independent ticket money and revoked-account/branch denials.\n";
 } finally {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
