@@ -259,24 +259,6 @@
   font-size: 0.72rem;
 }
 
-.construction-mark {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  min-width: 140px;
-  padding: 20px;
-  border: 1px dashed rgba(212, 175, 102, 0.42);
-  border-radius: 14px;
-  color: var(--gold-300);
-  font-size: 0.75rem;
-  text-align: center;
-  box-shadow: 0 0 28px rgba(212, 175, 102, 0.07);
-}
-
-.construction-mark i {
-  font-size: 1.6rem;
-}
-
 .construction-card h2,
 .dashboard-panel h2 {
   margin: 8px 0 0;
@@ -774,5 +756,70 @@
     width: 36px;
     height: 36px;
     font-size: 1rem;
+  }
+}
+
+/* The dashboard is operational: offer real navigation, not a construction badge. */
+.welcome-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: min(100%, 180px);
+}
+.welcome-primary,
+.welcome-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 9px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+.welcome-primary {
+  background: var(--gold-300);
+  color: var(--steel-900);
+}
+.welcome-primary:hover {
+  background: var(--soft-white);
+}
+.welcome-link {
+  color: var(--soft-white);
+  border: 1px solid rgba(223, 231, 234, 0.35);
+}
+.welcome-link:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+.welcome-primary:focus-visible,
+.welcome-link:focus-visible {
+  outline: 3px solid #7ad1ff;
+  outline-offset: 3px;
+}
+
+/* A failed data query must not retain a green successful status indicator. */
+.is-unavailable .status-dot {
+  background: #f1b265;
+  box-shadow: none;
+}
+.system-status.is-unavailable {
+  border-color: rgba(241, 178, 101, 0.55);
+  color: #f5c992;
+}
+.sidebar-footer.is-unavailable {
+  color: #f5c992;
+}
+@media (max-width: 520px) {
+  .welcome-actions {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .welcome-primary,
+  .welcome-link {
+    flex: 1 1 140px;
   }
 }

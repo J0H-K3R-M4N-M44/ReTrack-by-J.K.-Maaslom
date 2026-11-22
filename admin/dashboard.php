@@ -139,7 +139,7 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                 </nav>
             </div>
 
-            <div class="sidebar-footer">
+            <div class="sidebar-footer<?= $metricsAvailable ? '' : ' is-unavailable' ?>">
                 <span class="status-dot" aria-hidden="true"></span>
                 <span><?= $metricsAvailable
                     ? 'Dashboard data loaded'
@@ -154,7 +154,7 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                     <h1>Admin dashboard</h1>
                 </div>
                 <div class="dashboard-user">
-                    <span class="system-status"><span class="status-dot" aria-hidden="true"></span><?= $metricsAvailable
+                    <span class="system-status<?= $metricsAvailable ? '' : ' is-unavailable' ?>" role="status"><span class="status-dot" aria-hidden="true"></span><?= $metricsAvailable
                         ? 'Dashboard data loaded'
                         : 'Dashboard data unavailable' ?></span>
                     <span class="welcome-seal" aria-hidden="true"><i class="fa-solid fa-user-shield"></i></span>
@@ -190,13 +190,14 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                         <div class="eyebrow">Workspace status</div>
                         <h2>Good day, <?php echo $admin_username; ?>.</h2>
                         <p><?= $metricsAvailable
-                            ? 'Review current service data using the workspace links.'
+                            ? 'Review your branch activity or start a new intake using these shortcuts.'
                             : 'Dashboard queries failed. Please try again later.' ?></p>
                     </div>
-                    <div class="construction-mark" aria-label="Data modules under construction">
-                        <i class="fa-solid fa-hammer" aria-hidden="true"></i>
-                        <span>Under construction</span>
-                    </div>
+                    <nav class="welcome-actions" aria-label="Quick actions">
+                        <a class="welcome-primary" href="intake_create.php">New intake</a>
+                        <a class="welcome-link" href="staff_home.php">Review repairs</a>
+                        <a class="welcome-link" href="staff_home.php?view=cash">Cash desk</a>
+                    </nav>
                 </section>
 
                 <section class="analytics-grid" aria-label="Analytics summary" data-dashboard-panel="overview"<?= $tab !==
@@ -285,7 +286,7 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                     </article>
                     <article class="dashboard-card construction-card">
                         <div class="card-heading">
-                            <div><div class="eyebrow">Activity feed</div><h2>Recent operations</h2></div>
+                            <div><div class="eyebrow">Repair work queue</div><h2>Recently updated devices</h2></div>
                             <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
                         </div>
                         <?php if (!$metricsAvailable): ?>
