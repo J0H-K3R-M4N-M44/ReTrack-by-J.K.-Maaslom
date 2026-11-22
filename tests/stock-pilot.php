@@ -79,15 +79,19 @@ expectResult((int) stockRun($pdo, 'SELECT COUNT(*) FROM stock_reservations WHERE
 // A partial-ticket dispatch must fail and leave no manifest or custody mutation.
 $ordinaryCode = stockRun($pdo, 'SELECT item_code FROM ticket_devices WHERE ticket_device_id = ?',
     [$device])->fetchColumn();
+// This legacy payment fixture was inserted directly. Initialize the new
+// phase-1 branch field exactly as normal intake issuance would have done.
+stockRun($pdo, 'UPDATE ticket_devices SET repair_branch_id=? WHERE ticket_device_id=?',
+    [$branch, $device]);
 stockRun($pdo, "UPDATE ticket_devices SET repair_status='DIAGNOSING', assigned_technician_id=?
     WHERE ticket_device_id=?", [$technician['user_id'], $device]);
 $secondCode = $run . '-02';
 $sibling = insertFixture($pdo, "INSERT INTO ticket_devices
     (ticket_id,child_sequence,item_code,device_type_snapshot,reported_symptoms,
     condition_notes,serial_number_snapshot,accessory_checklist_completed,
-    repair_status,custody_state,physical_location_id)
-    VALUES (?,2,?,'Laptop','Storage issue','Counter inspected',?,1,'DIAGNOSING','AT_LOCATION',?)",
-    [$ticket,$secondCode,$run.'-extra-device',$location]);
+    repair_status,custody_state,physical_location_id,repair_branch_id)
+    VALUES (?,2,?,'Laptop','Storage issue','Counter inspected',?,1,'DIAGNOSING','AT_LOCATION',?,?)",
+    [$ticket,$secondCode,$run.'-extra-device',$location,$branch]);
 $handoffItem = insertFixture($pdo, "INSERT INTO repair_quote_items
     (quote_id,part_id,tracks_branch_stock,item_type,description,quantity,unit_price,line_total)
     VALUES (?,?,1,'PART','SSD for destination repair',1,2400,2400)", [$quote,$part]);
