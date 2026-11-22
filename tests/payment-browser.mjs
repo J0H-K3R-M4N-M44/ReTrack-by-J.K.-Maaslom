@@ -111,6 +111,18 @@ try {
   await tech.getByRole('link',{name:'Open estimate'}).click();
   await press(tech,'Record installation');
   await tech.getByText('available · Installed', {exact:false}).waitFor();
+  // Manager verifies physical restock; technician must install the replacement before testing.
+  const quoteUrl = base + '/admin/quote.php?id=' + fixture.device;
+  await manager.goto(quoteUrl);
+  await manager.locator('[name=return_reason]').fill('Removed and inspected reusable SSD before final testing.');
+  await manager.locator('[name=restock_confirm]').check();
+  await press(manager,'Record part return to stock');
+  await manager.getByText('Awaiting reservation', {exact:false}).waitFor();
+  await press(manager,'Reserve quoted quantity');
+  await manager.getByText('Reserved for this device', {exact:false}).waitFor();
+  await tech.goto(quoteUrl);
+  await press(tech,'Record installation');
+  await tech.getByText('available · Installed', {exact:false}).waitFor();
   await stage('TESTING');
   await stage('READY_FOR_PICKUP');
   await tech.context().close();
