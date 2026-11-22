@@ -138,8 +138,14 @@ function partsTransferReceive(PDO $pdo, int $actorId, int $itemId, string $expec
         $item = stockRun($pdo, 'SELECT * FROM inventory_transfer_items
             WHERE inventory_transfer_item_id=? AND inventory_transfer_id=? FOR UPDATE',
             [$itemId,$transferId])->fetch();
-        if (!$item || $item['item_status']==='CANCELLED' || $item['item_status']==='RECEIVED') {
+        if (!$item || in_array($item['item_status'],['CANCELLED','RECEIVED','LOSS_CLOSED'],true)) {
             throw new DomainException('This item is already completed or is unavailable.');
+        }
+        $pendingLoss = stockRun($pdo,"SELECT loss_case_id FROM stock_transfer_loss_cases
+            WHERE inventory_transfer_item_id=? AND status='PENDING' FOR UPDATE",
+            [$itemId])->fetchColumn();
+        if ($pendingLoss) {
+            throw new DomainException('A formal loss report is pending approval. Resolve it before recording a late receipt.');
         }
         $shipped = stockUnits((string)$item['quantity']);
         $received = stockUnits((string)($item['received_quantity'] ?? '0'));
@@ -153,8 +159,13 @@ function partsTransferReceive(PDO $pdo, int $actorId, int $itemId, string $expec
         if ($action==='receive' && $additional > $outstanding) {
             throw new DomainException('You cannot receive more than the outstanding dispatched quantity.');
         }
-        if ($action==='missing' && $item['item_status']==='EXCEPTION') {
-            throw new DomainException('This shortage is already reported. Record a late receipt instead.');
+        if ($action==='missing') {
+            $reported = stockRun($pdo,"SELECT audit_event_id FROM audit_events
+                WHERE entity_type='inventory_transfer_item' AND entity_id=?
+                  AND action='PARTS_MISSING' LIMIT 1 FOR UPDATE",[$itemId])->fetchColumn();
+            if ($reported) {
+                throw new DomainException('This shortage is already reported. Record a late receipt instead.');
+            }
         }
         $newReceived = $received + $additional;
         $itemStatus = $action==='missing' || $newReceived < $shipped ? 'EXCEPTION' : 'RECEIVED';
@@ -184,11 +195,15 @@ function partsTransferReceive(PDO $pdo, int $actorId, int $itemId, string $expec
             WHERE inventory_transfer_id=? ORDER BY inventory_transfer_item_id FOR UPDATE',
             [$transferId])->fetchAll(PDO::FETCH_COLUMN);
         $allReceived = count($states)>0 && !array_diff($states,['RECEIVED']);
+        $allTerminal = count($states)>0 && !array_diff($states,['RECEIVED','LOSS_CLOSED']);
+        $anyLoss = in_array('LOSS_CLOSED',$states,true);
         $anyException = in_array('EXCEPTION',$states,true);
-        $manifestStatus = $allReceived ? 'RECEIVED' : ($anyException ? 'EXCEPTION' : 'IN_TRANSIT');
+        $manifestStatus = $allReceived ? 'RECEIVED'
+            : ($allTerminal && $anyLoss ? 'LOSS_CLOSED'
+            : (($anyException || $anyLoss) ? 'EXCEPTION' : 'IN_TRANSIT'));
         stockRun($pdo, 'UPDATE inventory_transfers
             SET status=?,received_by_user_id=?,received_at=CASE
-                WHEN ? = \'RECEIVED\' THEN UTC_TIMESTAMP() ELSE NULL END
+                WHEN ? IN (\'RECEIVED\',\'LOSS_CLOSED\') THEN UTC_TIMESTAMP() ELSE NULL END
             WHERE inventory_transfer_id=?',
             [$manifestStatus,$actorId,$manifestStatus,$transferId]);
         stockRun($pdo, "INSERT INTO audit_events
@@ -221,6 +236,10 @@ function partsTransferQueue(PDO $pdo, int $actorId, int $branchId, string $searc
     $where = " FROM inventory_transfer_items item
         JOIN inventory_transfers t ON t.inventory_transfer_id=item.inventory_transfer_id
         JOIN parts p ON p.part_id=item.part_id
+        LEFT JOIN stock_transfer_loss_cases loss ON loss.loss_case_id=(
+            SELECT MAX(l.loss_case_id) FROM stock_transfer_loss_cases l
+            WHERE l.inventory_transfer_item_id=item.inventory_transfer_item_id
+        )
         JOIN branches origin ON origin.branch_id=t.from_branch_id
         JOIN branches destination ON destination.branch_id=t.to_branch_id
         WHERE (t.from_branch_id=? OR t.to_branch_id=?)
@@ -234,6 +253,11 @@ function partsTransferQueue(PDO $pdo, int $actorId, int $branchId, string $searc
         item.quantity,item.received_quantity,item.item_status,item.receipt_note,
         t.transfer_code,t.from_branch_id,t.to_branch_id,t.initiated_by_user_id,
         t.status AS transfer_status,t.dispatched_at,
+        EXISTS(SELECT 1 FROM audit_events a WHERE a.entity_type='inventory_transfer_item'
+          AND a.entity_id=item.inventory_transfer_item_id AND a.action='PARTS_MISSING') AS missing_reported,
+        loss.loss_case_id,loss.status AS loss_status,loss.missing_quantity AS loss_quantity,
+        loss.evidence_reference,loss.report_reason,loss.reported_by_user_id,
+        loss.reviewed_by_user_id,loss.review_reason,
         p.part_name,p.sku,origin.branch_name AS origin_name,
         destination.branch_name AS destination_name
         ".$where." ORDER BY t.inventory_transfer_id DESC,
