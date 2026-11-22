@@ -107,7 +107,11 @@
                 <h2>Remaining checks</h2>
                 <?php if (
                     !$locations
-                ): ?><p role="alert">No active storage location is available at this branch. Configure a branch bin or workbench before issuing.</p><?php else: ?>
+                ): ?><p role="alert">No active storage location is available at this branch. Configure a branch bin or workbench before issuing.
+<?php if (in_array($admin['role'], ['ADMIN','MANAGER'], true)): ?>
+<a href="locations.php">Set up a branch location</a>
+<?php else: ?>Ask your branch manager to create an active storage location.<?php endif; ?>
+</p><?php else: ?>
                 <form class="issuance-form" method="post" enctype="multipart/form-data" action="intake_issue.php">
                     <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
                     <input type="hidden" name="form_key" value="<?= h($formKey) ?>">
