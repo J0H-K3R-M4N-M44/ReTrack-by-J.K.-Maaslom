@@ -33,6 +33,10 @@ Before backing up, stop fictional shop activity for a maintenance window: a MySQ
 
 The completed Linux CI rehearsal verified **47 tables, two cash entries totaling PHP 375, customer custody and byte-identical private file directories**. It does not prove that an arbitrary real Windows machine or actively used production database can be restored.
 
+### Guarded Windows/XAMPP fictional restore runner
+
+The candidate additionally contains an [operator-controlled, dry-run-first local Windows restore procedure](windows-xampp-fictional-restore.md). It checks test-only paths and names, then can perform a **new-destination fictional SQL and file restore only with an explicit `-Apply` switch**. No actual XAMPP restoration was carried out in CI: the Windows runner tests only dry-run and unsafe-argument rejection. A passing runner does **not** sign off recovery on your installation.
+
 ### Candidate-specific read-only SQL and file comparisons
 
 After completing a **manual, fictional new-destination SQL restore**, run the [read-only local SQL reconciliation checker](local-sql-restore-reconciliation.md) against the source and restored `repairtrack_test_*` schemas. It compares table lists, column definitions, row counts and content hashes; it never performs the restore and does not validate foreign-key/triggers/index metadata. Use the Windows file comparator for separate private evidence directories. Neither tool signs off an operator-led XAMPP recovery.
