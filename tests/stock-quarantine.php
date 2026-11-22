@@ -208,5 +208,21 @@ checkShelf($pdo,$branch,$part,'9.000');
 expectResult((int)stockRun($pdo,"SELECT COUNT(*) FROM stock_count_reviews
     WHERE stock_count_review_id=? AND status='CANCELLED'",[$cancelId])->fetchColumn()===1,
     'Cancelled pending review must remain visible in its immutable history.');
-echo "PASS: quarantine disposition, independent count approval, stale review and rolling threshold.\n";
+// More than ten pending quarantines must remain accessible through pagination.
+for ($sample=0; $sample<11; $sample++) {
+    $samplePart=insertFixture($pdo,'INSERT INTO parts (sku,part_name) VALUES (?,?)',
+        [$run.'-PENDING-'.$sample,'Sample quarantine #'.$sample]);
+    stockRun($pdo,'INSERT INTO branch_inventory (branch_id,part_id,quantity_on_hand)
+        VALUES (?,?,1)',[$branch,$samplePart]);
+    stockShelfAction($pdo,$manager['user_id'],$branch,$samplePart,'1.000',0,
+        'quarantine','1.000',$damage,true);
+}
+$firstPage=stockPendingWork($pdo,$manager['user_id'],$branch,1,1);
+$secondPage=stockPendingWork($pdo,$otherManager['user_id'],$branch,2,1);
+expectResult($firstPage['qpages']>=2 && count($firstPage['quarantines'])===10 &&
+    count($secondPage['quarantines'])>=1,
+    'Older pending quarantine decisions were hidden without pagination.');
+expectRefusal(fn()=>stockPendingWork($pdo,$manager['user_id'],$otherBranch,1,1),
+    'not assigned');
+echo "PASS: quarantine disposition, independent count approval, stale review, rolling threshold and pagination.\n";
 
