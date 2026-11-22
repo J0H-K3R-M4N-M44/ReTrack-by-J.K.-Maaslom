@@ -26,7 +26,7 @@ Start here instead of reading the original milestone notes in chronological orde
 - [Intake maintenance](intake-maintenance.md), [ticket issuance](ticket-issuance.md), [customer tracking](customer-tracking.md)
 - [Quotes and staff-recorded approvals](quote-and-approval.md), [counter payments and handover](payment-and-handover.md)
 - [Stock, logistics and remaining gaps](system-gaps.md)
-- [Partial-ticket ownership design](partial-ticket-ownership.md), [authorization cutover audit](authorization-cutover-audit.md), [MySQL integrity test round](mysql-integrity-round.md)
+- [Partial-ticket ownership design](partial-ticket-ownership.md), [restrict-only repair authorization](repair-scope-guard.md), [authorization cutover audit](authorization-cutover-audit.md), [MySQL integrity test round](mysql-integrity-round.md)
 - [Migration runner details](migration-runner.md), [historical demo fixture](database-demo.md)
 
 ## Design, history and maintenance records

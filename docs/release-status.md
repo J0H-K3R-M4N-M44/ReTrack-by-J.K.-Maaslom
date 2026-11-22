@@ -59,7 +59,7 @@ Customer self-approval and revision after started work, two-way technician/custo
 ## Next safe work
 
 1. **Completed preflight:** documentation consolidation and repeatable MySQL, staff-activity, payment and isolated browser ownership tests; reference the exact CI runs above. No live permissions were changed.
-2. **Next development milestone (not begun here):** design the feature-flagged, atomic device-scope, quotes and stock permission cutover with explicit role/branch denial and transaction/concurrency tests.
+2. **Restrict-only gate completed in a draft branch:** a server-owned default-legacy flag can deny unmatched device repair, quote and inventory operations; admin device queues and staff repair reports follow the restriction. It does **not** grant receiving-branch authority. [Guard guide](repair-scope-guard.md). The full approved mixed-branch cutover, consent and concurrency remain a later milestone.
 3. Obtain a reviewed origin/destination manager approval, customer-consent and quote repricing policy; only then implement manager-accepted **partial** repair transfer with immutable audit events.
 4. Validate full suites again at the final code HEAD, then independently rehearse backups/restores and real browser/deployment conditions.
 5. Merge or deploy only after a separate review decision; `main` and production remain unchanged.

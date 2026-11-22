@@ -1,7 +1,7 @@
 # Partial-ticket repair ownership — authorization and accounting cutover audit
 
 Reviewed: 22 November 2026, against `Partial-Ticket-Ownership` (Phase 2).
-Status: **SCOPE PREPARATION COMMITTED / NO REPAIR PERMISSION CUTOVER**. This file is a security worklist, not a release approval.
+Status: **DEFAULT-OFF RESTRICT-ONLY GUARD COMMITTED; NO RECEIVING-BRANCH REPAIR PERMISSION CUTOVER**. This remains a security worklist, not release approval. [Guard design](repair-scope-guard.md).
 
 ## Core separation
 

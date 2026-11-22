@@ -17,6 +17,7 @@
 | Fresh schema and migration status/apply/recovery | `tests/migrations.php`, `tools/migrate.php` | Pending markers, refusal/cancel, lock, rerun, recovery |
 | MySQL integrity & regression preservation | `tests/mysql-integrity-round.sh`, `tests/mysql-integrity.php`, `.github/workflows/mysql-integrity.yml` | 17 invariants, 19 full-table snapshots, FK/index, negative tests, cleanup |
 | Read-only ownership and scope separation | `tests/device-ownership-view.php`, `tests/scope-separation.php` | Correct labels, no ticket-code echo, role scope boundaries |
+| Restrict-only repair/quote/stock guard | `tests/repair-scope-gate.php`, `tests/repair-guard-integration.php`, `.github/workflows/repair-scope-guard.yml` | Legacy mode equivalent, matched-branch-only repair access, denied quote/stock writes, source finance unchanged, admin device queue filtered; fictional fixture cleaned up |
 | Authenticated ownership and role/browser isolation | `tests/ownership-browser-fixture.php`, `tests/ownership-browser.mjs`, `tests/ownership-browser-cleanup.php` in the separate `ownership-browser` CI job | 320/390/768/1440 widths, escaped branch label, aligned/divergent warnings, no-JS, origin finance, denied destination staff and sibling access |
 | Mixed-branch device-only isolation (simulated) | `tests/payment-pickup.php --scope-isolation` | Sibling repair isolation, ticket cash ownership, inactive/revoked denies |
 | Whole-ticket transfer, inventory and refunds | `tests/payment-pickup.php --stock-pilot`, `tests/payment-pickup.php`, `tests/checkout-concurrency.php` | Consistent assignments, custody, quote/stock and cash state |
@@ -35,6 +36,10 @@ The synthetic ownership browser fixture creates **one extra test-only two-device
 The first combined browser run failed because its extra fixture shifted the old board's selected row. A cleanup script fixed that contamination, but the combined run then exceeded the **existing 20-attempt per-IP login limit**. Rather than weaken login protection, the workflow now uses **separate ephemeral GitHub-hosted jobs**, each with its own MySQL, PHP server and limiter state. On commit `59065079`, both `ownership-browser` and `payment-pickup` passed in run 44991528241.
 
 These checks **do not** prove that the receiving branch may operate on the hypothetical remote device; that feature is intentionally OFF. A future real transfer must have separate authorization, quote/stock, origin/destination consent, and concurrency tests.
+
+## Restrict-only authorization CI (default OFF)
+
+`repair_scope_mode` defaults to `legacy`. A separate disposable MySQL test exercises `restrict` for mismatched two-device tickets, disallowed repairs, quotes, stock writes, and independent ticket-cash scope. The [guard CI run 44992407822](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44992407822) passed on `37f6e3f4`; this does **not** establish that any cross-branch device transfer is allowed. [Guard details](repair-scope-guard.md).
 
 ## Dedicated MySQL round
 

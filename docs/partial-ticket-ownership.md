@@ -4,7 +4,11 @@ Status: PHASES 1–2 IMPLEMENTED; PHASE 3 SCOPE PREPARATION ONLY — 22 November
 Base: main @ f817154f2e5f5ac04daf8bf0c5b3dd0167e17f0b.
 Scope: allow one device in a multi-device ticket to be repaired by another branch **after a confirmed physical transfer and independently audited acceptance**, without moving the financial ownership of the whole ticket.
 
-## Dedicated MySQL integrity rehearsal (scripts added, execution pending)
+## Restrict-only guard (implemented, not a permission cutover)
+
+The server-owned `repair_scope_mode` defaults to `legacy`. The optional `restrict` mode denies access to mismatched/NULL repair branch devices through repair, quote, stock, report and admin-device dashboard paths, while leaving ticket finance unchanged. It grants **no** receiving-branch permissions. [Design and test evidence](repair-scope-guard.md). Full transfer consent, dual approvals, stock changeover and concurrency are still pending.
+
+## Dedicated MySQL integrity rehearsal (verified on disposable MySQL)
 
 - `tests/mysql-integrity.php` checks 17 named relational, payment, inventory, custody, and device-branch invariants, verifies repair-branch index/FK metadata, writes no private data to output, and supports rollback-only negative tests with explicit opt-in.
 - `tests/mysql-integrity-round.sh` creates a randomized disposable database and temporary config in a clean checkout, runs real workflow fixtures, snapshots 19 historical tables, removes and reapplies the additive column, tests rerun idempotence and rollback, then executes interrupted-migration recovery and the final SQL audit.
