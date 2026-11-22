@@ -6,6 +6,8 @@ on:
     paths:
       - 'tools/windows_evidence_compare.ps1'
       - 'tests/windows-evidence-compare.ps1'
+      - 'tools/windows_xampp_test_restore.ps1'
+      - 'tests/windows-xampp-restore-preflight.ps1'
       - '.github/workflows/windows-evidence-integrity.yml'
   workflow_dispatch:
 
@@ -23,3 +25,4 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           & ./tests/windows-evidence-compare.ps1
+          & ./tests/windows-xampp-restore-preflight.ps1
