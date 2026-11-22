@@ -195,6 +195,43 @@ try {
   await decision.locator('button[value=decide-loss]').click();
   await reviewer.getByRole('status').getByText('Independent loss decision recorded',{exact:false}).waitFor();
   await reviewer.getByText('Status LOSS_CLOSED',{exact:false}).first().waitFor();
+  // Recover the previously approved lost battery. It stays out of usable
+  // inventory until a separate source-branch manager approves inspection.
+  await admin.goto(base + '/admin/parts_transfers.php?branch=' + fixture.transfer_branch);
+  await checkWidth(admin);
+  const recoveryItem = admin.locator('article.dashboard-card').filter({
+    hasText: fixture.transfer_sku
+  }).first();
+  await recoveryItem.locator('summary').filter({
+    hasText:'Report parts recovered after approved loss'
+  }).click();
+  const recoveryForm = recoveryItem.locator('form').filter({
+    has: admin.locator('button[value=report-recovery]')
+  });
+  await recoveryForm.locator('[name=quantity]').fill('1');
+  await recoveryForm.locator('[name=evidence_reference]').fill('SIGNED-RECOVERY-'+fixture.transfer_sku);
+  await recoveryForm.locator('[name=reason]').fill(
+    'The missing sealed battery was found intact and held in the inspected receiving bin.');
+  await recoveryForm.locator('[name=confirm]').check();
+  await recoveryForm.locator('button[value=report-recovery]').click();
+  await admin.getByRole('status').getByText('Recovered parts held pending',{exact:false}).waitFor();
+  await reviewer.goto(base + '/admin/parts_transfers.php?branch=' + fixture.branch);
+  const reviewRecoveryItem = reviewer.locator('article.dashboard-card').filter({
+    hasText: fixture.transfer_sku
+  }).first();
+  await reviewRecoveryItem.locator('summary').filter({
+    hasText:'Independently review recovered parts'
+  }).click();
+  const approveRecovery = reviewRecoveryItem.locator('form').filter({
+    has: reviewer.locator('button[value=decide-recovery]')
+  });
+  await approveRecovery.locator('[name=decision]').selectOption('approve');
+  await approveRecovery.locator('[name=reason]').fill(
+    'Inspected original loss reference and signed count, confirmed recovered battery usable.');
+  await approveRecovery.locator('[name=confirm]').check();
+  await approveRecovery.locator('button[value=decide-recovery]').click();
+  await reviewer.getByRole('status').getByText('Independent recovery decision saved',{exact:false}).waitFor();
+  await reviewer.getByText('Status RECEIVED',{exact:false}).first().waitFor();
   await reviewer.context().close();
   await admin.context().close();
   await manager.goto(base + '/admin/staff_home.php');
