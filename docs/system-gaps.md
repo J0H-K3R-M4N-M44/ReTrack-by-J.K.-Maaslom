@@ -12,7 +12,7 @@ Shared login and password recovery; branch-scoped staff accounts; reviewed intak
 | --- | --- | --- |
 | 1 | Customer self-approval, proof attachments and change orders | Staff can now prepare/revise estimates and record customer decisions. Public self-approval and changes after repair starts remain unfinished. |
 | 2 | Parts requests, reservation, issue/return and stock adjustments | Existing tables and demo rows do not implement stock operations. Prevent negative stock and record who approved each change. |
-| 3 | COD, refunds and bill correction | Counter-cash payment, final bill and paid counter pickup work in PHP. COD delivery, refunds, void/reissue UI and cancellation need their own permissions and audit rules. |
+| 3 | COD and cancellation | Counter-cash payment, final bill and paid counter pickup work in PHP. COD delivery, bill void/reissue UI and cancellation need their own permissions and audit rules. |
 | 4 | Transfer dispatch, receiving and exceptions | Courier screens currently display manifests only. A handover must update device location, transfer items and custody history together. |
 | 5 | QR convenience and richer customer actions | Private-code tracking now works. QR generation/scanning and customer approval/request actions remain. Receipt numbers alone never open a repair. |
 | 6 | Customer consultation and requests | Technician/customer messages, upgrades, cancellations and approval responses need real storage, permissions and audited decisions. |
@@ -23,7 +23,7 @@ Shared login and password recovery; branch-scoped staff accounts; reviewed intak
 
 ## Recommended next milestone
 
-Finish **quote → approval → repair → testing → counter cash → customer pickup** for one branch before adding more analytics. The counter-cash branch uses one new `repair_bill_payments` table because the schema had no payment history. It reuses existing bill, status, audit and custody records. COD, refunds, stock operations, customer self-approval and notification delivery remain out of scope.
+Finish **quote → approval → repair → testing → counter cash → customer pickup** for one branch before adding more analytics. The counter-cash branch uses one new `repair_bill_payments` table because the schema had no payment history. It reuses existing bill, status, audit and custody records. COD, stock operations, customer self-approval and notification delivery remain out of scope.
 
 Use `php tools/migrate.php --apply` on an existing database to add the payment table. Fresh schema scripts include it. Keep new tables tied to durable records the current schema cannot safely represent.
 
