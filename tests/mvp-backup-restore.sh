@@ -95,4 +95,21 @@ while IFS= read -r filename; do
   cmp -s "$intake_source/$filename" "$work_dir/restored/intake/$filename" || exit 1
 done < "$work_dir/refs"
 
+# Compare actual row content, not just schema, table counts and paid totals.
+# These schemas are ephemeral and the second one is dropped by the trap.
+REPAIRTRACK_DISPOSABLE_RECONCILE=I_CONFIRM_DISPOSABLE_ONLY \
+  php tools/compare_test_restore.php "$source_db" "$restore_db"
+
+# Demonstrate a same-row-count content mismatch on the *restored test copy*.
+# This mutation is confined to the disposable restore and occurs after all
+# positive recovery checks; source and private evidence are never modified.
+"${mysql_cmd[@]}" "$restore_db" -e \
+  "UPDATE branches SET branch_name=CONCAT(branch_name,' (restore negative fixture)') ORDER BY branch_id LIMIT 1"
+if REPAIRTRACK_DISPOSABLE_RECONCILE=I_CONFIRM_DISPOSABLE_ONLY \
+    php tools/compare_test_restore.php "$source_db" "$restore_db" > /dev/null 2>&1; then
+  echo "Same-count SQL content drift was not detected." >&2
+  exit 1
+fi
+echo "PASS: the read-only SQL checker rejected a fictional altered-row restore."
+
 echo "PASS: independent restored SQL ($count tables), closed ticket, PHP 375 ledger, returned custody, DB-linked intake evidence and exact private file hashes."
