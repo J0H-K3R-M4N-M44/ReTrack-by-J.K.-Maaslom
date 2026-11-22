@@ -195,11 +195,46 @@ function cashBillVersion(array $bill): string
 }
 
 // A ticket receives one final bill after every device passes testing and is ready.
+// One disclosed diagnostic fee covers the whole as-is return. Quotes never move stock.
+function cashCancellationFee(array $decision): int
+{
+    if (($decision['confirm'] ?? '') !== 'yes' || trim($decision['reason'] ?? '') === '' ||
+        mb_strlen($decision['reason']) > 240) {
+        throw new DomainException('Record how the customer agreed to the return and fee.');
+    }
+    return cashAmountCents($decision['amount'] ?? '');
+}
+
+function cashCancelDevice(PDO $pdo, array $device, int $actorId, string $reason): void
+{
+    $id = (int) $device['ticket_device_id'];
+    if (in_array($device['repair_status'], ['DRAFT', 'COMPLETED', 'CANCELLED'], true)) {
+        throw new DomainException('Every device must still be open for this whole-ticket cancellation.');
+    }
+    $parts = $pdo->prepare('SELECT ticket_part_use_id FROM ticket_parts_used WHERE ticket_device_id = ? LIMIT 1 FOR UPDATE');
+    $parts->execute([$id]);
+    if ($parts->fetchColumn()) {
+        throw new DomainException('Review installed parts before using diagnostic-only checkout.');
+    }
+    if ($device['quote_id']) {
+        stockReleaseQuote($pdo, (int) $device['quote_id']);
+    }
+    $pdo->prepare("UPDATE ticket_devices SET repair_status = 'CANCELLED',
+        public_summary = 'Approved for as-is return.' WHERE ticket_device_id = ?")->execute([$id]);
+    $pdo->prepare("UPDATE repair_quotes SET quote_status = 'SUPERSEDED'
+        WHERE ticket_device_id = ? AND quote_status IN ('DRAFT','AWAITING_CUSTOMER')")->execute([$id]);
+    $pdo->prepare("INSERT INTO ticket_status_events
+        (ticket_device_id, from_status, to_status, actor_type, actor_user_id, internal_note,
+        public_summary, is_customer_visible, created_at) VALUES (?, ?, 'CANCELLED', 'USER', ?, ?,
+        'Approved for as-is return.', 1, UTC_TIMESTAMP())")->execute([$id, $device['repair_status'], $actorId, $reason]);
+}
+
 function cashIssueFinalBill(
     PDO $pdo,
     int $actorId,
     int $ticketId,
     string $expectedVersion,
+    ?array $cancellation = null,
 ): int {
     $pdo->beginTransaction();
     try {
@@ -225,6 +260,9 @@ function cashIssueFinalBill(
         );
         $existing->execute([$ticketId]);
         $existingId = $existing->fetchColumn();
+        if ($existingId && $cancellation !== null) {
+            throw new DomainException('A bill already exists. Reopen the cash record.');
+        }
         if ($existingId) {
             $pdo->commit();
             return (int) $existingId;
@@ -232,9 +270,18 @@ function cashIssueFinalBill(
 
         $billLines = [];
         $subtotalCents = 0;
+        if ($cancellation !== null) {
+            $subtotalCents = cashCancellationFee($cancellation);
+            $fee = cashAmountText($subtotalCents);
+            $billLines[] = [
+                'ticket_device_id' => null, 'quote_item_id' => null, 'item_type' => 'DIAGNOSTIC',
+                'description' => 'Agreed diagnostic fee for as-is return', 'quantity' => 1,
+                'unit_price' => $fee, 'line_total' => $fee,
+            ];
+        }
         foreach ($ticket['devices'] as $device) {
             if (
-                $device['repair_status'] !== 'READY_FOR_PICKUP' ||
+                ($cancellation === null && $device['repair_status'] !== 'READY_FOR_PICKUP') ||
                 $device['custody_state'] !== 'AT_LOCATION' ||
                 !$device['physical_location_id'] ||
                 (int) $device['location_branch_id'] !== (int) $ticket['accountable_branch_id']
@@ -243,12 +290,17 @@ function cashIssueFinalBill(
                     'Every device must pass testing and be stored at its assigned branch before billing.',
                 );
             }
+            if ($cancellation !== null) {
+                cashCancelDevice($pdo, $device, $actorId, $cancellation['reason']);
+                continue;
+            }
             $quote = quoteLatest($pdo, (int) $device['ticket_device_id'], true);
             if (!$quote || $quote['quote_status'] !== 'APPROVED') {
                 throw new DomainException(
                     'Every device needs a current approved estimate before the final bill can be issued.',
                 );
             }
+            stockCheckInstalled($pdo, (int) $device['ticket_device_id'], (int) $quote['quote_id']);
             $items = $pdo->prepare(
                 'SELECT quote_item_id, item_type, description, quantity, unit_price, line_total
                 FROM repair_quote_items WHERE quote_id = ? ORDER BY quote_item_id',
@@ -531,7 +583,7 @@ function cashHandoverBlockers(array $bill, array $ticket): array
     }
     foreach ($ticket['devices'] as $device) {
         $code = $device['item_code'];
-        if ($device['repair_status'] !== 'READY_FOR_PICKUP') {
+        if (!in_array($device['repair_status'], ['READY_FOR_PICKUP', 'CANCELLED'], true)) {
             $status = strtolower(str_replace('_', ' ', $device['repair_status']));
             $blockers[] = $code . ' is ' . $status . '. Mark it ready for pickup before handover.';
         }
@@ -592,18 +644,19 @@ function cashCompleteHandover(
             '). Recipient confirmed the device and accessories were checked.';
         foreach ($ticket['devices'] as $device) {
             $deviceId = (int) $device['ticket_device_id'];
+            $returnedStatus = $device['repair_status'] === 'CANCELLED' ? 'CANCELLED' : 'COMPLETED';
             $pdo->prepare(
-                "UPDATE ticket_devices SET repair_status = 'COMPLETED', custody_state = 'WITH_CUSTOMER',
+                "UPDATE ticket_devices SET repair_status = ?, custody_state = 'WITH_CUSTOMER',
                     physical_location_id = NULL, return_handover_at = UTC_TIMESTAMP(), return_handover_by = ?
                 WHERE ticket_device_id = ?",
-            )->execute([$actorId, $deviceId]);
+            )->execute([$returnedStatus, $actorId, $deviceId]);
             $pdo->prepare(
                 "INSERT INTO ticket_status_events
                 (ticket_device_id, from_status, to_status, actor_type, actor_user_id,
                     internal_note, public_summary, is_customer_visible, created_at)
-                VALUES (?, 'READY_FOR_PICKUP', 'COMPLETED', 'USER', ?, ?,
+                VALUES (?, ?, ?, 'USER', ?, ?,
                     'Device returned to the customer.', 1, UTC_TIMESTAMP())",
-            )->execute([$deviceId, $actorId, $internalNote]);
+            )->execute([$deviceId, $device['repair_status'], $returnedStatus, $actorId, $internalNote]);
             $pdo->prepare(
                 "INSERT INTO device_custody_events
                 (ticket_device_id, event_type, from_location_id, performed_by_user_id, note, happened_at)
@@ -615,10 +668,13 @@ function cashCompleteHandover(
                 $internalNote,
             ]);
         }
+        $statuses = array_unique(array_column($ticket['devices'], 'repair_status'));
+        $outcome = count($statuses) > 1 ? 'MIXED_OUTCOME'
+            : ($statuses[0] === 'CANCELLED' ? 'ALL_CANCELLED' : 'ALL_COMPLETED');
         $pdo->prepare(
-            "UPDATE repair_tickets SET case_state = 'CLOSED', closure_outcome = 'ALL_COMPLETED',
+            "UPDATE repair_tickets SET case_state = 'CLOSED', closure_outcome = ?,
                 closed_at = UTC_TIMESTAMP() WHERE ticket_id = ? AND case_state = 'OPEN'",
-        )->execute([(int) $bill['ticket_id']]);
+        )->execute([$outcome, (int) $bill['ticket_id']]);
         cashAudit($pdo, $actorId, 'repair_ticket', (int) $bill['ticket_id'], 'TICKET_HANDED_OVER', [
             'bill_id' => $billId,
             'recipient' => $recipient,

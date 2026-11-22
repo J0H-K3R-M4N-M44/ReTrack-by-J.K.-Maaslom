@@ -514,6 +514,7 @@ CREATE TABLE IF NOT EXISTS repair_quotes (
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS repair_quote_items (
+  tracks_branch_stock TINYINT(1) NOT NULL DEFAULT 0,
   quote_item_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   quote_id BIGINT UNSIGNED NOT NULL,
   part_id BIGINT UNSIGNED NULL,
@@ -689,4 +690,21 @@ CREATE TABLE IF NOT EXISTS staff_activity_reads (
   event_id BIGINT UNSIGNED NOT NULL,
   PRIMARY KEY (user_id, event_group, event_id),
   FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Optional branch stock reservations linked to approved estimate items.
+CREATE TABLE IF NOT EXISTS stock_reservations (
+  reservation_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  quote_item_id BIGINT UNSIGNED NOT NULL,
+  branch_id BIGINT UNSIGNED NOT NULL,
+  part_id BIGINT UNSIGNED NOT NULL,
+  quantity DECIMAL(12,3) NOT NULL,
+  reserved_by BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_stock_hold_item (quote_item_id),
+  KEY idx_stock_hold_shelf (branch_id, part_id),
+  FOREIGN KEY (quote_item_id) REFERENCES repair_quote_items(quote_item_id),
+  FOREIGN KEY (branch_id, part_id) REFERENCES branch_inventory(branch_id, part_id),
+  FOREIGN KEY (reserved_by) REFERENCES users(user_id),
+  CHECK (quantity > 0)
 ) ENGINE=InnoDB;

@@ -57,6 +57,16 @@ function dispatchDevices(PDO $pdo, int $user, int $origin, int $destination, str
             if (!$row) throw new DomainException('Each device must be open and physically present at the sending branch.');
             $id = (int)$row['ticket_device_id'];
             $from = (int)$row['physical_location_id'];
+            // Reservations belong to the sending shelf. Never move a device while
+            // its approved parts are still held there; a manager must release the hold first.
+            $holds = $pdo->prepare("SELECT r.reservation_id FROM stock_reservations r
+                JOIN repair_quote_items i ON i.quote_item_id = r.quote_item_id
+                JOIN repair_quotes q ON q.quote_id = i.quote_id
+                WHERE q.ticket_device_id = ? LIMIT 1 FOR UPDATE");
+            $holds->execute([$id]);
+            if ($holds->fetchColumn()) {
+                throw new DomainException('Release unused branch part reservations before dispatching this device.');
+            }
             $pdo->prepare('INSERT INTO device_transfer_items (device_transfer_id,ticket_device_id,from_location_id,transit_location_id,to_location_id)
                 VALUES (?,?,?,?,?)')->execute([$manifest,$id,$from,$transit,$destination]);
             $pdo->prepare("UPDATE ticket_devices SET custody_state='IN_TRANSIT',physical_location_id=? WHERE ticket_device_id=?")->execute([$transit,$id]);

@@ -51,6 +51,10 @@ $password = $browserFixture ? bin2hex(random_bytes(20)) : '';
 $hash = $browserFixture ? password_hash($password, PASSWORD_DEFAULT) : 'unused';
 $staff = [];
 $roles = ['MANAGER', 'CASHIER', 'CASHIER'];
+if (in_array('--concurrency', $argv, true) || in_array('--stock-pilot', $argv, true)) {
+    $roles[] = 'MANAGER';
+    $roles[] = 'TECHNICIAN';
+}
 if ($browserFixture) {
     $roles = array_merge($roles, ['ADMIN', 'INTAKE_AGENT', 'TECHNICIAN', 'COURIER', 'VIEWER']);
 }
@@ -83,12 +87,56 @@ $quote = insertFixture($pdo,
 $pdo->prepare("INSERT INTO repair_quote_items (quote_id,item_type,description,quantity,unit_price,line_total)
     VALUES (?,'LABOR','Charging repair',1,100,100)")->execute([$quote]);
 
+if (in_array('--stock-pilot', $argv, true)) {
+    require __DIR__ . '/stock-pilot.php';
+    exit();
+}
+if (in_array('--concurrency', $argv, true)) {
+    require __DIR__ . '/checkout-concurrency.php';
+    testCheckoutRaces($pdo, $ticket, $device, $staff);
+    exit();
+}
+
 // Stream these temporary credentials to the browser runner, outside the web root.
 if ($browserFixture) {
+    $part = insertFixture($pdo, 'INSERT INTO parts (sku,part_name) VALUES (?,?)', [$run,'Demo SSD']);
+    stockRun($pdo, 'INSERT INTO branch_inventory (branch_id,part_id,quantity_on_hand) VALUES (?,?,1)', [$branch,$part]);
+    $techId = stockRun($pdo, 'SELECT user_id FROM users WHERE email=?', [$emails['technician']])->fetchColumn();
+    stockRun($pdo, "UPDATE ticket_devices SET repair_status='DIAGNOSING',assigned_technician_id=?
+        WHERE ticket_device_id=?", [$techId,$device]);
     echo json_encode($emails + [
         'password' => $password,
         'ticket' => $run,
+        'device' => $device,
+        'part' => $part,
     ], JSON_THROW_ON_ERROR);
+    exit();
+}
+
+if (in_array('--cancel', $argv, true) || in_array('--cancel-free', $argv, true)) {
+    $fee = in_array('--cancel-free', $argv, true) ? '0.00' : '350.00';
+    $pdo->prepare("UPDATE repair_quotes SET total_amount=2750, parts_amount=2650 WHERE quote_id=?")->execute([$quote]);
+    $pdo->prepare("INSERT INTO repair_quote_items (quote_id,item_type,description,quantity,unit_price,line_total)
+        VALUES (?,'PART','Unused SSD',1,2650,2650)")->execute([$quote]);
+    $version = cashTicketVersion(cashPageTicket($pdo, $manager, $ticket));
+    $decision = ['amount' => $fee, 'reason' => 'Customer agreed at the counter.', 'confirm' => 'yes'];
+    $issue = fn(array $values) => cashIssueFinalBill($pdo, $manager['user_id'], $ticket, $version, $values);
+    expectRefusal(fn() => $issue(['confirm' => 'no'] + $decision), 'agreed');
+    $bill = $issue($decision);
+    expectRefusal(fn() => $issue($decision), 'ticket changed');
+    $record = cashBillDetails($pdo, $first, $bill);
+    expectResult($record['total_amount'] === $fee, 'Cancellation fee was replaced by the quote.');
+    expectResult(quoteLatest($pdo, $device)['total_amount'] === '2750.00', 'Original estimate changed.');
+    if ($fee !== '0.00') {
+        cashRecordPayment($pdo, $first['user_id'], $bill, $record['version'], $fee, bin2hex(random_bytes(32)));
+        $record = cashBillDetails($pdo, $first, $bill);
+    }
+    cashCompleteHandover($pdo, $first['user_id'], $bill, $record['version'], 'Pickup Test', 'CUSTOMER', 'yes');
+    $closed = cashBillDetails($pdo, $first, $bill);
+    $returned = cashHandoverPreview($pdo, $first, $ticket)['devices'][0];
+    expectResult($closed['closure_outcome'] === 'ALL_CANCELLED' && $returned['repair_status'] === 'CANCELLED'
+        && $returned['custody_state'] === 'WITH_CUSTOMER', 'Cancellation handover was lost.');
+    echo "PASS: cancellation, fee $fee, stale retry, quote preservation and return.\n";
     exit();
 }
 

@@ -51,7 +51,11 @@
         <section class="dashboard-card">
             <p class="eyebrow"><?= h($ticket['branch_name']) ?></p>
             <h2>Ticket <?= h($ticket['ticket_code']) ?></h2>
+            <?php if ($pageAction === 'cancel'): ?>
+                <p>Return every listed device as-is. Only the agreed diagnostic fee appears on the bill.</p>
+            <?php else: ?>
             <p>One bill will include each device's latest approved estimate. No discounts or taxes are added here.</p>
+            <?php endif; ?>
             <div class="payments-table-wrap">
                 <table class="staff-table">
                     <caption class="sr-only">Devices and estimate status for this ticket</caption>
@@ -70,6 +74,27 @@
             </div>
             <?php if ($ticket['case_state'] !== 'OPEN'): ?>
                 <p class="payments-note">This ticket is already closed.</p>
+            <?php elseif ($pageAction === 'cancel'): ?>
+                <form method="post" class="payments-action">
+                    <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+                    <input type="hidden" name="form_key" value="<?= h($formKey) ?>">
+                    <?php if ($review): ?>
+                        <h3>Review as-is return for all <?= count($ticket['devices']) ?> devices</h3>
+                        <p>Total due: PHP <?= h(cashAmountText(cashAmountCents($formValues['amount']))) ?></p>
+                        <p><?= h($formValues['reason']) ?></p>
+                        <button class="secondary-btn" name="intent" value="edit">Edit details</button>
+                        <button class="logout-btn" name="intent" value="save">Approve return and issue bill</button>
+                    <?php else: ?>
+                        <label>Agreed diagnostic fee (PHP, enter 0 for free return)
+                            <input type="number" min="0" step="0.01" name="amount" required value="<?= h($formValues['amount'] ?? '') ?>">
+                        </label>
+                        <label>How did the customer agree?
+                            <textarea name="reason" maxlength="240" required><?= h($formValues['reason'] ?? '') ?></textarea>
+                        </label>
+                        <label><input type="checkbox" name="confirm" value="yes" required> The customer agreed to this fee and return of all listed devices.</label>
+                        <button class="logout-btn" name="intent" value="review">Review as-is return</button>
+                    <?php endif; ?>
+                </form>
             <?php elseif (!$issueEligible): ?>
                 <p class="payments-note">Billing opens after every device is ready for pickup, physically at this branch, and linked to an approved estimate.</p>
             <?php elseif ($review && $pageAction === 'issue'): ?>
@@ -90,6 +115,9 @@
                     <label class="payments-check"><input type="checkbox" name="confirm" value="yes" required> I checked that every device is ready and every estimate is approved.</label>
                     <button class="logout-btn" name="intent" value="review">Review bill issuance</button>
                 </form>
+            <?php endif; ?>
+            <?php if ($pageAction === 'issue' && !$review && $ticket['case_state'] === 'OPEN'): ?>
+                <a class="secondary-btn" href="?ticket_id=<?= (int) $ticket['ticket_id'] ?>&amp;cash_action=cancel">Review whole-ticket cancellation</a>
             <?php endif; ?>
         </section>
 

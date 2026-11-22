@@ -60,12 +60,11 @@
     <?php endif; ?>
     <?php if (
         in_array($user['role'], ['ADMIN', 'MANAGER'], true) &&
-        $device['repair_status'] === 'READY_FOR_PICKUP' &&
         $device['case_state'] === 'OPEN'
     ): ?>
     <section class="dashboard-card next-action">
         <h2>Final bill and customer pickup</h2>
-        <p>When every device on the ticket is ready, issue one final bill from the latest approved estimates.</p>
+        <p>Review billing, an agreed whole-ticket cancellation, or customer handover.</p>
         <a class="secondary-btn" href="cash.php?ticket_id=<?= (int) $device['ticket_id'] ?>">Open billing and handover</a>
     </section>
     <?php endif; ?>
