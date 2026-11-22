@@ -29,13 +29,27 @@ try {
         }
         $branch = $selected;
         $action = requestText($_POST,'action');
-        stockShelfAction($pdo,(int)$user['user_id'],$selected,(int)requestText($_POST,'part'),
-            requestText($_POST,'expected_on_hand'),(int)requestText($_POST,'movement_id'),
-            $action,requestText($_POST,'quantity'),requestText($_POST,'reason'),
-            requestText($_POST,'confirm') === 'yes');
-        $_SESSION['inventory_notice'] = $action === 'quarantine'
-            ? 'Damaged stock isolated and removed from usable inventory.'
-            : 'Verified shelf count recorded in the inventory ledger.';
+        if ($action === 'quarantine-decision') {
+            stockDecideQuarantine($pdo,(int)$user['user_id'],
+                (int)requestText($_POST,'quarantine_id'),requestText($_POST,'decision'),
+                requestText($_POST,'reason'),requestText($_POST,'confirm') === 'yes');
+            $_SESSION['inventory_notice'] = 'Independent quarantine disposition recorded.';
+        } elseif ($action === 'count-decision') {
+            stockDecideCount($pdo,(int)$user['user_id'],
+                (int)requestText($_POST,'review_id'),requestText($_POST,'decision'),
+                requestText($_POST,'reason'),requestText($_POST,'confirm') === 'yes');
+            $_SESSION['inventory_notice'] = 'Count review decision recorded.';
+        } else {
+            $result = stockShelfAction($pdo,(int)$user['user_id'],$selected,
+                (int)requestText($_POST,'part'),requestText($_POST,'expected_on_hand'),
+                (int)requestText($_POST,'movement_id'),$action,requestText($_POST,'quantity'),
+                requestText($_POST,'reason'),requestText($_POST,'confirm') === 'yes');
+            $_SESSION['inventory_notice'] = $result === 'pending'
+                ? 'Large count difference queued for approval by another branch manager. Stock was not changed.'
+                : ($action === 'quarantine'
+                    ? 'Damaged stock isolated and removed from usable inventory.'
+                    : 'Verified shelf count recorded in the inventory ledger.');
+        }
         $redirect = http_build_query([
             'branch'=>$selected,'q'=>mb_substr(requestText($_POST,'q'),0,80),
             'page'=>max(1,(int)requestText($_POST,'page','1')),
@@ -50,9 +64,11 @@ try {
     $error = 'Inventory could not be updated. No partial stock movement was saved.';
 }
 $inventory = ['rows'=>[], 'page'=>1,'pages'=>1,'total'=>0];
+$pendingWork = ['quarantines'=>[],'counts'=>[]];
 try {
     if ($branch > 0) {
         $inventory = stockDesk($pdo,(int)$user['user_id'],$branch,$q,$pageNumber);
+        $pendingWork = stockPendingWork($pdo,(int)$user['user_id'],$branch);
     }
 } catch (Throwable $problem) {
     error_log('RepairTrack inventory read: ' . $problem->getMessage());
@@ -87,7 +103,71 @@ $currentSection = 'inventory';
 <label>Part name or SKU<input name="q" type="search" maxlength="80" value="<?= h($q) ?>"></label>
 <button class="secondary-btn">Show parts</button>
 </form><p>On hand is usable stock. Available is on hand minus active repair reservations.
-Quarantined parts are physically separate and cannot be reserved. Records in this pilot are held for later disposition.</p>
+Quarantined parts stay outside usable stock until a different manager approves release or scrap.
+Count discrepancies of at least 5.000 units require a separate reviewer and do not change stock until approved.</p>
+</section>
+<section class="dashboard-card rt-card"><h2>Pending independent review</h2>
+<p>The same person cannot create and approve a quarantine decision or a significant count correction.
+Only your assigned branch's records appear here. Review the physical evidence before approving.</p>
+<?php if (!$pendingWork['quarantines'] && !$pendingWork['counts']): ?>
+<p>No pending quarantine decisions or significant count reviews on this page.</p>
+<?php endif; ?>
+<?php foreach ($pendingWork['quarantines'] as $item): ?>
+<article class="dashboard-card">
+<h3>Quarantine #<?= (int)$item['quarantine_id'] ?> · <?= h($item['part_name']) ?></h3>
+<p><?= h((string)$item['quantity']) ?> isolated · <?= h($item['source_type']) ?> ·
+ recorded by <?= h($item['recorded_by']) ?></p>
+<p><?= h($item['reason']) ?></p>
+<?php if ((int)$item['recorded_by_user_id']===(int)$user['user_id']): ?>
+<p>A different manager or administrator must decide whether this part is reusable or must be scrapped.</p>
+<?php else: ?>
+<form method="post">
+<input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+<input type="hidden" name="branch" value="<?= $branch ?>">
+<input type="hidden" name="quarantine_id" value="<?= (int)$item['quarantine_id'] ?>">
+<label>Disposition<select name="decision" required>
+<option value="SCRAP">Scrap permanently — no stock added</option>
+<option value="RELEASE">Reinspect and release entire quantity to usable inventory</option>
+</select></label>
+<label>Inspection or disposal evidence
+<textarea name="reason" required minlength="10" maxlength="500" rows="2"
+placeholder="Explain physical verification and where the quarantined part went."></textarea></label>
+<label><input type="checkbox" name="confirm" value="yes" required>
+I independently verified the entire quarantined quantity and accept responsibility for this final decision.</label>
+<button class="secondary-btn" name="action" value="quarantine-decision">Record disposition</button>
+</form>
+<?php endif; ?>
+</article>
+<?php endforeach; ?>
+<?php foreach ($pendingWork['counts'] as $review): ?>
+<article class="dashboard-card">
+<h3>Count request #<?= (int)$review['stock_count_review_id'] ?> · <?= h($review['part_name']) ?></h3>
+<p>Requested by <?= h($review['requested_by']) ?> · Usable count:
+<strong><?= h((string)$review['expected_on_hand']) ?></strong> → 
+<strong><?= h((string)$review['target_on_hand']) ?></strong>
+ · reserved <?= h((string)$review['expected_reserved']) ?></p>
+<p><?= h($review['reason']) ?></p>
+<form method="post">
+<input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+<input type="hidden" name="branch" value="<?= $branch ?>">
+<input type="hidden" name="review_id" value="<?= (int)$review['stock_count_review_id'] ?>">
+<?php if ((int)$review['requested_by_user_id']===(int)$user['user_id']): ?>
+<p>You cannot approve your own request; you can cancel it to make a fresh count.</p>
+<input type="hidden" name="decision" value="cancel">
+<?php else: ?>
+<label>Decision<select name="decision" required>
+<option value="reject">Reject count — make no stock movement</option>
+<option value="approve">Approve verified count — adjust usable stock</option>
+</select></label>
+<?php endif; ?>
+<label>Review reason<textarea name="reason" required minlength="10" maxlength="500" rows="2"
+placeholder="Describe independent recount, rejection or cancellation."></textarea></label>
+<label><input type="checkbox" name="confirm" value="yes" required>
+I verified this decision against the latest branch stock and reservation count.</label>
+<button class="secondary-btn" name="action" value="count-decision">Record count decision</button>
+</form>
+</article>
+<?php endforeach; ?>
 </section>
 <section class="dashboard-card rt-card"><h2>Branch stock</h2>
 <p><?= (int)$inventory['total'] ?> stock records · 10 per page</p>
@@ -124,7 +204,8 @@ I counted, identified, and physically separated these parts from usable stock.</
 </form></details>
 <details><summary>Record a verified shelf count</summary>
 <p>Enter the physically verified <strong>usable on-hand count</strong>, excluding quarantine.
-A count lower than existing reservations cannot be recorded.</p>
+A count lower than existing reservations cannot be recorded. A discrepancy of at least 5.000 units
+creates a pending review instead of changing stock immediately.</p>
 <form method="post">
 <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
 <input type="hidden" name="branch" value="<?= $branch ?>">
