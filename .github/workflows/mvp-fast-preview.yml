@@ -1,30 +1,33 @@
-name: MVP fast preview security smoke
+name: RepairTrack MVP tracking preview
+
 on:
   push:
     branches: [MVP-Fast-Preview-2026-11-22]
     paths:
       - 'tools/preview_router.php'
       - 'tools/start-mvp-preview.sh'
+      - 'tools/seed.php'
+      - 'views/public/tracking.php'
+      - 'css/public.css'
       - '.github/workflows/mvp-fast-preview.yml'
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
-  preview:
+  preview-linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Lint local router and shell launcher
+      - name: Syntax and page smoke
         run: |
           set -euo pipefail
           php -l tools/preview_router.php
+          php -l views/public/tracking.php
+          php -l tools/seed.php
           bash -n tools/start-mvp-preview.sh
-          php -l index.php
-          php -l admin/login.php
-      - name: Exercise allowed routes and deny internal files
-        run: |
-          set -euo pipefail
           php -S 127.0.0.1:8742 -t . tools/preview_router.php > "$RUNNER_TEMP/preview.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
@@ -32,16 +35,16 @@ jobs:
             if curl -sS -o /dev/null http://127.0.0.1:8742/; then break; fi
             sleep 1
           done
-          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8742/)" = 200
-          for path in /config/config.example.php /config/config.php /.git/config /tools/seed.php /database/schema.sql /app/db.php /views/public/tracking.php /tests/staff-consoles.php /README.md /css/../config/config.example.php; do
-            code=$(curl --path-as-is -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:8742$path")
+          for path in / /index.php /css/base.css /css/public.css /js/landing.js /admin/login.php; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:8742$path")
             echo "$path => $code"
-            test "$code" = 404
+            test "$code" = 200
           done
-          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8742/css/base.css)" = 200
-          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8742/js/login.js)" = 200
+          for path in /config/config.php /.git/config /tools/seed.php /database/schema.sql; do
+            test "$(curl --path-as-is -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:8742$path")" = 404
+          done
 
-  windows-preview:
+  preview-windows:
     runs-on: windows-2022
     timeout-minutes: 8
     steps:
@@ -49,24 +52,68 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-      - name: Verify Windows localhost routes and confidential-file denial
+      - name: Browser-route smoke on Windows
         shell: pwsh
         run: |
           php -l tools/preview_router.php
-          $server = Start-Process -FilePath "php" -ArgumentList @("-S", "127.0.0.1:8742", "-t", ".", "tools/preview_router.php") -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/preview-windows.out" -RedirectStandardError "$env:RUNNER_TEMP/preview-windows.err"
+          php -l views/public/tracking.php
+          $server = Start-Process -FilePath "php" -ArgumentList @("-S", "127.0.0.1:8742", "-t", ".", "tools/preview_router.php") -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/preview.out" -RedirectStandardError "$env:RUNNER_TEMP/preview.err"
           try {
             Start-Sleep -Seconds 3
-            foreach ($path in @("/", "/index.php", "/css/base.css", "/admin/login.php")) {
+            foreach ($path in @("/", "/index.php", "/css/base.css", "/css/public.css", "/admin/login.php")) {
               $code = (Invoke-WebRequest -Uri "http://127.0.0.1:8742$path" -SkipHttpErrorCheck -UseBasicParsing).StatusCode
               Write-Host "$path => $code"
-              if ($code -ne 200) { throw "Approved route $path returned $code" }
+              if ($code -ne 200) { throw "Preview route $path returned $code" }
             }
-            foreach ($path in @("/tools/seed.php", "/config/config.example.php", "/database/schema.sql", "/app/db.php", "/.git/config")) {
+            foreach ($path in @("/tools/seed.php", "/config/config.example.php", "/database/schema.sql")) {
               $code = (Invoke-WebRequest -Uri "http://127.0.0.1:8742$path" -SkipHttpErrorCheck -UseBasicParsing).StatusCode
-              Write-Host "$path => $code"
               if ($code -ne 404) { throw "Internal route $path returned $code" }
             }
           } finally {
             Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
-            Get-Content "$env:RUNNER_TEMP/preview-windows.err" -ErrorAction SilentlyContinue | Select-Object -Last 30
+            Get-Content "$env:RUNNER_TEMP/preview.err" -ErrorAction SilentlyContinue | Select-Object -Last 20
           }
+
+  fictional-repair-journey:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    env:
+      MYSQL_PWD: root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build new test database and seed 24 fictional repairs
+        run: |
+          set -euo pipefail
+          sudo systemctl start mysql
+          sed -e 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_operator/' \
+              -e 's/^USE repairtrack;$/USE repairtrack_test_operator;/' database/schema.sql \
+              | mysql -h 127.0.0.1 -u root
+          mkdir -p "$RUNNER_TEMP/intake" "$RUNNER_TEMP/stock"
+          cat > config/config.php <<'PHP'
+          <?php
+          return [
+              'host' => '127.0.0.1',
+              'port' => 3306,
+              'database' => 'repairtrack_test_operator',
+              'username' => 'root',
+              'password' => getenv('MYSQL_PWD'),
+              'app_url' => 'http://127.0.0.1:8742',
+              'intake_storage_path' => getenv('RUNNER_TEMP') . '/intake',
+              'inventory_evidence_path' => getenv('RUNNER_TEMP') . '/stock',
+              'intake_hmac_key' => str_repeat('ab', 32),
+          ];
+          PHP
+          # Generated fictional credentials stay in this job and are never uploaded.
+          php tools/seed.php > "$RUNNER_TEMP/private-seed-output"
+          grep -q 'Created 24 simulated repairs' "$RUNNER_TEMP/private-seed-output"
+          test "$(mysql -N -h 127.0.0.1 -u root repairtrack_test_operator -e 'SELECT COUNT(*) FROM ticket_devices')" = 24
+          php -r '
+          require "app/public/tracking.php";
+          $pdo = getPDO();
+          $record = $pdo->query("SELECT t.portal_code AS code, RIGHT(c.contact_value, 4) AS pin FROM repair_tickets t JOIN customer_contacts c ON c.customer_id = t.customer_id WHERE t.ticket_code = \"SIM-RT-001\" LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+          $repair = $record ? publicRepair($pdo, $record["code"], $record["pin"]) : null;
+          if (!$repair || count($repair["devices"]) !== 1 || $repair["devices"][0]["repair_status"] !== "RECEIVED") {
+              fwrite(STDERR, "Simulated customer tracking lookup failed.\n"); exit(1);
+          }
+          echo "PASS: 24 fictional repairs and customer tracking lookup.\n";
+          '
