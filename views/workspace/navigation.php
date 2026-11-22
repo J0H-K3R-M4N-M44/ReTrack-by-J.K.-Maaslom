@@ -45,6 +45,9 @@ if (in_array($workspaceRole, ['ADMIN', 'MANAGER', 'COURIER'], true)) {
 if (in_array($workspaceRole, ['ADMIN', 'MANAGER'], true)) {
     $navigation['locations'] = ['Storage locations', 'locations.php', 'board'];
 }
+if (in_array($workspaceRole, ['ADMIN', 'MANAGER', 'TECHNICIAN'], true)) {
+    $navigation['part-requests'] = ['Repair part requests', 'part_requests.php', 'file'];
+}
 if (in_array($workspaceRole, ['ADMIN', 'MANAGER'], true)) {
     $navigation['inventory'] = ['Branch inventory', 'inventory.php', 'board'];
 }
