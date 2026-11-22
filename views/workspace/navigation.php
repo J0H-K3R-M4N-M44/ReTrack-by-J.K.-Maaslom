@@ -43,6 +43,9 @@ if (in_array($workspaceRole, ['ADMIN', 'MANAGER', 'COURIER'], true)) {
     $navigation['handovers'] = ['Device handovers', 'transfers.php', 'bench'];
 }
 if (in_array($workspaceRole, ['ADMIN', 'MANAGER'], true)) {
+    $navigation['locations'] = ['Storage locations', 'locations.php', 'board'];
+}
+if (in_array($workspaceRole, ['ADMIN', 'MANAGER'], true)) {
     $navigation['inventory'] = ['Branch inventory', 'inventory.php', 'board'];
 }
 if (in_array($workspaceRole, ['ADMIN', 'MANAGER'], true)) {
