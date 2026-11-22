@@ -216,7 +216,8 @@ function stockDesk(PDO $pdo, int $actorId, int $branchId, string $search, int $r
 
 
 // Display only pending requests for one assigned branch; all writes re-check permissions.
-function stockPendingWork(PDO $pdo, int $actorId, int $branchId): array
+function stockPendingWork(PDO $pdo, int $actorId, int $branchId,
+    int $requestedQuarantinePage=1, int $requestedCountPage=1): array
 {
     $assigned = stockRun($pdo, 'SELECT 1 FROM user_branch_assignments a
         JOIN branches b ON b.branch_id=a.branch_id
@@ -225,21 +226,36 @@ function stockPendingWork(PDO $pdo, int $actorId, int $branchId): array
     if (!$assigned) {
         throw new DomainException('Your account is not assigned to this active branch.');
     }
+    $quarantineTotal=(int)stockRun($pdo,"SELECT COUNT(*) FROM stock_quarantines q
+        LEFT JOIN stock_quarantine_dispositions d ON d.quarantine_id=q.quarantine_id
+        WHERE q.branch_id=? AND d.disposition_id IS NULL",[$branchId])->fetchColumn();
+    $countTotal=(int)stockRun($pdo,"SELECT COUNT(*) FROM stock_count_reviews
+        WHERE branch_id=? AND status='PENDING'",[$branchId])->fetchColumn();
+    $quarantinePages=max(1,(int)ceil($quarantineTotal/10));
+    $countPages=max(1,(int)ceil($countTotal/10));
+    $quarantinePage=min($quarantinePages,max(1,$requestedQuarantinePage));
+    $countPage=min($countPages,max(1,$requestedCountPage));
+    $quarantineOffset=($quarantinePage-1)*10;
+    $countOffset=($countPage-1)*10;
     $quarantines = stockRun($pdo, "SELECT q.quarantine_id,q.part_id,q.quantity,q.source_type,
         q.reason,q.recorded_by_user_id,q.created_at,p.part_name,p.sku,u.full_name AS recorded_by
         FROM stock_quarantines q JOIN parts p ON p.part_id=q.part_id
         JOIN users u ON u.user_id=q.recorded_by_user_id
         LEFT JOIN stock_quarantine_dispositions d ON d.quarantine_id=q.quarantine_id
         WHERE q.branch_id=? AND d.disposition_id IS NULL
-        ORDER BY q.quarantine_id DESC LIMIT 10",[$branchId])->fetchAll();
+        ORDER BY q.quarantine_id DESC LIMIT 10 OFFSET $quarantineOffset",[$branchId])->fetchAll();
     $counts = stockRun($pdo, "SELECT r.stock_count_review_id,r.part_id,r.expected_on_hand,
         r.expected_reserved,r.target_on_hand,r.reason,r.requested_by_user_id,
         r.created_at,p.part_name,p.sku,u.full_name AS requested_by
         FROM stock_count_reviews r JOIN parts p ON p.part_id=r.part_id
         JOIN users u ON u.user_id=r.requested_by_user_id
         WHERE r.branch_id=? AND r.status='PENDING'
-        ORDER BY r.stock_count_review_id DESC LIMIT 10",[$branchId])->fetchAll();
-    return ['quarantines'=>$quarantines,'counts'=>$counts];
+        ORDER BY r.stock_count_review_id DESC LIMIT 10 OFFSET $countOffset",[$branchId])->fetchAll();
+    return [
+        'quarantines'=>$quarantines,'counts'=>$counts,
+        'qpage'=>$quarantinePage,'qpages'=>$quarantinePages,'qtotal'=>$quarantineTotal,
+        'rpage'=>$countPage,'rpages'=>$countPages,'rtotal'=>$countTotal,
+    ];
 }
 
 /**
