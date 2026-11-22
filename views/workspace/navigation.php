@@ -48,6 +48,9 @@ if (in_array($workspaceRole, ['ADMIN', 'MANAGER'], true)) {
 if (in_array($workspaceRole, ['ADMIN', 'MANAGER'], true)) {
     $navigation['parts-transfers'] = ['Parts transfers', 'parts_transfers.php', 'bench'];
 }
+if (in_array($workspaceRole, ['ADMIN', 'MANAGER'], true)) {
+    $navigation['stocktaking'] = ['Monthly stocktaking', 'stocktaking.php', 'board'];
+}
 $navigation['learning'] = ['Learning center', 'learning.php', 'file'];
 $symbols = [
     'overview' => 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',

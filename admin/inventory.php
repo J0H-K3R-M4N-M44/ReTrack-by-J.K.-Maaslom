@@ -95,7 +95,8 @@ $currentSection = 'inventory';
 <header class="staff-heading rt-page-head"><div>
 <p class="eyebrow">RepairTrack · Controlled stock operations</p>
 <h1>Branch inventory</h1><p>Quarantine damaged parts and reconcile physical shelf counts without using another ticket.</p>
-</div><a class="secondary-btn" href="staff_home.php">Back to workspace</a></header>
+</div><div><a class="secondary-btn" href="stocktaking.php?branch=<?= $branch ?>">Monthly stocktaking</a>
+<a class="secondary-btn" href="staff_home.php">Back to workspace</a></div></header>
 <?php if ($notice !== ''): ?><p class="staff-notice" role="status"><?= h($notice) ?></p><?php endif; ?>
 <?php if ($error !== ''): ?><p role="alert"><?= h($error) ?></p><?php endif; ?>
 <section class="dashboard-card rt-card"><h2>Inventory filters</h2>
