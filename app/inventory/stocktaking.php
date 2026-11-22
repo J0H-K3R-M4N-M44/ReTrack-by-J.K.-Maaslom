@@ -252,7 +252,12 @@ function stocktakeDecide(PDO $pdo,int $actor,int $id,
         // A person who counted any line cannot independently sign off the same batch.
         $own=stockRun($pdo,'SELECT 1 FROM inventory_stocktake_lines
             WHERE stocktake_id=? AND counted_by_user_id=? LIMIT 1',[$id,$actor])->fetchColumn();
-        if ($own) {
+        $everCounted=stockRun($pdo,"SELECT 1 FROM audit_events
+            WHERE actor_user_id=? AND entity_type='branch' AND entity_id=?
+              AND action='STOCKTAKE_COUNT_RECORDED'
+              AND CAST(JSON_UNQUOTE(JSON_EXTRACT(after_data,'$.stocktake_id')) AS UNSIGNED)=?
+            LIMIT 1",[$actor,$branch,$id])->fetchColumn();
+        if ($own || $everCounted) {
             throw new DomainException('The person who physically counted a line cannot sign off that batch.');
         }
         if ($decision==='signoff') {
