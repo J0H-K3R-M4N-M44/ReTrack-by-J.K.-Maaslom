@@ -1,0 +1,44 @@
+name: EDP academic database integrity (disposable)
+
+on:
+  push:
+    branches: [EDP-Course-MVP]
+    paths:
+      - 'course-edp/**'
+      - '.github/workflows/edp-schema.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  schema-integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    env:
+      MYSQL_PWD: root
+      REPAIRTRACK_EDP_TEST_DB: repairtrack_edp
+      REPAIRTRACK_EDP_TEST_HOST: 127.0.0.1
+      REPAIRTRACK_EDP_TEST_USER: root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check self-contained SQL and PHP syntax without database access
+        run: |
+          set -euo pipefail
+          php -l course-edp/tests/static-schema-check.php
+          php -l course-edp/tests/db-integrity.php
+          php course-edp/tests/static-schema-check.php
+      - name: Create a fresh isolated MySQL schema and seed fictional catalogs
+        run: |
+          set -euo pipefail
+          php -r 'if (!extension_loaded("pdo_mysql")) { fwrite(STDERR, "pdo_mysql missing\n"); exit(1); }'
+          sudo systemctl start mysql
+          mysql -h 127.0.0.1 -u root < course-edp/schema.sql
+          mysql -h 127.0.0.1 -u root < course-edp/seed_reference.sql
+          mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema="repairtrack_edp"' | grep -Fxq 22
+      - name: Exercise foreign keys, CHECK constraints and fictional repair records
+        run: |
+          set -euo pipefail
+          php course-edp/tests/db-integrity.php
+          mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM customers' | grep -Fxq 0
+          mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM repair_bill_payments' | grep -Fxq 0
