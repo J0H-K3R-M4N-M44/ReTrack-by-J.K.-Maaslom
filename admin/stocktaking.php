@@ -81,7 +81,12 @@ if ($isIndependent) {
     $countedSelf=stockRun($pdo,'SELECT 1 FROM inventory_stocktake_lines
         WHERE stocktake_id=? AND counted_by_user_id=? LIMIT 1',
         [$sessionId,(int)$user['user_id']])->fetchColumn();
-    $isIndependent=!$countedSelf;
+    $priorCounter=stockRun($pdo,"SELECT 1 FROM audit_events
+        WHERE actor_user_id=? AND entity_type='branch' AND entity_id=?
+          AND action='STOCKTAKE_COUNT_RECORDED'
+          AND CAST(JSON_UNQUOTE(JSON_EXTRACT(after_data,'$.stocktake_id')) AS UNSIGNED)=?
+        LIMIT 1",[(int)$user['user_id'],$branch,$sessionId])->fetchColumn();
+    $isIndependent=!$countedSelf && !$priorCounter;
 }
 $workspaceUser=$user;
 $currentSection='stocktaking';
