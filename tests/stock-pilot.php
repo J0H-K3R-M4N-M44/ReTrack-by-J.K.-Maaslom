@@ -75,37 +75,73 @@ expectRefusal(fn() => dispatchDevices($pdo, $manager['user_id'], $branch,
     $receivingLocation, (string) $heldCode), 'Release unused branch part reservations');
 expectResult((int) stockRun($pdo, 'SELECT COUNT(*) FROM stock_reservations WHERE quote_item_id = ?',
     [$held['item_id']])->fetchColumn() === 1, 'Refused transfer removed the original reservation.');
-// A released or never-reserved catalog item still requires installation before transfer.
-$waitingCode = stockRun($pdo, 'SELECT item_code FROM ticket_devices WHERE ticket_device_id = ?',
-    [$waiting['target_id']])->fetchColumn();
-expectRefusal(fn() => dispatchDevices($pdo, $manager['user_id'], $branch,
-    $receivingLocation, (string) $waitingCode), 'approved catalog part is not installed');
-expectResult((int) stockRun($pdo, 'SELECT COUNT(*) FROM device_transfers WHERE from_branch_id = ?',
-    [$branch])->fetchColumn() === 0, 'Refused stock transfer left a manifest behind.');
-expectResult(stockRun($pdo, 'SELECT custody_state FROM ticket_devices WHERE ticket_device_id = ?',
-    [$waiting['target_id']])->fetchColumn() === 'AT_LOCATION',
-    'Refused stock transfer changed the device custody state.');
-
-// Transfers without stock-tracked parts remain available, but receiving requires branch assignment.
+// Move a whole multi-device ticket with an approved but not yet installed catalog part.
+// A partial-ticket dispatch must fail and leave no manifest or custody mutation.
 $ordinaryCode = stockRun($pdo, 'SELECT item_code FROM ticket_devices WHERE ticket_device_id = ?',
     [$device])->fetchColumn();
+stockRun($pdo, "UPDATE ticket_devices SET repair_status='DIAGNOSING', assigned_technician_id=?
+    WHERE ticket_device_id=?", [$technician['user_id'], $device]);
+$secondCode = $run . '-02';
+$sibling = insertFixture($pdo, "INSERT INTO ticket_devices
+    (ticket_id,child_sequence,item_code,device_type_snapshot,reported_symptoms,
+    condition_notes,serial_number_snapshot,accessory_checklist_completed,
+    repair_status,custody_state,physical_location_id)
+    VALUES (?,2,?,'Laptop','Storage issue','Counter inspected',?,1,'DIAGNOSING','AT_LOCATION',?)",
+    [$ticket,$secondCode,$run.'-extra-device',$location]);
+$handoffItem = insertFixture($pdo, "INSERT INTO repair_quote_items
+    (quote_id,part_id,tracks_branch_stock,item_type,description,quantity,unit_price,line_total)
+    VALUES (?,?,1,'PART','SSD for destination repair',1,2400,2400)", [$quote,$part]);
+stockRun($pdo, 'UPDATE repair_quotes SET parts_amount=2400,total_amount=2500 WHERE quote_id=?', [$quote]);
+expectRefusal(fn() => dispatchDevices($pdo, $manager['user_id'], $branch,
+    $receivingLocation, (string) $ordinaryCode), 'Transfer every device on this ticket together');
+expectResult((int) stockRun($pdo, 'SELECT COUNT(*) FROM device_transfers WHERE from_branch_id=?',
+    [$branch])->fetchColumn() === 0, 'Partial transfer left a manifest behind.');
+expectResult(stockRun($pdo, 'SELECT custody_state FROM ticket_devices WHERE ticket_device_id=?',
+    [$device])->fetchColumn() === 'AT_LOCATION', 'Partial transfer changed custody.');
+
 $manifestCode = dispatchDevices($pdo, $manager['user_id'], $branch,
-    $receivingLocation, (string) $ordinaryCode);
-$manifestItem = (int) stockRun($pdo, 'SELECT x.device_transfer_item_id FROM device_transfer_items x
-    JOIN device_transfers t ON t.device_transfer_id = x.device_transfer_id
-    WHERE t.transfer_code = ?', [$manifestCode])->fetchColumn();
-expectResult($manifestItem > 0, 'Ordinary device transfer did not create a manifest.');
-expectRefusal(fn() => confirmTransferItem($pdo, $manager['user_id'], $manifestItem,
+    $receivingLocation, (string) $ordinaryCode . ' ' . $secondCode);
+$manifestId = (int) stockRun($pdo,
+    'SELECT device_transfer_id FROM device_transfers WHERE transfer_code=?', [$manifestCode])->fetchColumn();
+$manifestItems = array_map('intval', stockRun($pdo,
+    'SELECT device_transfer_item_id FROM device_transfer_items WHERE device_transfer_id=? ORDER BY device_transfer_item_id',
+    [$manifestId])->fetchAll(PDO::FETCH_COLUMN));
+expectResult(count($manifestItems) === 2, 'Full-ticket dispatch did not include both devices.');
+expectRefusal(fn() => confirmTransferItem($pdo, $manager['user_id'], $manifestItems[0],
     'IN_TRANSIT', 'receive', 'Received at next branch'), 'assignment at the handling branch');
 stockRun($pdo, 'INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)',
     [$manager['user_id'], $neighbor]);
-confirmTransferItem($pdo, $manager['user_id'], $manifestItem, 'IN_TRANSIT',
+confirmTransferItem($pdo, $manager['user_id'], $manifestItems[0], 'IN_TRANSIT',
     'receive', 'Received at next branch');
-$receivedDevice = stockRun($pdo, 'SELECT custody_state,physical_location_id FROM ticket_devices
-    WHERE ticket_device_id = ?', [$device])->fetch();
-expectResult($receivedDevice['custody_state'] === 'AT_LOCATION' &&
-    (int) $receivedDevice['physical_location_id'] === $receivingLocation,
-    'Ordinary device transfer was not received at the selected branch.');
+expectRefusal(fn() => acceptTransferredRepair($pdo, $manager['user_id'], $manifestId,
+    $ticket, $branch, 'Source manager approved handoff to destination shop.', true),
+    'manifest changed or is not fully received');
+confirmTransferItem($pdo, $manager['user_id'], $manifestItems[1], 'IN_TRANSIT',
+    'receive', 'Received at next branch');
+expectRefusal(fn() => acceptTransferredRepair($pdo, $manager['user_id'], $manifestId,
+    $ticket, $branch, 'Source manager approved handoff to destination shop.', false),
+    'Confirm whole-ticket receipt');
+acceptTransferredRepair($pdo, $manager['user_id'], $manifestId,
+    $ticket, $branch, 'Receiving manager accepted complete ticket and customer quote.', true);
+$accepted = stockRun($pdo, 'SELECT accountable_branch_id FROM repair_tickets WHERE ticket_id=?',
+    [$ticket])->fetchColumn();
+expectResult((int) $accepted === $neighbor, 'Whole-ticket branch responsibility was not transferred.');
+expectResult(stockRun($pdo, 'SELECT assigned_technician_id FROM ticket_devices WHERE ticket_device_id=?',
+    [$device])->fetchColumn() === null, 'Original branch technician was not cleared.');
+expectRefusal(fn() => consoleDevice($pdo, $otherManager, $device), 'outside your assigned work');
+expectRefusal(fn() => acceptTransferredRepair($pdo, $manager['user_id'], $manifestId,
+    $ticket, $branch, 'Repeated acceptance must not succeed.', true),
+    'ticket changed');
+stockChange($pdo, $manager['user_id'], $device, $handoffItem, 0, 'reserve');
+$destinationHold = (int) stockRun($pdo,
+    'SELECT reservation_id FROM stock_reservations WHERE quote_item_id=? AND branch_id=?',
+    [$handoffItem,$neighbor])->fetchColumn();
+expectResult($destinationHold > 0, 'Destination branch did not reserve the approved catalog part.');
+stockChange($pdo, $manager['user_id'], $device, $handoffItem, $destinationHold, 'release');
+expectResult((int) stockRun($pdo, 'SELECT COUNT(*) FROM inventory_transactions
+    WHERE ticket_device_id=? AND transaction_type=\'TICKET_USE\'', [$device])->fetchColumn() === 0,
+    'Destination handoff incorrectly installed or consumed stock.');
+
 $cashTicket = fn(array $job) => cashTicketVersion(cashPageTicket($pdo,$manager,$job['ticket']));
 $cancelBill = cashIssueFinalBill($pdo,$manager['user_id'],$held['ticket'],$cashTicket($held),
     ['reason'=>'Customer approved at counter','confirm'=>'yes','amount'=>'350']);
@@ -177,4 +213,4 @@ foreach ([$branch=>'0.000',$neighbor=>'4.000'] as $branchId=>$expected) {
     expectResult(stockRun($pdo,'SELECT quantity_on_hand FROM branch_inventory WHERE branch_id=? AND part_id=?',
         [$branchId,$part])->fetchColumn() === $expected,'Unexpected shelf count.');
 }
-echo "PASS: last-SSD reservation, reusable part return and reinstall, cancellation, transfer safety and exact bills.\n";
+echo "PASS: last-SSD reservation, reusable part return and reinstall, whole-ticket branch handoff, cancellation and exact bills.\n";
