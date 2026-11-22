@@ -49,11 +49,11 @@ Status: **SCOPE PREPARATION COMMITTED / NO REPAIR PERMISSION CUTOVER**. This fil
 
 The stand-alone `app/console/scopes.php` + `tests/scope-separation.php` pair and `app/console/ownership.php` + `tests/device-ownership-view.php` pair were copied from the feature branch into an isolated temporary local PHP 8.4 CLI directory. Both PHP lint checks and both pure test scripts **passed** there. This confirms only the standalone helper contracts; it does **not** confirm MySQL query execution, migration, role-specific HTTP access, browser behavior, or release readiness.
 
-GitHub commit status lookup returned no statuses and the available workflow-run lookup covers PR-triggered runs rather than all push-triggered jobs. **No successful GitHub Actions integration run has been verified** at the feature branch head. The PR remains draft, and `main` is unchanged.
+GitHub commit status lookup returned no statuses and the available workflow-run lookup covers PR-triggered runs rather than all push-triggered jobs. **The dedicated MySQL integrity workflow passed in GitHub Actions run 44989776748 at commit 83e43d5.** Other workflow suites and the future permission cutover are not thereby approved. The PR remains draft, and `main` is unchanged.
 
 ## Dedicated MySQL integrity gate
 
-An isolated eight-stage rehearsal is now scripted in `tests/mysql-integrity-round.sh` and `tests/mysql-integrity.php`, with its own GitHub workflow, read-only SQL companion and safety guard. It verifies referential/financial/stock/custody invariants, historical row snapshots before/after migration, negative FK and mixed-owner detection, transaction rollback, and interrupted migration recovery. This test suite **does not establish that partial-ticket authorization is enabled or safe for release**. MySQL execution remains unverified; see `docs/mysql-integrity-round.md`.
+An isolated eight-stage rehearsal is now scripted in `tests/mysql-integrity-round.sh` and `tests/mysql-integrity.php`, with its own GitHub workflow, read-only SQL companion and safety guard. It verifies referential/financial/stock/custody invariants, historical row snapshots before/after migration, negative FK and mixed-owner detection, transaction rollback, and interrupted migration recovery. This test suite **does not establish that partial-ticket authorization is enabled or safe for release**. GitHub Actions run 44989776748 confirmed the dedicated MySQL integrity round passed on commit 83e43d5; see `docs/mysql-integrity-round.md`. This is not approval of the future operational ownership cutover.
 
 ## Phase 3 gating design
 
