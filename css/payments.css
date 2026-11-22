@@ -123,3 +123,16 @@
 .payments-page .staff-heading {
   overflow-wrap: anywhere;
 }
+
+/* On phones, wrap each value within its column instead of forcing a desktop-width bill. */
+@media (max-width: 700px) {
+  .payments-table-wrap .staff-table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+  .payments-table-wrap .staff-table :is(th, td) {
+    padding: 8px 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}

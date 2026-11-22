@@ -90,6 +90,8 @@ try {
   await cashier.locator('#queue-search').fill(fixture.ticket);
   await press(cashier, 'Search');
   await cashier.getByRole('link', { name: 'Open cash record' }).click();
+  await cashier.getByRole('heading', { name: 'Record counter cash' }).waitFor();
+  await cashier.waitForLoadState('load');
   await checkWidth(cashier);
   assert.equal(await cashier.locator('#cash-amount').inputValue(), '100.00');
   await cashier.locator('[name=confirm]').check();
