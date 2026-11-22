@@ -203,7 +203,7 @@ function partsTransferReceive(PDO $pdo, int $actorId, int $itemId, string $expec
             : (($anyException || $anyLoss) ? 'EXCEPTION' : 'IN_TRANSIT'));
         stockRun($pdo, 'UPDATE inventory_transfers
             SET status=?,received_by_user_id=?,received_at=CASE
-                WHEN ? IN (\'RECEIVED\',\'LOSS_CLOSED\') THEN UTC_TIMESTAMP() ELSE NULL END
+                WHEN ? = \'RECEIVED\' THEN UTC_TIMESTAMP() ELSE NULL END
             WHERE inventory_transfer_id=?',
             [$manifestStatus,$actorId,$manifestStatus,$transferId]);
         stockRun($pdo, "INSERT INTO audit_events
