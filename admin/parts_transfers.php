@@ -160,7 +160,7 @@ $canDecideLoss=$isOrigin && $lossStatus==='PENDING' &&
 <h3><?= h($item['transfer_code']) ?> · <?= h($item['part_name']) ?></h3>
 <p><strong><?= h($item['sku']) ?></strong> · <?= h($item['origin_name']) ?> → <?= h($item['destination_name']) ?></p>
 <p>Shipped <strong><?= h((string)$item['quantity']) ?></strong> · Received
-<strong><?= h((string)$item['received_quantity']) ?></strong> · Outstanding
+<strong><?= h((string)$item['received_quantity']) ?></strong> · Not physically received
 <strong><?= h($item['outstanding']) ?></strong> · Status <?= h($item['item_status']) ?></p>
 <?php if ($item['receipt_note']): ?><p>Latest receipt note: <?= h($item['receipt_note']) ?></p><?php endif; ?>
 <?php if ($item['loss_case_id']): ?>
