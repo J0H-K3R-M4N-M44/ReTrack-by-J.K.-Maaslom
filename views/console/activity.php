@@ -21,12 +21,12 @@ require __DIR__ . '/../workspace/navigation.php';
     <p>Choose a category to see updates for your assignments. Read entries stay in history.</p>
   </header>
   <form class="report-filters" method="get">
-    <label>Category<select name="group">
+    <label><span id="activity-category-label">Category</span><select name="group" aria-labelledby="activity-category-label">
       <?php foreach ($groups as $option): ?>
         <option <?= $group === $option ? 'selected' : '' ?> value="<?= h($option) ?>"><?= h(ucfirst($option)) ?><?= isset($activityCounts[$option]) ? ' · ' . (int) $activityCounts[$option] . ' unread' : '' ?></option>
       <?php endforeach; ?>
     </select></label>
-    <label>Show<select name="view">
+    <label><span id="activity-view-label">Activity view</span><select name="view" aria-labelledby="activity-view-label">
       <option value="inbox" <?= $mode === 'inbox' ? 'selected' : '' ?>>Unread inbox</option>
       <option value="history" <?= $mode === 'history' ? 'selected' : '' ?>>Full history</option>
     </select></label>

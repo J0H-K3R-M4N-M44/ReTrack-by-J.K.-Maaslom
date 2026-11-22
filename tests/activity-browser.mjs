@@ -32,7 +32,7 @@ async function checkInbox(width, paymentsBefore) {
   assert.equal(await page.locator('option[value="pickups"]').textContent(), 'Pickups · 19 unread');
   assert.equal(await page.getByText(reference, { exact: true }).count(), 0);
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-  await page.getByLabel('Show', { exact: true }).selectOption('history');
+  await page.getByRole('combobox', { name: 'Activity view', exact: true }).selectOption('history');
   await page.getByRole('button', { name: 'Apply filters' }).click();
   const row = page.locator('.activity-list li').filter({ hasText: reference });
   assert.equal(await row.getByText('Read', { exact: true }).count(), 1);
