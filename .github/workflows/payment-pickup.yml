@@ -69,6 +69,7 @@ jobs:
           php -l app/inventory/evidence.php
           php -l admin/stock_evidence.php
           php -l tests/stock-evidence.php
+          php -l tools/cleanup_stock_evidence.php
           php -l tests/parts-recovery.php
           php -l tests/parts-loss.php
           php -l admin/parts_transfers.php
