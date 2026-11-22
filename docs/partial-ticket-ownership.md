@@ -1,0 +1,78 @@
+# Partial-ticket repair ownership: gated implementation plan
+
+Status: DESIGN ONLY — 22 November 2026. No schema migration or application behavior changed.
+Base: main @ f817154f2e5f5ac04daf8bf0c5b3dd0167e17f0b.
+Scope: allow one device in a multi-device ticket to be repaired by another branch **after a confirmed physical transfer and independently audited acceptance**, without moving the financial ownership of the whole ticket.
+
+## Current verified behavior
+
+- A repair ticket has one accountable_branch_id in repair_tickets. Physical device location and custody are already separate in ticket_devices.
+- app/console/repository.php scopes staff device access through the ticket's accountable branch. Quotes, stock reservations, reports, dashboard and payment paths also use ticket-level accountability.
+- app/console/transfers.php supports physical dispatch/receipt and whole-ticket destination acceptance. Custody receipt alone never grants repair authority.
+- Current acceptance moves accountable_branch_id for the entire ticket and clears the ticket's technician assignments. tests/stock-pilot.php confirms that partial manifests cannot be accepted as whole-ticket repair handoffs.
+- app/payments/repository.php issues and settles ticket-level bills at the accountable branch and checks physical return constraints. This policy must remain intact during the pilot.
+- No repair_branch_id field or partial ownership feature exists on main.
+
+## Earlier branch reuse decision
+
+- Simplified-System, Staff-Workspace, Device-Handovers, Branches-Logistics and Repair-Operations: fully behind main; do not merge.
+- PHP-Bill-Corrections-Integration and PHP-Stock-Cancellation-Integration: fully behind main; retain main's integrated and tested workflows.
+- Branch-Repair-Acceptance: diverged (10 commits ahead, 11 behind as inspected); core acceptance function and stock-pilot tests are already on main. Do not wholesale merge or replay old schema.
+- Interface-Navigation: diverged (1 ahead, 85 behind). Keep its accessibility/navigation tests and layout ideas as reference for a separate interface milestone; reimplement against current main if needed.
+- Google-Maps-Tracking: diverged (6 ahead, 85 behind). Demo contains documented branch-map and simulated alert behaviors, not a production PHP custody/GPS feature. Reuse concepts only after privacy, location accuracy and current-branch integration review.
+- PHP-Bill-Corrections and PHP-Stock-Pilot: old divergent prototypes, superseded by integrated billing/stock paths on main. Avoid cherry-picking historical payment or stock logic.
+
+Comparisons were made against main on the date above. Re-check heads before any later cherry-pick.
+
+## Proposed ownership model (no changes committed yet)
+
+1. Keep repair_tickets.accountable_branch_id as the **ticket-level cashier, customer contract and billing branch** for mixed-location tickets. It must not silently follow a partial custody movement.
+2. Introduce ticket_devices.repair_branch_id as the device-level authorized repair branch; nullable only for pre-issue drafts, populated from the ticket's accountable branch at issuance and backfilled for existing issued devices in a controlled migration.
+3. Keep ticket_devices.physical_location_id and custody_state as facts about physical custody. Their values must never independently change repair_branch_id.
+4. Existing whole-ticket acceptance will, once the new model is active, move both the ticket-level branch and each device's repair branch together; no retroactive rewrite of original custody, stock or audit events.
+5. Partial acceptance will change **only the selected device's repair_branch_id** and remove its former technician assignment, leaving sibling devices, ticket-level billing authority, intake branch and original financial records unchanged.
+6. For a first narrow pilot, restrict acceptance to an issued/open/unbilled device, in an early repair stage, physically received at the destination on an identified manifest, with no unresolved transfer exception, no active reservation, no active installation or unresolved branch-stock obligation. If an approved tracked part would require new destination pricing, refuse acceptance pending a new customer-approved quote workflow. Do not silently substitute inventory or amounts.
+7. Require explicit sending-branch manager approval and receiving-branch ADMIN/MANAGER confirmation, with reason (10–500 characters), manifest/device/ticket identifiers, expected branch and a stale-version guard. A courier may handle physical custody but may not accept repair ownership.
+8. All changes must be atomic, with a single immutable audit event containing the before/after branch, manifest ID, the actors and reason. Do not embed customer contact details in audit JSON.
+
+## Permission boundaries to update together
+
+- Device list/detail, technician assignment, stage changes and private notes: authorize against device repair_branch_id and an active user assignment. A technician may work only on a specifically assigned device and never on a sibling solely because it shares a ticket.
+- Quote preparation, approval recording, catalog selection, holds, installation and returns: choose the **device repair branch** for operational stock, but preserve original quote and inventory movements. Re-approval is mandatory when price/part choice changes.
+- Whole-ticket cashier payment, cancellation, pickup and bill corrections: continue to authorize against repair_tickets.accountable_branch_id. The current billing gate requiring devices to return to the accountable branch stays in force; no cross-branch payout or COD behavior is added.
+- Ticket-wide pages, dashboards, searches, reports, notifications and public portal: audit each query for unintended sibling data disclosure. Public tracking may show a safe per-device last-confirmed branch and state but not an invented live courier position or internal notes.
+- Whole-ticket transfers: preserve existing behavior; do not permit mixed ownership to use the legacy all-ticket acceptance route without an explicit reconciliation check.
+
+## Safe implementation sequence
+
+Phase 0 (this document): current-code inventory, branch reuse decision and security invariants. No application writes.
+
+Phase 1 (additive, inert): add indexed FK-backed repair_branch_id to the fresh schema and a repeatable existing-database migration, safely backfill issued devices, make intake issuance populate the field, and add schema/backfill/rollback-readiness tests. Keep every authorization check on the old model until verified.
+
+Phase 2 (read-only): add a shared device-branch resolver and read-only ownership indicators; test against existing single-branch and whole-ticket flows without exposing unauthorized sibling details. No partial acceptance action yet.
+
+Phase 3 (permission cutover): move device-scoped authorization, assignment, quotes and stock as a reviewed unit. Keep payments strictly ticket-scoped. Add a feature flag defaulting to OFF; test every role's denial and allowed paths on disposable MySQL.
+
+Phase 4 (controlled write): implement origin approval, destination acceptance, optimistic version matching, ordered transactional locks (compatible with the existing manifest -> ticket -> devices order), audit history and a guarded UI. Start with a single early-stage device with no outstanding part or billing obligations.
+
+Phase 5 (release): run the full payment/pickup, stock, handover, console, tracking and migration suites; run two-operator concurrency checks; complete role-by-role Chrome/mobile review on 320/390/768/1440 widths; test feature OFF; review production migration and backups. Merge only after passing CI and independent review.
+
+## Required negative and concurrency tests
+
+- Outsider branch, cashier, technician and courier attempts to approve or accept repair ownership are rejected; no DB mutations.
+- Partial manifest in transit, missing item, exception, wrong receiving branch, wrong device, wrong original branch, stale version or reused acceptance are rejected.
+- Two simultaneous acceptances of the same device yield one winner and one clean refusal; no double audit or broken ticket state.
+- Mixed-branch siblings remain invisible to unauthorized repair staff, including through ticket search, direct URL and private notes.
+- Technician assignment capacity and activity history remain correct after transfer; old assignment cannot update progress.
+- Approved tracked part, active hold, installed part, already billed, active repair, ready-for-pickup and completed cases cannot be reassigned by the pilot.
+- Quotes and stock movements never migrate implicitly between shelves; original returns and transactions are preserved.
+- Cashier at the ticket's accountable branch retains authorized billing rights; destination repair staff acquire no cash privileges. Final bill and pickup refuse until the existing physical-return conditions are satisfied.
+- Existing whole-ticket acceptance, billing, refund, stocktaking, part loss and physical custody tests still pass with the feature disabled and enabled.
+- Re-running the migration is idempotent and preserves row counts, historical events, receipt totals and stock quantities.
+
+## Release safeguards and unresolved policy questions
+
+- Current .github/workflows/payment-pickup.yml only triggers on named branches and selected paths. Add this development branch and all new migration/test paths when implementation starts; documentation-only commits do not constitute test verification.
+- Existing deployment must not run migrations without a backup, version-checked dry run, disposable-database rehearsal and an explicit rollback/forward-fix procedure. A schema downgrade after mixed branch ownership has been used cannot safely collapse multiple device branches back into one ticket branch.
+- Pending business policy: whether a customer must explicitly consent to a branch change, how quote revisions are approved, who pays transfer costs, and how disputes or courier exceptions are handled. Until decided, do not enable live partial ownership or claim location is real-time.
+- Production status: NOT DEPLOYMENT READY. Use fictional records and non-production databases until all release gates pass.
