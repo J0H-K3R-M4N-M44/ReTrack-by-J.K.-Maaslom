@@ -114,6 +114,9 @@ function migrationPending(PDO $pdo): array
         !migrationHasColumn($pdo, 'stock_transfer_loss_valuations', 'part_acquisition_cost_id')) {
         $pending[] = 'part_acquisition_cost_records.sql';
     }
+    if (!migrationHasTable($pdo, 'repair_part_requests')) {
+        $pending[] = 'repair_part_requests.sql';
+    }
     if (!migrationHasTable($pdo, 'inventory_stocktakes') ||
         !migrationHasTable($pdo, 'inventory_stocktake_lines')) {
         $pending[] = 'inventory_stocktaking.sql';
@@ -123,7 +126,7 @@ function migrationPending(PDO $pdo): array
 function migrationPrintStatus(array $pending): void
 {
     foreach (
-        ['password_reset.sql', 'staff_workspace.sql', 'payment_handover.sql', 'staff_activity.sql', 'bill_corrections.sql', 'stock_reservations.sql', 'stock_quarantine.sql', 'stock_approvals.sql', 'stock_transfer_losses.sql', 'stock_transfer_recoveries.sql', 'stock_transfer_evidence.sql', 'stock_transfer_loss_valuations.sql', 'part_acquisition_cost_records.sql', 'inventory_stocktaking.sql']
+        ['password_reset.sql', 'staff_workspace.sql', 'payment_handover.sql', 'staff_activity.sql', 'bill_corrections.sql', 'stock_reservations.sql', 'stock_quarantine.sql', 'stock_approvals.sql', 'stock_transfer_losses.sql', 'stock_transfer_recoveries.sql', 'stock_transfer_evidence.sql', 'stock_transfer_loss_valuations.sql', 'part_acquisition_cost_records.sql', 'inventory_stocktaking.sql', 'repair_part_requests.sql']
         as $filename
     ) {
         echo (in_array($filename, $pending, true) ? '[pending] ' : '[ready]   ') . $filename . "\n";
