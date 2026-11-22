@@ -76,12 +76,15 @@ function migrationPending(PDO $pdo): array
     if (!migrationHasTable($pdo, 'staff_activity_reads')) {
         $pending[] = 'staff_activity.sql';
     }
+    if (!migrationHasTable($pdo, 'repair_bill_changes')) {
+        $pending[] = 'bill_corrections.sql';
+    }
     return $pending;
 }
 function migrationPrintStatus(array $pending): void
 {
     foreach (
-        ['password_reset.sql', 'staff_workspace.sql', 'payment_handover.sql', 'staff_activity.sql']
+        ['password_reset.sql', 'staff_workspace.sql', 'payment_handover.sql', 'staff_activity.sql', 'bill_corrections.sql']
         as $filename
     ) {
         echo (in_array($filename, $pending, true) ? '[pending] ' : '[ready]   ') . $filename . "\n";
