@@ -23,6 +23,10 @@ try {
   assert.equal(new URL(page.url()).hash, '');
   await page.getByRole('button', { name: 'View repair' }).click();
   await page.getByRole('heading', { name: 'Your repair update' }).waitFor();
+  assert(await page.getByRole('heading', { name: 'Current shared estimate' }).isVisible());
+  assert((await page.locator('.public-estimate').innerText()).includes('99.00'));
+  assert(!(await page.locator('.public-estimate').innerText()).includes('325.35'));
+  assert(await page.getByRole('heading', { name: 'What happens next?' }).isVisible());
   assert(!(await page.content()).includes('PRIVATE_SENTINEL'));
   assert.equal(
     await page.locator('script:not([src])').count(),
@@ -48,6 +52,7 @@ try {
   await visitor.locator('#tracking-code').fill(fixture.code);
   await visitor.getByRole('button', { name: 'View repair' }).click();
   assert(await visitor.getByRole('heading', { name: 'Your repair update' }).isVisible());
+  assert((await visitor.locator('.public-estimate').innerText()).includes('99.00'));
   await page.goto(url + '/admin/login.php');
   await page.locator('[name=email]').fill('manager.console@example.test');
   await page.locator('[name=password]').fill('ConsoleDemo2026!');
