@@ -125,6 +125,16 @@ $recoveryFile=stockEvidenceSaveStaged($pdo,$receiver['user_id'],'RECOVERY',$reco
     $recoveredPhoto,'recovery-photo.png',stockEvidenceInspect($recoveredPhoto));
 expectResult(count(stockEvidenceList($pdo,$approver,'RECOVERY',$recovery))===1,
     'Reviewer cannot view the private recovery case photo.');
+// A signed paper form may be attached as a PDF, but it must be downloaded,
+// never displayed as an active document inside the application.
+$pdf=evidenceFixturePath('pdf',"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n");
+$pdfDetails=stockEvidenceInspect($pdf);
+expectResult($pdfDetails['mime']==='application/pdf','Valid PDF evidence type was not recognized.');
+$pdfId=stockEvidenceSaveStaged($pdo,$receiver['user_id'],'RECOVERY',$recovery,
+    $pdf,'signed-recovery-form.pdf',$pdfDetails);
+expectResult(stockEvidenceRead($pdo,$approver,$pdfId)['mime']==='application/pdf',
+    'The authorized private PDF download failed validation.');
+expectRefusal(fn()=>stockEvidencePath('../not-evidence.pdf'),'unavailable');
 partsRecoveryDecide($pdo,$approver,$recovery,'approve',
     'Independently verified recovered SSD condition and signed physical inspection.',true);
 expectResult(stockEvidenceRead($pdo,$approver,$recoveryFile)['bytes']===strlen($png),
