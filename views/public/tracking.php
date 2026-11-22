@@ -45,6 +45,17 @@
             <h2><?= h(dashboardDeviceLabel($device)) ?></h2>
             <p class="public-status"><?= h(dashboardStatusLabel($device['repair_status'])) ?></p>
             <h3>Device custody</h3><p><?= h(publicCustody($device)) ?></p>
+            <?php if ($device['estimate']): ?>
+            <div class="public-estimate">
+                <h3>Current shared estimate</h3>
+                <p>Revision <?= (int) $device['estimate']['revision'] ?> · <?= h(publicEstimateLabel($device['estimate'])) ?></p>
+                <p class="public-estimate-total">Estimated total <strong><?= h($device['estimate']['currency']) ?> <?= h(number_format((float) $device['estimate']['total'], 2)) ?></strong></p>
+                <p>This is not a bill, payment receipt or balance due. Staff record decisions; this page cannot approve estimates or accept payments.</p>
+            </div>
+            <?php else: ?>
+            <p>No current estimate has been shared for this device.</p>
+            <?php endif; ?>
+            <h3>What happens next?</h3><p><?= h(publicNextStep($device)) ?></p>
             <?php if (
                 $device['public_summary']
             ): ?><h3>Message from the service team</h3><p class="public-message"><?= h(
