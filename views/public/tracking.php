@@ -10,7 +10,7 @@
 <body class="public-body">
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="public-header"><a href="index.php">RepairTrack</a><nav aria-label="Customer navigation"><a href="index.php#prepare">Before your visit</a><a href="learn.php">Customer guide</a><a href="admin/login.php">Staff sign in</a></nav></header>
-<main id="main" class="public-page">
+<main id="main" class="public-page" tabindex="-1">
     <p class="eyebrow">Your repair, clearly explained</p>
     <h1><?= $repair ? 'Your repair update' : 'Track your repair' ?></h1>
     <?php if ($error): ?><p id="tracking-error" class="public-notice" role="alert"><?= h($error) ?></p><?php endif; ?>
@@ -27,7 +27,7 @@
             <label for="portal-pin">Portal PIN</label>
             <input id="portal-pin" name="portal_pin" type="password" inputmode="numeric" minlength="4" maxlength="4" pattern="[0-9]{4}" autocomplete="off" aria-describedby="pin-help<?= $errorField === 'portal-pin' ? ' tracking-error' : '' ?>" <?= $errorField === 'portal-pin' ? 'aria-invalid="true" autofocus' : '' ?>>
             <p id="pin-help">Last four digits of the phone number recorded when your code was issued. If your number changed, ask the branch for new access.</p>
-            <button class="public-button">View repair</button>
+            <button class="public-button" type="submit">View repair</button>
         </form>
     </section>
     <?php else: ?>
