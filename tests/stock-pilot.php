@@ -193,8 +193,9 @@ expectRefusal(fn() => stockChange($pdo, $manager['user_id'], $id,
     'Repeated attempt to restock the same part must be refused.', true), 'Stock changed');
 expectRefusal(fn() => stockCheckInstalled($pdo, $id, (int) quoteLatest($pdo, $id)['quote_id']),
     'Record installation');
-expectRefusal(fn() => dispatchDevices($pdo, $manager['user_id'], $branch,
-    $receivingLocation, (string) $waitingCode), 'approved catalog part is not installed');
+// The full-ticket transfer exception is tested above; stock release alone never counts as installation.
+expectResult(stockRun($pdo, 'SELECT custody_state FROM ticket_devices WHERE ticket_device_id=?',
+    [$id])->fetchColumn() === 'AT_LOCATION', 'A stock return must not change custody.');
 $reversals = stockRun($pdo, "SELECT inventory_transaction_id,quantity_delta,reason FROM inventory_transactions
     WHERE ticket_device_id=? AND transaction_type='RETURN' AND reference_code=?",
     [$id, 'RETURN-USE-' . $originalMovement])->fetchAll();
