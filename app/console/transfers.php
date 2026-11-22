@@ -48,7 +48,7 @@ function dispatchDevices(PDO $pdo, int $user, int $origin, int $destination, str
             VALUES (?,?,?,?,UTC_TIMESTAMP())")->execute([$code,$origin,$to,$user]);
         $manifest = (int)$pdo->lastInsertId();
         foreach ($codes as $item) {
-            $q = $pdo->prepare("SELECT d.ticket_device_id,d.physical_location_id FROM ticket_devices d
+            $q = $pdo->prepare("SELECT d.ticket_device_id,d.ticket_id,d.physical_location_id FROM ticket_devices d
                 JOIN repair_tickets t ON t.ticket_id=d.ticket_id JOIN storage_locations l ON l.location_id=d.physical_location_id
                 WHERE d.item_code=? AND t.record_stage='ISSUED' AND t.case_state='OPEN'
                 AND d.repair_status NOT IN ('COMPLETED','CANCELLED') AND d.custody_state='AT_LOCATION'
@@ -82,10 +82,21 @@ function dispatchDevices(PDO $pdo, int $user, int $origin, int $destination, str
                 AND i.tracks_branch_stock = 1");
             $pendingPart->execute([$id]);
             foreach ($pendingPart->fetchAll(PDO::FETCH_COLUMN) as $quoteItemId) {
-                if (!stockActiveInstallation($pdo, $id, (int) $quoteItemId)) {
-                    throw new DomainException(
-                        'An approved catalog part is not installed. Complete installation at the sending branch before transfer.'
-                    );
+                if (stockActiveInstallation($pdo, $id, (int) $quoteItemId)) {
+                    continue;
+                }
+                // A not-yet-installed approved part can be procured at the destination
+                // only when the entire ticket travels on this manifest. Source holds
+                // must already be released, and destination work requires explicit acceptance.
+                $allCodes = $pdo->prepare('SELECT item_code FROM ticket_devices
+                    WHERE ticket_id = ? ORDER BY ticket_device_id FOR UPDATE');
+                $allCodes->execute([(int) $row['ticket_id']]);
+                foreach ($allCodes->fetchAll(PDO::FETCH_COLUMN) as $requiredCode) {
+                    if (!in_array((string) $requiredCode, $codes, true)) {
+                        throw new DomainException(
+                            'Transfer every device on this ticket together before moving an uninstalled approved part.'
+                        );
+                    }
                 }
             }
             $pdo->prepare('INSERT INTO device_transfer_items (device_transfer_id,ticket_device_id,from_location_id,transit_location_id,to_location_id)
