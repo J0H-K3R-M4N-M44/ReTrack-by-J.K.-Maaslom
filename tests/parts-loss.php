@@ -94,8 +94,8 @@ expectResult(stockRun($pdo,'SELECT item_status FROM inventory_transfer_items
     'Approved missing quantity was not operationally closed.');
 $closed=stockRun($pdo,'SELECT status,received_at FROM inventory_transfers
     WHERE inventory_transfer_id=?',[(int)$manifest])->fetch();
-expectResult($closed['status']==='LOSS_CLOSED' && $closed['received_at']!==null,
-    'Transfer with fully received and independently approved lost lines was not closed.');
+expectResult($closed['status']==='LOSS_CLOSED' && $closed['received_at']===null,
+    'A loss-closed manifest must not claim its missing units were physically received.');
 expectResult(stockShelfState($pdo,$branch,$partA)['on_hand']==='2.000' &&
     stockShelfState($pdo,$receivingBranch,$partA)['on_hand']==='1.000',
     'Approval incorrectly moved source or destination shelf stock.');
