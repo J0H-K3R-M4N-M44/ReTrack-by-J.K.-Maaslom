@@ -1,0 +1,42 @@
+name: MVP fast preview security smoke
+on:
+  push:
+    branches: [MVP-Fast-Preview-2026-11-22]
+    paths:
+      - 'tools/preview_router.php'
+      - 'tools/start-mvp-preview.sh'
+      - '.github/workflows/mvp-fast-preview.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint local router and shell launcher
+        run: |
+          set -euo pipefail
+          php -l tools/preview_router.php
+          bash -n tools/start-mvp-preview.sh
+          php -l index.php
+          php -l admin/login.php
+      - name: Exercise allowed routes and deny internal files
+        run: |
+          set -euo pipefail
+          php -S 127.0.0.1:8742 -t . tools/preview_router.php > "$RUNNER_TEMP/preview.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for i in 1 2 3 4 5 6 7 8; do
+            if curl -sS -o /dev/null http://127.0.0.1:8742/; then break; fi
+            sleep 1
+          done
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8742/)" = 200
+          for path in /config/config.example.php /config/config.php /.git/config /tools/seed.php /database/schema.sql /app/db.php /views/public/tracking.php /tests/staff-consoles.php /README.md /css/../config/config.example.php; do
+            code=$(curl --path-as-is -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:8742$path")
+            echo "$path => $code"
+            test "$code" = 404
+          done
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8742/css/base.css)" = 200
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8742/js/login.js)" = 200
