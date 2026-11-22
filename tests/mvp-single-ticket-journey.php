@@ -126,8 +126,12 @@ try {
     $current = consoleDevice($pdo, $manager, $deviceId);
     consoleSave($pdo, $manager['user_id'], $deviceId, consoleVersion($current),
         ['action' => 'assign', 'technician' => (string) $technician['user_id']]);
-    journeyDeny(fn() => consoleDevice($pdo, $viewer, $deviceId),
-        'Viewer cannot gain technician-only detail.');
+    $viewerDevice = consoleDevice($pdo, $viewer, $deviceId);
+    journeyCheck($viewerDevice['repair_status'] === 'RECEIVED',
+        'Read-only branch viewer could not inspect repair status.');
+    journeyDeny(fn() => consoleSave($pdo, $viewer['user_id'], $deviceId,
+        consoleVersion($viewerDevice), ['action' => 'progress', 'status' => 'DIAGNOSING']),
+        'Viewer must not change repair progress.');
     $current = consoleDevice($pdo, $technician, $deviceId);
     consoleSave($pdo, $technician['user_id'], $deviceId, consoleVersion($current),
         ['action' => 'progress', 'status' => 'DIAGNOSING',
