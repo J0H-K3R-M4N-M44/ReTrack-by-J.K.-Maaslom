@@ -46,6 +46,7 @@ if grep -Eq '^CREATE DATABASE IF NOT EXISTS repairtrack$|^USE repairtrack;$' "$s
 fi
 mysql -h 127.0.0.1 -u root < "$scratch/schema.sql"
 mkdir -p "$scratch/intake" "$scratch/inventory"
+owned_config=1
 cat > config/config.php <<'PHP'
 <?php
 return [
