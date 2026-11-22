@@ -26,6 +26,9 @@ jobs:
         run: |
           set -euo pipefail
           php -l course-edp/app/actions.php
+          php -l course-edp/app/catalogs.php
+          php -l course-edp/app/intake.php
+          php -l course-edp/tests/intake-flow.php
           php -l course-edp/tests/static-schema-check.php
           php -l course-edp/tests/db-integrity.php
           php -l course-edp/tests/db-concurrency.php
@@ -42,8 +45,11 @@ jobs:
         run: |
           set -euo pipefail
           php course-edp/tests/db-integrity.php
+          php course-edp/tests/intake-flow.php
           php course-edp/tests/db-concurrency.php
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM customers' | grep -Fxq 0
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM repair_bill_payments' | grep -Fxq 0
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM ticket_status_events' | grep -Fxq 0
+          mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM repair_tickets' | grep -Fxq 0
+          mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM ticket_devices' | grep -Fxq 0
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM media_assets' | grep -Fxq 0

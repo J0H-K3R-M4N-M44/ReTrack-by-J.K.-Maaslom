@@ -14,6 +14,16 @@ This folder contains a **standalone 23-table academic schema**. It is **not an u
 - Image bytes are in **private file storage**. `media_assets` has an authorized customer reference and optional consistent ticket/device references, plus constrained opaque relative path, MIME, size and checksum. PHP must authorize access to each individual asset and verify its actual file content. Cross-customer ownership is rejected by FKs.
 - `notes` records text and ticket/device ownership. The course's separate Notepad *open/save/file monitor* integration is still outstanding and cannot be satisfied merely by the notes table.
 
+## Phase 3, slice A — isolated catalogs and intake issuance
+
+New files (not public endpoints):
+
+- `app/catalogs.php` — read-only lists of active device types and defects, all repair statuses, and branch-restricted receiving locations.
+- `app/intake.php` — create a device-first draft and issue it after selecting an existing customer, verifying a server-managed private signature image, and confirming intake staff/branch permissions. The issue transaction creates saved customer device records, per-device labels, a status history entry for each device and an audit event. It generates a unique 5-hex portal code and separately generates an internal ticket code; PIN is `password_hash()` of the last four recorded phone digits and is **not returned**.
+- `tests/intake-flow.php` — fictional two-device intake, invalid customer and restricted-role tests, private signature validation, initial event history and transaction rollback checks. Its temporary image is created outside the public webroot.
+
+**Security boundary:** the signature path must come from server-owned upload staging after authenticated staff selection, not directly from a browser-provided filename. The functions do not check sessions/CSRF or provide public uploads; wire those later in a guarded controller with per-file ownership records. This example assumes the prerecorded intake signature is an image; additional signed-document formats need a separate validation policy.
+
 ## What is deliberately NOT complete
 
 This is the **database foundation and isolated reference actions**, not a wired-up website, complete onboarding and issuance service, file upload/streaming code, COD collection or courier delivery, password reset UX, external REST integration, browser-driven EDP exercises, or human acceptance testing. The Sogod prototype's workflow remains the reference. No claim of full PHP compatibility should be made based on these database tests.
@@ -24,6 +34,9 @@ Requirements: MySQL **8.0.16+** (enforced `CHECK` constraints), PHP CLI with `pd
 
 ```sh
 php -l course-edp/app/actions.php
+php -l course-edp/app/catalogs.php
+php -l course-edp/app/intake.php
+php -l course-edp/tests/intake-flow.php
 php -l course-edp/tests/db-integrity.php
 php -l course-edp/tests/db-concurrency.php
 php course-edp/tests/static-schema-check.php
@@ -38,6 +51,7 @@ export REPAIRTRACK_EDP_TEST_DB=repairtrack_edp
 export REPAIRTRACK_EDP_TEST_HOST=127.0.0.1
 export REPAIRTRACK_EDP_TEST_USER=your_restricted_test_user
 php course-edp/tests/db-integrity.php
+php course-edp/tests/intake-flow.php
 php course-edp/tests/db-concurrency.php
 ```
 
@@ -47,7 +61,7 @@ The branch-specific `.github/workflows/edp-schema.yml` uses a disposable MySQL G
 
 1. Verify CI against the exact commit and adjust SQL if needed (without altering the legacy schema).
 2. Preserve `main`, the old database and the original `database/schema.sql`.
-3. Implement safe ticket issuance with generated portal credentials, legitimate role scopes, and consistent first status event.
+3. Test the isolated catalog and intake service against fictional records, then build authenticated and CSRF-protected web controllers. The intake domain functions are not public entry points.
 4. Port one selected PHP path at a time, with browser regression and privacy tests, instead of swapping the entire database connection.
 5. Validate visual parity with the previously presented Sogod prototype and obtain local acceptance before classroom release.
 
