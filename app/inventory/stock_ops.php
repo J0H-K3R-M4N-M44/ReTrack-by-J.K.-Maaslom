@@ -70,7 +70,7 @@ function stockShelfState(PDO $pdo, int $branchId, int $partId, bool $lock = fals
 
 function stockShelfAction(PDO $pdo, int $actorId, int $branchId, int $partId,
     string $expectedOnHand, int $expectedMovement, string $action, string $quantity,
-    string $reason, bool $confirmed): void
+    string $reason, bool $confirmed): string
 {
     $reason = trim($reason);
     if (!in_array($action, ['quarantine', 'count'], true) || !$confirmed ||
@@ -109,6 +109,34 @@ function stockShelfAction(PDO $pdo, int $actorId, int $branchId, int $partId,
                 throw new DomainException('The verified count matches the shelf. No adjustment is needed.');
             }
         }
+        if ($action === 'count') {
+            $pending = stockRun($pdo, "SELECT stock_count_review_id FROM stock_count_reviews
+                WHERE branch_id=? AND part_id=? AND status='PENDING' FOR UPDATE",
+                [$branchId,$partId])->fetchColumn();
+            if ($pending) {
+                throw new DomainException('A count for this part already awaits independent review.');
+            }
+            // Pilot policy: a difference of at least five physical units requires a second person.
+            // For costly one-off parts a future pricing/value threshold should also apply.
+            if (abs($delta) >= 5000) {
+                stockRun($pdo, "INSERT INTO stock_count_reviews
+                    (branch_id,part_id,expected_on_hand,expected_reserved,expected_movement_id,
+                     target_on_hand,reason,requested_by_user_id,created_at)
+                    VALUES (?,?,?,?,?,?,?,?,UTC_TIMESTAMP())",
+                    [$branchId,$partId,$state['on_hand'],$state['reserved'],$expectedMovement,
+                     stockNumber($target),$reason,$actorId]);
+                $reviewId = (int)$pdo->lastInsertId();
+                stockRun($pdo, "INSERT INTO audit_events
+                    (actor_type,actor_user_id,entity_type,entity_id,action,after_data,reason,created_at)
+                    VALUES ('USER',?,'branch_inventory',?,'STOCK_COUNT_REVIEW_REQUESTED',?,?,UTC_TIMESTAMP())",
+                    [$actorId,$partId,json_encode([
+                        'branch_id'=>$branchId,'review_id'=>$reviewId,'expected_on_hand'=>$state['on_hand'],
+                        'target_on_hand'=>stockNumber($target),'expected_movement_id'=>$expectedMovement
+                    ],JSON_THROW_ON_ERROR),$reason]);
+                $pdo->commit();
+                return 'pending';
+            }
+        }
         $newOnHand = stockNumber($target);
         stockRun($pdo, 'UPDATE branch_inventory SET quantity_on_hand=? WHERE branch_id=? AND part_id=?',
             [$newOnHand,$branchId,$partId]);
@@ -135,6 +163,7 @@ function stockShelfAction(PDO $pdo, int $actorId, int $branchId, int $partId,
                 json_encode(['branch_id'=>$branchId,'quantity_on_hand'=>$newOnHand,
                     'movement_id'=>$movement,'quarantine_id'=>$quarantineId], JSON_THROW_ON_ERROR),$reason]);
         $pdo->commit();
+        return 'applied';
     } catch (Throwable $error) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
