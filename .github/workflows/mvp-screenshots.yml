@@ -1,0 +1,82 @@
+name: RepairTrack MVP UI screenshot gallery
+
+on:
+  push:
+    branches: [MVP-Fast-Preview-2026-11-22]
+    paths:
+      - 'tests/mvp-preview-snapshots.mjs'
+      - '.github/workflows/mvp-screenshots.yml'
+      - 'views/public/tracking.php'
+      - 'css/public.css'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      MYSQL_PWD: root
+      MVP_SCREENSHOT_OUTPUT: ${{ github.workspace }}/mvp-screenshots
+      MVP_SCREENSHOT_FIXTURE: ${{ runner.temp }}/mvp-screenshot-fixture.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create disposable MySQL schema and fictional repair records
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo systemctl start mysql
+          sed -e 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_operator/' \
+              -e 's/^USE repairtrack;$/USE repairtrack_test_operator;/' database/schema.sql \
+              | mysql -h 127.0.0.1 -u root
+          mkdir -p "$RUNNER_TEMP/mvp-intake" "$RUNNER_TEMP/mvp-stock"
+          cat > config/config.php <<'PHP'
+          <?php
+          return [
+              'host' => '127.0.0.1',
+              'port' => 3306,
+              'database' => 'repairtrack_test_operator',
+              'username' => 'root',
+              'password' => getenv('MYSQL_PWD'),
+              'app_url' => 'http://127.0.0.1:8742',
+              'intake_storage_path' => getenv('RUNNER_TEMP') . '/mvp-intake',
+              'inventory_evidence_path' => getenv('RUNNER_TEMP') . '/mvp-stock',
+              'intake_hmac_key' => str_repeat('ab', 32),
+          ];
+          PHP
+          php tools/seed.php > "$RUNNER_TEMP/mvp-seed-credentials"
+          export MVP_STAFF_PASSWORD="$(sed -n 's/^Generated simulation password (save it privately): //p' "$RUNNER_TEMP/mvp-seed-credentials")"
+          test -n "$MVP_STAFF_PASSWORD"
+          php -r '
+          require "app/db.php";
+          $pdo = getPDO();
+          $record = $pdo->query("SELECT t.portal_code AS code, RIGHT(c.normalized_value, 4) AS pin, d.ticket_device_id AS device FROM repair_tickets t JOIN customer_contacts c ON c.customer_id = t.customer_id JOIN ticket_devices d ON d.ticket_id = t.ticket_id WHERE t.ticket_code = \"SIM-RT-003\" AND c.contact_type = \"PHONE\" LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+          if (!$record) { throw new RuntimeException("Demo tracking record not found"); }
+          $record["password"] = getenv("MVP_STAFF_PASSWORD");
+          file_put_contents(getenv("MVP_SCREENSHOT_FIXTURE"), json_encode($record, JSON_THROW_ON_ERROR));
+          '
+          test -s "$MVP_SCREENSHOT_FIXTURE"
+
+      - name: Capture actual landing, tracking and staff pages in Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save --package-lock=false playwright-core@1.56.1
+          export CHROME_PATH="$(command -v google-chrome)"
+          php -S 127.0.0.1:8742 -t . tools/preview_router.php > "$RUNNER_TEMP/mvp-ui-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; rm -f "$MVP_SCREENSHOT_FIXTURE"' EXIT
+          curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/
+          node tests/mvp-preview-snapshots.mjs
+
+      - name: Upload UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repairtrack-mvp-ui-screenshots
+          path: mvp-screenshots/*.png
+          retention-days: 14
+          if-no-files-found: warn
