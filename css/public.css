@@ -145,3 +145,16 @@
   color: var(--steel-900);
   border-radius: 8px;
 }
+
+/* Keep customer estimate details readable without implying a payable invoice. */
+.public-estimate {
+  border-top: 1px solid var(--steel-600);
+  margin-top: 20px;
+  padding-top: 12px;
+}
+.public-estimate-total {
+  overflow-wrap: anywhere;
+}
+.public-estimate-total strong {
+  font-size: 1.2rem;
+}
