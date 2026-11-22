@@ -134,6 +134,14 @@ try {
     guardCheck(array_map('intval', $legacyStmt->fetchAll(PDO::FETCH_COLUMN))
         === [$aligned, $mismatched], 'Legacy mode no longer preserves prior ticket access.');
 
+    $dashboard = loadDashboardData($pdo, [], (int)$manager['user_id']);
+    guardCheck(count($dashboard['queue']) === 1 &&
+        $dashboard['queue'][0]['item_code'] === $seed . '-D1' &&
+        $dashboard['metrics']['activeRepairs'] === 1,
+        'Admin repair queue and KPI still expose a mismatched sibling.');
+    guardCheck($dashboard['metrics']['ticketsIssuedToday'] === 1,
+        'Restrictive repair mode unexpectedly changed ticket-level intake totals.');
+
     $details = consoleDevice($pdo, $manager, $aligned);
     guardCheck((int)$details['repair_branch_id'] === $origin, 'Aligned detail unavailable.');
     guardDenied(fn() => consoleDevice($pdo, $manager, $mismatched),

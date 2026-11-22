@@ -98,6 +98,19 @@ function consoleRepairGuardMode(): string
 }
 
 /**
+ * Stable, device-specific branch-alignment predicate (SQL aliases t and d).
+ * This is a DENY predicate, never a grant to a second branch.
+ */
+function consoleRepairAlignmentSql(): string
+{
+    return "d.repair_branch_id IS NOT NULL
+        AND d.repair_branch_id = t.accountable_branch_id
+        AND EXISTS (SELECT 1 FROM branches repair_guard
+            WHERE repair_guard.branch_id = d.repair_branch_id
+            AND repair_guard.is_active = 1)";
+}
+
+/**
  * Both aliases t and d are mandatory. Only use for device-specific data.
  * Caller-supplied $mode is intended for CLI scope tests; HTTP callers always
  * resolve the mode exclusively from the server-owned config file.
@@ -112,11 +125,7 @@ function consoleRepairAccessScope(array $user, ?string $mode = null): array
     if ($mode === 'restrict') {
         // A mismatched or unverified device is NOT an approved transfer.
         // Keep legacy branch AND technician assignment checks in force.
-        $scope .= " AND d.repair_branch_id IS NOT NULL
-            AND d.repair_branch_id = t.accountable_branch_id
-            AND EXISTS (SELECT 1 FROM branches repair_guard
-                WHERE repair_guard.branch_id = d.repair_branch_id
-                AND repair_guard.is_active = 1)
+        $scope .= ' AND ' . consoleRepairAlignmentSql() . "
             AND EXISTS (SELECT 1 FROM users repair_actor
                 WHERE repair_actor.user_id = ? AND repair_actor.is_active = 1)";
         $params[] = (int) $user['user_id'];

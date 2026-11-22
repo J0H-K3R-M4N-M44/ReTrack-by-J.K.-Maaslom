@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/web.php';
+require_once __DIR__ . '/console/scopes.php';
 
 /**
  * Read the data shown by the admin dashboard.
@@ -18,11 +19,18 @@ function loadDashboardData(PDO $pdo, array $input = [], ?int $userId = null): ar
         JOIN branches scope_b ON scope_b.branch_id = scope_a.branch_id
         WHERE scope_a.user_id = $userId AND scope_b.is_active = 1
         AND scope_a.branch_id = COALESCE(t.accountable_branch_id, t.intake_branch_id))";
+    // Device queue/counts obey the optional restrict-only branch-alignment
+    // gate. Ticket/customer/draft totals below deliberately retain contract
+    // authority; physical repair location does not grant billing or intake.
+    $deviceScope = $scope;
+    if (consoleRepairGuardMode() === 'restrict') {
+        $deviceScope .= ' AND ' . consoleRepairAlignmentSql();
+    }
     $statusCounts = $pdo
         ->query(
             "SELECT d.repair_status, COUNT(*) AS total
         FROM ticket_devices d JOIN repair_tickets t ON t.ticket_id = d.ticket_id
-        WHERE t.record_stage = 'ISSUED' AND $scope GROUP BY d.repair_status ORDER BY d.repair_status",
+        WHERE t.record_stage = 'ISSUED' AND $deviceScope GROUP BY d.repair_status ORDER BY d.repair_status",
         )
         ->fetchAll();
     // Reuse grouped counts for metrics and reports instead of scanning devices twice.
@@ -64,7 +72,7 @@ function loadDashboardData(PDO $pdo, array $input = [], ?int $userId = null): ar
         FROM ticket_devices d
         JOIN repair_tickets t ON t.ticket_id = d.ticket_id
         LEFT JOIN customers c ON c.customer_id = t.customer_id
-        WHERE t.record_stage = 'ISSUED' AND $scope
+        WHERE t.record_stage = 'ISSUED' AND $deviceScope
         AND (COALESCE(t.ticket_code, '') LIKE ? ESCAPE '!'
             OR COALESCE(c.full_name, '') LIKE ? ESCAPE '!'
             OR COALESCE(d.model_snapshot, '') LIKE ? ESCAPE '!')";
