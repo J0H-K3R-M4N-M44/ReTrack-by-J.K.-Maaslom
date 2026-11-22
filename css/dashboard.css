@@ -508,6 +508,15 @@
     white-space: normal;
     text-align: center;
   }
+  /* Negative offsets on decorative ::after circles inflate scrollWidth on
+     narrow screens even when the card visually clips its contents. */
+  .metric-card::after {
+    right: 0;
+    bottom: 0;
+    width: 64px;
+    height: 64px;
+    opacity: 0.45;
+  }
 
   .analytics-grid {
     grid-template-columns: 1fr 1fr;
