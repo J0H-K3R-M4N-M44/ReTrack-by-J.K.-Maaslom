@@ -47,6 +47,11 @@
             <?php endif; ?>
         </dl>
     </section>
+    <?php if (in_array($user['role'], ['ADMIN', 'MANAGER', 'TECHNICIAN'], true)): ?>
+    <section class="dashboard-card next-action"><h2>Parts needed for this repair</h2>
+    <p>Submit or review internal part requests without changing the customer quote or branch stock.</p>
+    <a class="secondary-btn" href="part_requests.php?device_id=<?= (int) $id ?>">Open part requests</a></section>
+    <?php endif; ?>
     <?php if (quoteCanPrepare($user) || quoteCanRecord($user)): ?>
     <section class="dashboard-card next-action"><div class="section-heading"><h2>Estimate and approval</h2><span class="workspace-status"><?= h(
         str_replace('_', ' ', $quote['quote_status'] ?? 'NOT PREPARED'),
