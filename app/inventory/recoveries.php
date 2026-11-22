@@ -41,14 +41,16 @@ function partsRecoveryReport(PDO $pdo, int $actorId, int $lossId,
         if ((int)$manifest['initiated_by_user_id']===$actorId) {
             throw new DomainException('The dispatcher cannot verify their own recovered shipment.');
         }
+        $itemId = (int)stockRun($pdo, 'SELECT inventory_transfer_item_id
+            FROM stock_transfer_loss_cases WHERE loss_case_id=?',[$lossId])->fetchColumn();
+        $item = stockRun($pdo, 'SELECT * FROM inventory_transfer_items
+            WHERE inventory_transfer_item_id=? AND inventory_transfer_id=? FOR UPDATE',
+            [$itemId,(int)$transferId])->fetch();
         $loss = stockRun($pdo, 'SELECT * FROM stock_transfer_loss_cases
             WHERE loss_case_id=? FOR UPDATE',[$lossId])->fetch();
         if (!$loss || $loss['status']!=='APPROVED') {
             throw new DomainException('Only independently approved losses can be physically recovered.');
         }
-        $item = stockRun($pdo, 'SELECT * FROM inventory_transfer_items
-            WHERE inventory_transfer_item_id=? AND inventory_transfer_id=? FOR UPDATE',
-            [(int)$loss['inventory_transfer_item_id'],(int)$transferId])->fetch();
         if (!$item || $item['item_status']!=='LOSS_CLOSED') {
             throw new DomainException('This shipment line has no outstanding approved loss.');
         }
