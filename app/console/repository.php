@@ -65,11 +65,12 @@ function consoleDevice(PDO $pdo, array $user, int $id, bool $lock = false): arra
     [$scope, $params] = consoleScope($user);
     $query = $pdo->prepare(
         "SELECT d.*, t.accountable_branch_id, t.ticket_code, t.case_state,
-        b.branch_name, l.location_name,
+        b.branch_name, repair_b.branch_name AS repair_branch_name, l.location_name,
         (SELECT MAX(e.status_event_id) FROM ticket_status_events e WHERE e.ticket_device_id = d.ticket_device_id) AS latest_event
         FROM ticket_devices d
         JOIN repair_tickets t ON t.ticket_id = d.ticket_id
         JOIN branches b ON b.branch_id = t.accountable_branch_id
+        LEFT JOIN branches repair_b ON repair_b.branch_id = d.repair_branch_id
         LEFT JOIN storage_locations l ON l.location_id = d.physical_location_id
         WHERE $scope AND d.ticket_device_id = ?" . ($lock ? ' FOR UPDATE' : ''),
     );
