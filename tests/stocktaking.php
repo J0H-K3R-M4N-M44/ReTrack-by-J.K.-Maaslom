@@ -71,6 +71,10 @@ stocktakeCount($pdo,$manager['user_id'],$first,$b,$secondShelf['on_hand'],
 $thirdShelf=stockShelfState($pdo,$branch,$c);
 stocktakeCount($pdo,$manager['user_id'],$first,$c,$thirdShelf['on_hand'],
     $thirdShelf['reserved'],$thirdShelf['movement_id'],'2.000',$note,true);
+// An early counter must remain ineligible as reviewer even after a newer count
+// replaces the working counted_by field: count history is independently audited.
+stocktakeCount($pdo,$manager['user_id'],$first,$a,$firstShelf['on_hand'],
+    $firstShelf['reserved'],$firstShelf['movement_id'],'5.000',$note,true);
 expectResult(stocktakeDesk($pdo,$manager['user_id'],$branch)['discrepancies']===1,
     'One physical count variance was not reported.');
 expectRefusal(fn()=>stocktakeSubmit($pdo,$secondManager['user_id'],$first,
