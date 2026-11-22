@@ -219,7 +219,8 @@ function acceptTransferredRepair(
         }
 
         $devicesQuery = $pdo->prepare('SELECT d.ticket_device_id, d.item_code, d.repair_status,
-            d.custody_state, d.assigned_technician_id, l.branch_id AS location_branch_id
+            d.custody_state, d.assigned_technician_id, d.repair_branch_id,
+            l.branch_id AS location_branch_id
             FROM ticket_devices d LEFT JOIN storage_locations l ON l.location_id = d.physical_location_id
             WHERE d.ticket_id = ? ORDER BY d.ticket_device_id FOR UPDATE');
         $devicesQuery->execute([$ticketId]);
@@ -243,6 +244,13 @@ function acceptTransferredRepair(
             if (!isset($received[$id]) || $device['custody_state'] !== 'AT_LOCATION' ||
                 (int) $device['location_branch_id'] !== $destination) {
                 throw new DomainException('Every device on this ticket must be received at the destination on this manifest.');
+            }
+            // Never silently seize siblings already under a different repair
+            // branch; whole-ticket acceptance requires uniform old ownership.
+            if ((int) $device['repair_branch_id'] !== $expectedOrigin) {
+                throw new DomainException(
+                    'This ticket has mixed or unverified repair ownership. Review its devices before whole-ticket acceptance.'
+                );
             }
             if (!in_array($device['repair_status'],
                 ['RECEIVED', 'DIAGNOSING', 'AWAITING_PARTS', 'AWAITING_CUSTOMER_APPROVAL'], true)) {
