@@ -1,17 +1,18 @@
 name: Staff activity isolation
 on:
   push:
-    branches: [Tracking-And-Activity-UX]
+    branches: [Tracking-And-Activity-UX, main]
     paths:
       - '.github/workflows/staff-activity.yml'
-      - 'tests/staff-activity.php'
+      - 'tests/*.php'
+      - 'tools/*.php'
+      - 'admin/*.php'
+      - 'database/*.sql'
+      - 'track.php'
       - 'tests/activity-browser.mjs'
-      - 'admin/activity.php'
       - 'views/**'
       - 'css/**'
       - 'js/**'
-      - 'tools/simulation_data.php'
-      - 'database/schema.sql'
       - 'app/**'
   workflow_dispatch:
 
@@ -51,3 +52,27 @@ jobs:
           trap 'kill "$server_pid"; rm -f "$ACTIVITY_FIXTURE"' EXIT
           curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
           node tests/activity-browser.mjs
+      - name: Verify reports, seeded workflow and schema upgrades
+        env:
+          MYSQL_PWD: root
+        run: |
+          set -euo pipefail
+          php tests/staff-reports.php
+          php tests/seeded-workflow.php
+          php tests/migrations.php
+      - name: Verify intake and ticket issuance against the regression fixtures
+        env:
+          MYSQL_PWD: root
+        run: |
+          set -euo pipefail
+          cat > config/config.php <<'PHP'
+          <?php
+          return ['host' => '127.0.0.1', 'database' => 'repairtrack_test_intake',
+              'username' => 'root', 'password' => getenv('MYSQL_PWD'),
+              'intake_storage_path' => getenv('RUNNER_TEMP') . '/intake',
+              'intake_hmac_key' => str_repeat('ab', 32)];
+          PHP
+          mkdir -p "$RUNNER_TEMP/intake"
+          sed 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_intake/;s/^USE repairtrack;$/USE repairtrack_test_intake;/' database/schema.sql | mysql -h 127.0.0.1 -u root
+          sed 's/repairtrack_demo/repairtrack_test_intake/g' tests/fixtures/demo/seed_demo.sql | mysql -h 127.0.0.1 -u root
+          php tests/ticket-issuance.php
