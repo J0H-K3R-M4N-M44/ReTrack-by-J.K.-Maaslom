@@ -192,12 +192,9 @@ jobs:
           export PICKUP_FIXTURE="$RUNNER_TEMP/pickup.json"
           umask 077
           php tests/payment-pickup.php --browser-fixture > "$PICKUP_FIXTURE"
-          php tests/ownership-browser-fixture.php
           php -S 127.0.0.1:8742 > "$RUNNER_TEMP/php-server.log" 2>&1 &
           trap 'kill $!; rm -f "$PICKUP_FIXTURE"' EXIT
           curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
-          node tests/ownership-browser.mjs
-          php tests/ownership-browser-cleanup.php
           node tests/payment-browser.mjs
       - name: Save staff workspace screenshots
         if: always()
@@ -207,3 +204,48 @@ jobs:
           path: ${{ runner.temp }}/workspace-screens/
           retention-days: 7
           if-no-files-found: ignore
+
+
+  # Separate job = separate ephemeral runner, database, PHP session directory,
+  # and IP throttle budget. Never weaken application login protection for tests.
+  ownership-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    env:
+      MYSQL_PWD: root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare isolated ownership browser fixture
+        run: |
+          set -euo pipefail
+          sudo systemctl start mysql
+          sed -e 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_pickup/' \
+              -e 's/^USE repairtrack;$/USE repairtrack_test_pickup;/' database/schema.sql | mysql -h 127.0.0.1 -u root
+          mkdir -p "$RUNNER_TEMP/ownership-intake" "$RUNNER_TEMP/ownership-stock"
+          cat > config/config.php <<'PHP'
+          <?php
+          return [
+              'host' => '127.0.0.1', 'database' => 'repairtrack_test_pickup',
+              'username' => 'root', 'password' => getenv('MYSQL_PWD'),
+              'intake_storage_path' => getenv('RUNNER_TEMP') . '/ownership-intake',
+              'inventory_evidence_path' => getenv('RUNNER_TEMP') . '/ownership-stock',
+              'intake_hmac_key' => str_repeat('ab', 32),
+          ];
+          PHP
+          php -l tests/ownership-browser-fixture.php
+          php -l tests/ownership-browser-cleanup.php
+          node --check tests/ownership-browser.mjs
+      - name: Verify authorized/denied ownership views across role and viewport boundaries
+        run: |
+          set -euo pipefail
+          npm install --no-save --package-lock=false playwright-core@1.56.1
+          umask 077
+          export PICKUP_FIXTURE="$RUNNER_TEMP/ownership-pickup.json"
+          php tests/payment-pickup.php --browser-fixture > "$PICKUP_FIXTURE"
+          php tests/ownership-browser-fixture.php
+          php -S 127.0.0.1:8742 > "$RUNNER_TEMP/ownership-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; rm -f "$PICKUP_FIXTURE"' EXIT
+          curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
+          node tests/ownership-browser.mjs
+          php tests/ownership-browser-cleanup.php
