@@ -86,9 +86,10 @@ try {
         'Unknown document root should require review');
 
     $webApp = resultFor($valid, $project, $root);
-    confirm(acceptanceResult($webApp) === 3 &&
-        containsState($webApp, 'WARN', 'Internal application folders'),
-        'Application inside docroot warning missing');
+    confirm(acceptanceResult($webApp) === 2 &&
+        containsState($webApp, 'WARN', 'Internal application folders') &&
+        containsState($webApp, 'BLOCK', 'evidence'),
+        'Application-inside-docroot warning and private evidence block missing');
 
     $invalidRoot = resultFor($valid, $project, $root . '/missing');
     confirm(acceptanceResult($invalidRoot) === 2 &&
