@@ -77,6 +77,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 $_SESSION['cash_saved'] = 'Counter-cash payment recorded.';
                 $billId = $pageId;
+            } elseif (in_array($pageAction, ['correction', 'refund'], true)) {
+                cashRecordBillChange(
+                    $pdo, (int) $user['user_id'], $pageId, $formState['version'],
+                    $pageAction, $formValues['amount'], $formValues['reason'], $formValues['confirm'] === 'yes',
+                );
+                $billId = $pageId;
+                $_SESSION['cash_saved'] = $pageAction === 'refund' ? 'Cash refund recorded.' : 'Bill correction recorded.';
             } else {
                 cashCompleteHandover(
                     $pdo,
@@ -143,13 +150,26 @@ try {
         $bill = cashBillDetails($pdo, $user, (int) requestText($_GET, 'bill_id'));
         $handover = cashHandoverPreview($pdo, $user, (int) $bill['ticket_id']);
         $pageId = (int) $bill['bill_id'];
-        if ($bill['bill_status'] === 'ISSUED' && $bill['case_state'] === 'OPEN') {
-            $action = $bill['balance_cents'] > 0 ? 'payment' : 'handover';
-            $formKey = cashStartForm($action, $pageId, $bill['version']);
-            $formState = $_SESSION['cash_forms'][$formKey];
-            $pageAction = $action;
-            if ($action === 'payment') {
+        $requested = requestText($_GET, 'cash_action');
+        $canCorrect = in_array($user['role'], ['ADMIN', 'MANAGER'], true) &&
+            cashAmountCents((string) $bill['amount_paid']) > 0;
+        $canRefund = in_array($user['role'], ['ADMIN', 'CASHIER'], true) && $bill['refund_due_cents'] > 0;
+        if ($bill['bill_status'] === 'ISSUED') {
+            if ($requested === 'correction' && $canCorrect) {
+                $pageAction = 'correction';
+                $formValues['amount'] = cashAmountText($bill['corrected_cents']);
+            } elseif ($requested === 'refund' && $canRefund) {
+                $pageAction = 'refund';
+                $formValues['amount'] = cashAmountText($bill['refund_due_cents']);
+            } elseif ($bill['balance_cents'] > 0 && ($bill['case_state'] === 'OPEN' || $bill['latest_change_id'])) {
+                $pageAction = 'payment';
                 $formValues['amount'] = cashAmountText($bill['balance_cents']);
+            } elseif ($bill['case_state'] === 'OPEN') {
+                $pageAction = 'handover';
+            }
+            if ($pageAction !== '') {
+                $formKey = cashStartForm($pageAction, $pageId, $bill['version']);
+                $formState = $_SESSION['cash_forms'][$formKey];
             }
         }
     }
@@ -207,6 +227,11 @@ function cashPostedValues(string $action, array $input): array
             'amount' => trim(requestText($input, 'amount')),
             'confirm' => requestText($input, 'confirm'),
         ],
+        'correction', 'refund' => [
+            'amount' => trim(requestText($input, 'amount')),
+            'reason' => trim(requestText($input, 'reason')),
+            'confirm' => requestText($input, 'confirm'),
+        ],
         'handover' => [
             'recipient' => trim(requestText($input, 'recipient')),
             'relationship' => requestText($input, 'relationship'),
@@ -227,6 +252,12 @@ function cashValidateReview(string $action, array $values): void
         }
         if ($values['confirm'] !== 'yes') {
             throw new DomainException('Confirm that you counted the physical cash received.');
+        }
+    }
+    if (in_array($action, ['correction', 'refund'], true)) {
+        cashAmountCents($values['amount']);
+        if ($values['reason'] === '' || mb_strlen($values['reason']) > 500 || $values['confirm'] !== 'yes') {
+            throw new DomainException('Enter a reason and confirm the change.');
         }
     }
     if ($action === 'handover') {
