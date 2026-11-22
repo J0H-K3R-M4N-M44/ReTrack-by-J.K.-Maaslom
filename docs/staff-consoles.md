@@ -1,5 +1,7 @@
 # Staff consoles and quick intake
 
+> **Feature history with current permissions.** Staff consoles, intake and assigned-device repair functions are integrated into `main`. Later modules also added physical device transfer/receipt, whole-ticket branch acceptance, counter-cash billing, parts controls and sign-off workflows. This file's older “pending” claims below are superseded by [system overview](system-overview.md), [security boundaries](security-and-privacy.md), and [open gaps](system-gaps.md). Partial-ticket repair ownership remains disabled.
+
 ## Current roles
 
 | Role | Console and allowed actions |
@@ -11,7 +13,7 @@
 | Courier | Read-only item-level transfer manifests for assigned origin/destination branches, with route, destination storage and handover condition notes. |
 | Viewer | Read-only device status and location for assigned branches. No customer contact, intake descriptions, signatures or private notes. |
 
-Cashiers can search bills, record counter cash and finish a paid counter pickup. Managers and administrators can issue a final bill after every device on the ticket is ready and has an approved estimate. COD, courier handover, transfer dispatch and transfer receipt remain pending.
+Cashiers can search bills, record counter cash and finish a paid counter pickup. Managers and administrators can issue a final bill after every device on the ticket is ready and has an approved estimate. **Historical wording correction:** COD delivery settlement and courier delivery remain pending. Authorized physical device dispatch/receipt and whole-ticket repair responsibility handoff are now implemented in the later PHP custody module; partial-ticket ownership is not.
 
 ## Screen layout and workflow
 

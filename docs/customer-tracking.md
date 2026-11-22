@@ -1,5 +1,7 @@
 # Customer tracking and console workflow
 
+> **Integrated customer-tracking milestone.** This was first developed relative to `Simplified-System`; code is now in `main`. It provides private code/PIN access and staff-safe updates, **not** general customer login, two-way chat, customer self-approval or live GPS. The present permission/public data boundaries are in [security](security-and-privacy.md) and [system overview](system-overview.md).
+
 This increment is based on Simplified-System. It brings the prototype's customer entry point, service overview, repair status, custody and timeline into the PHP application. Data comes from MySQL, not browser demo storage. The staff workspace update requires `database/staff_workspace.sql`; see `staff-workspace.md`.
 
 ## Staff → customer → technician

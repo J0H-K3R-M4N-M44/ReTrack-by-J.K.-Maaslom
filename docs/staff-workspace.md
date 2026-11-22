@@ -1,6 +1,8 @@
 # Staff workspace
 
-This branch extends the PHP application. Main is unchanged. It uses the prototype's compact dark interface, with one selected work list instead of repeated tables.
+> **Integrated milestone, originally written on a feature branch.** Its statement that `main` was unchanged applies only to the time of that original change; staff workspaces and reporting are now integrated. The migration tool now covers **15 known incremental scripts** on `Partial-Ticket-Ownership`, not just staff and payment changes. Apply upgrades only after backups and test-database rehearsal: [migration guide](migration-runner.md).
+
+This page records the earlier staff-workspace PHP milestone; later releases integrated it into main. It uses the prototype's compact dark interface, with one selected work list instead of repeated tables.
 
 ## Upgrade an existing installation
 

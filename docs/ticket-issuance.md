@@ -1,5 +1,7 @@
 # Ticket issuance
 
+> **Integrated issuance milestone.** The evidence-backed issuance behavior described below is in `main`. “No schema migration” refers to that **original milestone only**: the unmerged `Partial-Ticket-Ownership` branch now adds `ticket_devices.repair_branch_id` initialized at issuance. Do not perform feature-branch database upgrades without [current migration safeguards](migration-runner.md).
+
 ## Workflow and wireframe
 
 Draft → intake checks → confirmation → issued ticket receipt.

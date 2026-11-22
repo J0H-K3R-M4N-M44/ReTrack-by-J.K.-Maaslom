@@ -1,5 +1,7 @@
 # Public home content
 
+> **Historical home-copy design note.** This page documents an earlier public landing content pass. Descriptions below contrasting then-current intake with “planned public tracking, quotes and billing” were written **before** those PHP workflows were integrated. The actual feature status is in [system overview](system-overview.md); customer-facing copy must be checked against current shop policies before publication.
+
 The home page now explains the visit from check-in through assessment and collection, lists what customers should prepare, describes team responsibilities, and answers common questions using native expandable FAQ elements.
 
 The page distinguishes current administrator intake, ticket reference and staff-account capabilities from planned public tracking, quotes, billing and role-specific tools. It does not invent operating hours, shop contact details or repair turnaround promises.

@@ -1,5 +1,7 @@
 # Quote and approval workflow
 
+> **Historical milestone specification.** The quote/revision and staff-recorded approval workflow described below was later integrated into `main`. Its original branch and “main unchanged” statements refer to that earlier milestone. **Current stock-aware estimates may link catalog parts, reservations, installation and returns**; the older sentence saying parts estimates never reserve stock is not a complete description of today's inventory pilot. Customer self-approval and post-start change orders are still unfinished. See [system overview](system-overview.md), [architecture](architecture.md) and [release status](release-status.md).
+
 This branch builds on Staff-Workspace. Apply `database/staff_workspace.sql` if you have not already done so. This increment adds no tables or columns. Main and Simplified-System are unchanged.
 
 ## Daily use

@@ -1,5 +1,7 @@
 # Staff accounts
 
+> **Integrated staff-account feature.** These account, activation and branch-assignment functions are present in `main`. Historical test results below apply only to their cited environment/date; always validate the current commit and target database. Staff permissions remain branch-scoped, not globally administrative. See [security](security-and-privacy.md) and [verification](testing-and-verification.md).
+
 Administrators open **Staff management** from the dashboard. Search, role and access filters help locate existing accounts; the directory shows 12 records per page and the full matching count.
 
 ## Add a person

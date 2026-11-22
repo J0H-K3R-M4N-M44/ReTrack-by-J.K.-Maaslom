@@ -6,7 +6,7 @@
 
 - `main` baseline: `f817154f2e5f5ac04daf8bf0c5b3dd0167e17f0b`, contains prior integrated milestones.
 - `Partial-Ticket-Ownership`: adds database foundation, a read-only ownership display, guarded scope prototypes, negative tests and dedicated disposable MySQL suite.
-- **Observed pass**: GitHub-hosted [MySQL integrity run 44989851868](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44989851868) on commit `738bfada` passed all eight stages. Earlier [run 44989776748](https://github.com/J0H-K3R-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44989776748) is **not** authoritative; use the correct repository and exact run URL in PR #55. Each later docs/code commit must have its own run.
+- **Observed pass**: GitHub-hosted [MySQL integrity run 44989851868](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44989851868) on commit `738bfada` passed all eight stages. Earlier [run 44989776748](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44989776748) also passed earlier, but run 44989851868 is the later documented passing checkpoint. Each later docs/code commit must have its own run.
 - **Not established by that pass**: independently successful payment-browser and staff-activity workflow runs at the final feature HEAD, deployed database migration, production recovery, complete permission cutover, real SMS, accounting integration or partial-ticket acceptance.
 
 ## Test matrix
