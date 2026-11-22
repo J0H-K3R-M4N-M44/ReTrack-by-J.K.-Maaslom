@@ -132,6 +132,17 @@ expectRefusal(fn() => consoleDevice($pdo, $otherManager, $device), 'outside your
 expectRefusal(fn() => acceptTransferredRepair($pdo, $manager['user_id'], $manifestId,
     $ticket, $branch, 'Repeated acceptance must not succeed.', true),
     'ticket changed');
+$receivingTechId = insertFixture($pdo,
+    "INSERT INTO users (full_name,email,password_hash,role) VALUES (?,?,?,'TECHNICIAN')",
+    ['Receiving technician', $run.'-receiving-tech@example.test', 'unused']);
+stockRun($pdo, 'INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)',
+    [$receivingTechId,$neighbor]);
+consoleSave($pdo, $manager['user_id'], $device, consoleVersion(consoleDevice($pdo, $manager, $device)),
+    ['action'=>'assign', 'technician'=>(string) $receivingTechId]);
+expectResult((int) stockRun($pdo, 'SELECT assigned_technician_id FROM ticket_devices WHERE ticket_device_id=?',
+    [$device])->fetchColumn() === $receivingTechId, 'Receiving branch could not assign its technician.');
+expectResult((int) consoleDevice($pdo, ['user_id'=>$receivingTechId,'role'=>'TECHNICIAN'], $device)['ticket_device_id']
+    === $device, 'Receiving technician cannot view the accepted repair.');
 stockChange($pdo, $manager['user_id'], $device, $handoffItem, 0, 'reserve');
 $destinationHold = (int) stockRun($pdo,
     'SELECT reservation_id FROM stock_reservations WHERE quote_item_id=? AND branch_id=?',
