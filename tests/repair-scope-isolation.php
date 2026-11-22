@@ -85,4 +85,33 @@ expectRefusal(fn() => cashPageTicket($pdo, $receivingManager, $ticket),
 expectResult(count(cashPageTicket($pdo, $manager, $ticket)['devices']) === 2,
     'Ticket financial authority no longer includes all of its devices.');
 
-echo "PASS: two-device branch isolation: proposed repair views, legacy permissions and independent ticket money scope.\n";
+// Fail closed when an operator is deactivated, membership is removed or a
+// branch is disabled. Every change is confined to disposable test fixtures.
+$pdo->prepare('UPDATE users SET is_active=0 WHERE user_id=?')
+    ->execute([$receivingManager['user_id']]);
+expectResult($visibleDevices(consoleProposedRepairScope($receivingManager)) === [],
+    'Deactivated manager retained proposed device access.');
+$pdo->prepare('UPDATE users SET is_active=1 WHERE user_id=?')
+    ->execute([$receivingManager['user_id']]);
+
+$pdo->prepare('DELETE FROM user_branch_assignments WHERE user_id=? AND branch_id=?')
+    ->execute([$receivingManager['user_id'], $recipientBranch]);
+expectResult($visibleDevices(consoleProposedRepairScope($receivingManager)) === [],
+    'Revoked branch assignment retained proposed device access.');
+$pdo->prepare('INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)')
+    ->execute([$receivingManager['user_id'], $recipientBranch]);
+
+$pdo->prepare('UPDATE branches SET is_active=0 WHERE branch_id=?')
+    ->execute([$recipientBranch]);
+expectResult($visibleDevices(consoleProposedRepairScope($receivingManager)) === [] &&
+    !$visibleTicket(consoleTicketFinanceScope($receivingCashier)),
+    'Inactive branch retained device or ticket-finance access.');
+$pdo->prepare('UPDATE branches SET is_active=1 WHERE branch_id=?')
+    ->execute([$recipientBranch]);
+
+$pdo->prepare('UPDATE ticket_devices SET assigned_technician_id=NULL WHERE ticket_device_id=?')
+    ->execute([$sibling]);
+expectResult($visibleDevices(consoleProposedRepairScope($receivingTechnician)) === [],
+    'Technician without a device assignment retained repair access.');
+
+echo "PASS: two-device isolation, legacy permissions, independent ticket money and revoked-account/branch denials.\n";
