@@ -16,6 +16,13 @@ on:
       - 'tests/public-browser.mjs'
       - 'tests/quotes.php'
       - 'tests/public-tracking.php'
+      - 'app/staff/locations.php'
+      - 'admin/locations.php'
+      - 'views/staff/locations.php'
+      - 'tests/storage-locations.php'
+      - 'views/workspace/navigation.php'
+      - 'views/intake/issue.php'
+      - 'views/staff/manage.php'
       - 'tests/staff-consoles.php'
       - '.github/workflows/mvp-stabilization.yml'
       - 'app/dashboard_data.php'
@@ -157,6 +164,11 @@ jobs:
         run: |
           set -euo pipefail
           php tests/staff-consoles.php
+          php -l app/staff/locations.php
+          php -l admin/locations.php
+          php -l views/staff/locations.php
+          php -l tests/storage-locations.php
+          php tests/storage-locations.php
           case "${{ matrix.suite }}" in
             quotes) php tests/quotes.php ;;
             public) php tests/public-tracking.php ;;
