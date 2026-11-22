@@ -40,3 +40,33 @@ jobs:
           done
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8742/css/base.css)" = 200
           test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8742/js/login.js)" = 200
+
+  windows-preview:
+    runs-on: windows-2022
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: Verify Windows localhost routes and confidential-file denial
+        shell: pwsh
+        run: |
+          php -l tools/preview_router.php
+          $server = Start-Process -FilePath "php" -ArgumentList @("-S", "127.0.0.1:8742", "-t", ".", "tools/preview_router.php") -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/preview-windows.out" -RedirectStandardError "$env:RUNNER_TEMP/preview-windows.err"
+          try {
+            Start-Sleep -Seconds 3
+            foreach ($path in @("/", "/index.php", "/css/base.css", "/admin/login.php")) {
+              $code = (Invoke-WebRequest -Uri "http://127.0.0.1:8742$path" -SkipHttpErrorCheck -UseBasicParsing).StatusCode
+              Write-Host "$path => $code"
+              if ($code -ne 200) { throw "Approved route $path returned $code" }
+            }
+            foreach ($path in @("/tools/seed.php", "/config/config.example.php", "/database/schema.sql", "/app/db.php", "/.git/config")) {
+              $code = (Invoke-WebRequest -Uri "http://127.0.0.1:8742$path" -SkipHttpErrorCheck -UseBasicParsing).StatusCode
+              Write-Host "$path => $code"
+              if ($code -ne 404) { throw "Internal route $path returned $code" }
+            }
+          } finally {
+            Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue
+            Get-Content "$env:RUNNER_TEMP/preview-windows.err" -ErrorAction SilentlyContinue | Select-Object -Last 30
+          }
