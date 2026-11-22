@@ -66,7 +66,7 @@ $activeStep = $expired ? 1 : match ($latest['quote_status'] ?? '') {
  ) ?></dd></div><?php endforeach; ?></dl>
 <p class="quote-total">Estimated total <strong><?= h($latest['currency']) ?> <?= h(
      number_format((float) $latest['total_amount'], 2),
- ) ?></strong></p><p>This estimate is not a bill or payment receipt. Parts charges do not reserve stock.</p>
+ ) ?></strong></p><p>This estimate is not a bill or payment receipt. Only an approved catalog part recorded as reserved is held from branch availability.</p>
 <?php endif; ?></section>
 <?php if ($canPrepare && $device['case_state'] === 'OPEN' && $latest && $latest['quote_status'] === 'APPROVED'): ?>
 <?php foreach ($items as $item): if (!$item['tracks_branch_stock']) continue; ?>
@@ -74,6 +74,29 @@ $activeStep = $expired ? 1 : match ($latest['quote_status'] ?? '') {
     <h2>Branch stock · <?= h($item['description']) ?></h2>
     <p><?= h($device['branch_name']) ?> · <?= h($item['available'] ?? '0') ?> available ·
         <?= $item['installed'] ? 'Installed' : ($item['reservation_id'] ? 'Reserved for this device' : 'Awaiting reservation') ?></p>
+    <?php if ($item['installed'] && $device['repair_status'] === 'IN_PROGRESS' &&
+        in_array($user['role'], ['ADMIN', 'MANAGER'], true)): ?>
+    <form method="post" class="quote-form">
+        <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+        <input type="hidden" name="intent" value="stock">
+        <input type="hidden" name="form_key" value="<?= h($formKey) ?>">
+        <input type="hidden" name="item_id" value="<?= (int) $item['quote_item_id'] ?>">
+        <input type="hidden" name="hold_id" value="<?= (int) $item['installed_movement_id'] ?>">
+        <input type="hidden" name="stock_action" value="return">
+        <p>Only return a physically removed, inspected, reusable part to the original branch stock.
+           This reverses its installation record, but keeps both movements in the audit history.
+           The part must be reserved and installed again before testing or billing.</p>
+        <label>Reason for return
+            <textarea name="return_reason" minlength="10" maxlength="500" required rows="2"
+                placeholder="Describe why the part was removed and confirm it was inspected."></textarea>
+        </label>
+        <label class="confirmation-check">
+            <input type="checkbox" name="restock_confirm" value="yes" required>
+            I personally verified this part was removed, inspected, and is reusable at this branch.
+        </label>
+        <button class="secondary-btn" type="submit">Record part return to stock</button>
+    </form>
+    <?php endif; ?>
     <?php if (!$item['installed'] && !in_array($device['repair_status'], ['CANCELLED','COMPLETED'], true)): ?>
     <form method="post" class="staff-actions">
         <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">

@@ -51,7 +51,8 @@ try {
         $intent = requestText($_POST, 'intent');
         if ($intent === 'stock') {
             stockChange($pdo, (int) $user['user_id'], (int) $id, (int) requestText($_POST, 'item_id'),
-                (int) requestText($_POST, 'hold_id'), requestText($_POST, 'stock_action'));
+                (int) requestText($_POST, 'hold_id'), requestText($_POST, 'stock_action'),
+                requestText($_POST, 'return_reason'), requestText($_POST, 'restock_confirm') === 'yes');
             unset($_SESSION['quote_forms'][$formKey]);
             $_SESSION['quote_saved'] = 'Branch stock updated.';
             header('Location: quote.php?' . http_build_query(['id' => $id, 'return' => $returnQuery]), true, 303);
@@ -141,6 +142,14 @@ try {
         );
         $query->execute([$id, $device['accountable_branch_id'], $latest['quote_id']]);
         $items = $query->fetchAll();
+        foreach ($items as &$item) {
+            if ((int) ($item['tracks_branch_stock'] ?? 0) !== 1) {
+                continue;
+            }
+            $item['installed_movement_id'] = stockActiveInstallation($pdo, (int) $id, (int) $item['quote_item_id']);
+            $item['installed'] = $item['installed_movement_id'] > 0;
+        }
+        unset($item);
     }
     $history = dashboardPage(
         $pdo,
