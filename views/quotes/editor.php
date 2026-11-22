@@ -76,7 +76,7 @@ $activeStep = $expired ? 1 : match ($latest['quote_status'] ?? '') {
         <?= $item['installed'] ? 'Installed' : ($item['reservation_id'] ? 'Reserved for this device' : 'Awaiting reservation') ?></p>
     <?php if ($item['installed'] && $device['repair_status'] === 'IN_PROGRESS' &&
         in_array($user['role'], ['ADMIN', 'MANAGER'], true)): ?>
-    <form method="post" class="payments-action">
+    <form method="post" class="quote-form">
         <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
         <input type="hidden" name="intent" value="stock">
         <input type="hidden" name="form_key" value="<?= h($formKey) ?>">
