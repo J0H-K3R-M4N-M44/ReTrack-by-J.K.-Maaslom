@@ -49,6 +49,7 @@ guardCheck(consoleRepairGuardMode() === 'restrict',
     'This integration round requires the server-owned restrict flag.');
 guardCheck((int) $pdo->query('SELECT @@SESSION.foreign_key_checks')->fetchColumn() === 1,
     'Foreign-key enforcement is disabled.');
+$fixtureCommitted = false;
 $pdo->beginTransaction();
 try {
     $seed = strtoupper(bin2hex(random_bytes(5)));
@@ -106,6 +107,11 @@ try {
     };
     $aligned = $addDevice(1, $origin, $originLocation);
     $mismatched = $addDevice(2, $destination, $receiverLocation);
+    // Production mutation functions own their own transactions. Commit this
+    // synthetic fixture first, then inspect writes independently. It is on a
+    // disposable database and is removed in finally on all exit paths.
+    $pdo->commit();
+    $fixtureCommitted = true;
 
     // Existing permissions are never broadened by the guard.
     guardCheck(guardVisible($pdo, $manager, $ticket) === [$aligned],
@@ -187,9 +193,39 @@ try {
         guardCheck($count === 0,
             'Denied repair/quote/stock operation left persistent events in ' . $table);
     }
-    echo "PASS: restrictive repair, quote, and stock access; legacy preservation; source ticket finance; revocation; no writes.\n";
 } finally {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
+    if ($fixtureCommitted) {
+        // Delete only this invocation's random fictional fixture. The test
+        // DB itself is ephemeral; never use this script for persistent data.
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare('DELETE FROM ticket_devices WHERE ticket_id=?')
+                ->execute([$ticket]);
+            $pdo->prepare('DELETE FROM repair_tickets WHERE ticket_id=?')
+                ->execute([$ticket]);
+            $pdo->prepare('DELETE FROM customers WHERE customer_id=?')
+                ->execute([$customer]);
+            foreach ([$manager, $receivingManager, $originTechnician,
+                $receivingTechnician, $viewer, $originCashier, $receivingCashier] as $account) {
+                $pdo->prepare('DELETE FROM user_branch_assignments WHERE user_id=?')
+                    ->execute([$account['user_id']]);
+                $pdo->prepare('DELETE FROM users WHERE user_id=?')
+                    ->execute([$account['user_id']]);
+            }
+            $pdo->prepare('DELETE FROM storage_locations WHERE location_id IN (?,?)')
+                ->execute([$originLocation, $receiverLocation]);
+            $pdo->prepare('DELETE FROM branches WHERE branch_id IN (?,?)')
+                ->execute([$origin, $destination]);
+            $pdo->commit();
+        } catch (Throwable $error) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
 }
+echo "PASS: restrictive repair/quote/stock access, legacy preservation, ticket finance, revocations and cleanup.\n";
