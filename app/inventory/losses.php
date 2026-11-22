@@ -155,7 +155,7 @@ function partsLossDecide(PDO $pdo, int $actorId, int $caseId, string $decision,
             : ($allFinal && $anyLost ? 'LOSS_CLOSED'
             : (($anyLost || $anyException) ? 'EXCEPTION' : 'IN_TRANSIT'));
         stockRun($pdo, "UPDATE inventory_transfers SET status=?,
-            received_at=CASE WHEN ? IN ('RECEIVED','LOSS_CLOSED') THEN UTC_TIMESTAMP() ELSE NULL END
+            received_at=CASE WHEN ? = 'RECEIVED' THEN UTC_TIMESTAMP() ELSE NULL END
             WHERE inventory_transfer_id=?", [$status,$status,$transferId]);
         stockRun($pdo, "INSERT INTO audit_events
             (actor_type,actor_user_id,entity_type,entity_id,action,before_data,after_data,reason,created_at)
