@@ -8,6 +8,11 @@ on:
       - 'css/dashboard.css'
       - 'tests/mvp-overview-browser.mjs'
       - 'tests/mvp-single-ticket-journey.php'
+      - 'tests/quotes-browser.mjs'
+      - 'tests/public-browser.mjs'
+      - 'tests/quotes.php'
+      - 'tests/public-tracking.php'
+      - 'tests/staff-consoles.php'
       - '.github/workflows/mvp-stabilization.yml'
       - 'app/dashboard_data.php'
       - 'database/schema.sql'
@@ -105,3 +110,72 @@ jobs:
           # Confirm the test did not leave an open transaction or skip closing.
           mysql -N -h 127.0.0.1 -u root repairtrack_test_journey \
             -e "SELECT COUNT(*) FROM repair_tickets WHERE record_stage='ISSUED' AND case_state='OPEN'" | grep -Fxq 0
+
+  quote-and-tracking-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [quotes, public]
+    env:
+      MYSQL_PWD: root
+      REPAIRTRACK_TEST_URL: http://127.0.0.1:8742
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare independent PHP/Chrome test fixture
+        run: |
+          set -euo pipefail
+          sudo systemctl start mysql
+          sed -e 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_portal/' \
+              -e 's/^USE repairtrack;$/USE repairtrack_test_portal;/' database/schema.sql \
+              | mysql -h 127.0.0.1 -u root
+          sed 's/repairtrack_demo/repairtrack_test_portal/g' tests/fixtures/demo/seed_demo.sql \
+              | mysql -h 127.0.0.1 -u root
+          mkdir -p "$RUNNER_TEMP/portal-evidence" "$RUNNER_TEMP/portal-stock"
+          cat > config/config.php <<'PHP'
+          <?php
+          return [
+              'host' => '127.0.0.1',
+              'database' => 'repairtrack_test_portal',
+              'username' => 'root',
+              'password' => getenv('MYSQL_PWD'),
+              'intake_storage_path' => getenv('RUNNER_TEMP') . '/portal-evidence',
+              'inventory_evidence_path' => getenv('RUNNER_TEMP') . '/portal-stock',
+              'intake_hmac_key' => str_repeat('ab', 32),
+          ];
+          PHP
+      - name: Seed role-isolated repair fixture and verify server behavior
+        run: |
+          set -euo pipefail
+          php tests/staff-consoles.php
+          case "${{ matrix.suite }}" in
+            quotes) php tests/quotes.php ;;
+            public) php tests/public-tracking.php ;;
+            *) exit 2 ;;
+          esac
+      - name: Exercise real quote or tracking HTTP views in Chrome
+        run: |
+          set -euo pipefail
+          npm install --no-save --package-lock=false playwright-core@1.56.1
+          export REPAIRTRACK_TEST_SITE="$GITHUB_WORKSPACE"
+          export CHROME_PATH="$(command -v google-chrome)"
+          php -S 127.0.0.1:8742 > "$RUNNER_TEMP/portal-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
+          case "${{ matrix.suite }}" in
+            quotes) node tests/quotes-browser.mjs ;;
+            public) node tests/public-browser.mjs ;;
+            *) exit 2 ;;
+          esac
+      - name: Upload fictional quote/customer tracking screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mvp-${{ matrix.suite }}-browser-screens
+          path: |
+            quote-*.png
+            public-tracking-mobile.png
+          retention-days: 7
+          if-no-files-found: ignore
