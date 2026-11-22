@@ -1,7 +1,7 @@
 # Partial-ticket repair ownership — authorization and accounting cutover audit
 
 Reviewed: 22 November 2026, against `Partial-Ticket-Ownership` (Phase 2).
-Status: **READ ONLY / NO PERMISSION CUTOVER**. This file is a security worklist, not a release approval.
+Status: **SCOPE PREPARATION COMMITTED / NO REPAIR PERMISSION CUTOVER**. This file is a security worklist, not a release approval.
 
 ## Core separation
 
@@ -31,6 +31,19 @@ Status: **READ ONLY / NO PERMISSION CUTOVER**. This file is a security worklist,
 | `app/public/tracking.php:publicRepair` | Tracking token/code + PIN and public device status | Preserve private-code authentication and safe fields; no internal notes/assigned staff in public response | Private repair information leaked to anyone tracking ticket |
 | `admin/ticket.php` | Ticket accountable branch | Only designated ticket authority may manage receipt/customer tracking access | Repair staff can rotate a ticket's portal PIN |
 | `app/console/ownership.php` and staff device view | Already-scoped read-only row | **Display only**. Never use the returned label, name or `review_required` flag as permission | Display state mistakenly becomes security boundary |
+
+## Phase 3 scope preparation — no operational cutover
+
+- `app/console/scopes.php` now exposes three distinct, fixed-alias SQL builders: `consoleCurrentDeviceScope` (original ticket/technician behavior), `consoleProposedRepairScope` (uninvoked future device branch operation), and `consoleTicketFinanceScope` (ticket accountable branch only).
+- `app/console/repository.php:consoleScope` delegates to **unchanged legacy logic**, so existing repair consoles still do not authorize cross-branch device work.
+- `app/console/reports.php:loadStaffReport` calls the explicit **ticket-finance scope for CASHIER**, while current device reports stay legacy-scoped. The cash scope checks active users and branches and never references a device alias.
+- `app/console/transfers.php:acceptTransferredRepair` now rejects a whole-ticket handoff if *any* device has a missing or different repair branch than the expected source. This prevents overwriting future independently owned siblings.
+- `tests/scope-separation.php` asserts the scope contract and rejects non-financial/non-repair roles without needing a database.
+- `tests/repair-scope-isolation.php`, run by `php tests/payment-pickup.php --scope-isolation` **only on disposable MySQL**, simulates one two-device ticket: source keeps ticket finance, proposed receiving repair visibility is restricted to the receiving device, and old live device access remains denied to receiving staff.
+- `tests/stock-pilot.php` now explicitly initializes direct-insert fixture branch ownership and tests mixed-ownership rejection before normal whole-ticket acceptance.
+- GitHub Actions lints the new modules, runs the pure scope test, and adds the disposable-MySQL two-device isolation test.
+
+**Release gate remains BLOCKED:** no run result has been confirmed for the final HEAD, and the proposed repair builder is intentionally **not wired to HTTP handlers**. No partial-ticket acceptance service, role permissions change, quote/stock branch cutover, migration on persistent databases, or merge into `main` has occurred.
 
 ## Phase 3 gating design
 
