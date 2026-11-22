@@ -229,23 +229,56 @@ try {
   await decision.locator('button[value=decide-loss]').click();
   await reviewer.getByRole('status').getByText('Independent loss decision recorded',{exact:false}).waitFor();
   await reviewer.getByText('Status LOSS_CLOSED',{exact:false}).first().waitFor();
-  // Record verified purchase-cost exposure. The reviewer is an independent
-  // source-branch ADMIN, distinct from both the dispatcher and stock-loss reviewer.
+  // Cost evidence must first be independently approved at the source branch.
+  await manager.goto(base + '/admin/acquisition_costs.php?branch=' + fixture.branch);
+  await manager.getByRole('heading',{name:'Verified supplier acquisition costs'}).waitFor();
+  await manager.locator('summary').filter({hasText:'Propose documented cost'}).click();
+  const sourceCost = manager.locator('form').filter({
+    has:manager.locator('button[value=propose-cost]')
+  });
+  await sourceCost.locator('[name=sku]').fill(fixture.transfer_sku);
+  await sourceCost.locator('[name=unit_cost]').fill('245.75');
+  await sourceCost.locator('[name=source_type]').selectOption('SUPPLIER_INVOICE');
+  await sourceCost.locator('[name=supplier_name]').fill('Test Regional Parts Supplier');
+  await sourceCost.locator('[name=document_reference]').fill('BROWSER-SUPPLIER-INV-'+fixture.transfer_sku);
+  await sourceCost.locator('[name=document_date]').fill('2026-05-18');
+  await sourceCost.locator('[name=reason]').fill(
+    'Reviewed original battery supplier invoice and matched purchase price to exact SKU.');
+  await sourceCost.locator('[name=confirm]').check();
+  await sourceCost.locator('button[value=propose-cost]').click();
+  await manager.getByRole('status').getByText('Supplier cost submitted',{exact:false}).waitFor();
+  const financeAdmin = await login('valuation_reviewer',1440);
+  await financeAdmin.goto(base + '/admin/acquisition_costs.php?branch=' + fixture.branch);
+  await financeAdmin.setViewportSize({width:360,height:900});
+  await checkWidth(financeAdmin);
+  const reviewCost = financeAdmin.locator('article.dashboard-card').filter({
+    hasText:fixture.transfer_sku
+  }).first();
+  await reviewCost.locator('summary').filter({
+    hasText:'Independently approve or reject supplier cost'
+  }).click();
+  const costDecision=reviewCost.locator('form').filter({
+    has:financeAdmin.locator('button[value=decide-cost]')
+  });
+  await costDecision.locator('[name=decision]').selectOption('approve');
+  await costDecision.locator('[name=reason]').fill(
+    'Independently verified supplier identity, exact battery SKU, invoice and original acquisition cost.');
+  await costDecision.locator('[name=confirm]').check();
+  await costDecision.locator('button[value=decide-cost]').click();
+  await financeAdmin.getByRole('status').getByText('Independent supplier-cost decision recorded',{exact:false}).waitFor();
   await admin.goto(base + '/admin/parts_transfers.php?branch=' + fixture.transfer_branch);
   const pricedItem = admin.locator('article.dashboard-card').filter({hasText:fixture.transfer_sku}).first();
-  await pricedItem.locator('summary').filter({hasText:'Propose a PHP purchase-cost valuation'}).click();
+  await pricedItem.locator('summary').filter({
+    hasText:'Value loss using independently verified supplier cost'
+  }).click();
   const priceForm = pricedItem.locator('form').filter({
-    has:admin.locator('button[value=propose-valuation]')
+    has:admin.locator('input[name=cost_record_id]')
   });
-  await priceForm.locator('[name=unit_cost]').fill('245.75');
-  await priceForm.locator('[name=cost_basis]').selectOption('SUPPLIER_INVOICE');
-  await priceForm.locator('[name=cost_reference]').fill('BROWSER-SUPPLIER-INV-'+fixture.transfer_sku);
   await priceForm.locator('[name=reason]').fill(
-    'Confirmed original supplier acquisition cost and single missing battery against inspected documents.');
+    'Matched the independently approved source-branch purchase cost with the missing battery.');
   await priceForm.locator('[name=confirm]').check();
   await priceForm.locator('button[value=propose-valuation]').click();
   await admin.getByRole('status').getByText('PHP financial exposure submitted',{exact:false}).waitFor();
-  const financeAdmin = await login('valuation_reviewer',1440);
   await financeAdmin.goto(base + '/admin/parts_transfers.php?branch=' + fixture.branch);
   const financialItem = financeAdmin.locator('article.dashboard-card').filter({
     hasText:fixture.transfer_sku
@@ -317,13 +350,12 @@ try {
   await admin.goto(base + '/admin/parts_transfers.php?branch=' + fixture.transfer_branch);
   await admin.getByText('Reassessment needed:',{exact:false}).first().waitFor();
   const revisedItem=admin.locator('article.dashboard-card').filter({hasText:fixture.transfer_sku}).first();
-  await revisedItem.locator('summary').filter({hasText:'Propose a PHP purchase-cost valuation'}).click();
+  await revisedItem.locator('summary').filter({
+    hasText:'Value loss using independently verified supplier cost'
+  }).click();
   const revisedForm=revisedItem.locator('form').filter({
-    has:admin.locator('button[value=propose-valuation]')
+    has:admin.locator('input[name=cost_record_id]')
   });
-  await revisedForm.locator('[name=unit_cost]').fill('245.75');
-  await revisedForm.locator('[name=cost_basis]').selectOption('SUPPLIER_INVOICE');
-  await revisedForm.locator('[name=cost_reference]').fill('BROWSER-SUPPLIER-INV-'+fixture.transfer_sku);
   await revisedForm.locator('[name=reason]').fill(
     'Full physical recovery makes the remaining financial exposure zero while retaining original purchase evidence.');
   await revisedForm.locator('[name=confirm]').check();

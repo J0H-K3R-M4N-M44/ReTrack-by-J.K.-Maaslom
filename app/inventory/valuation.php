@@ -100,14 +100,32 @@ function lossValuationSource(string $source, string $reference, string $explanat
 /** Receiving branch proposes an append-only PHP valuation for the CURRENT loss. */
 function partsValuationPropose(PDO $pdo, int $actorId, int $lossId,
     string $expectedMissing, string $unitCost, string $source,
-    string $reference, string $explanation, bool $confirmed): int
+    string $reference, string $explanation, bool $confirmed, int $acquisitionRecordId=0): int
 {
     if (!$confirmed || $lossId<=0) {
         throw new DomainException('Confirm the cost source and current outstanding physical loss.');
     }
     $expected=stockUnits($expectedMissing);
-    $cents=lossValuationUnitCents($unitCost);
-    [$reference,$explanation]=lossValuationSource($source,$reference,$explanation);
+    // Legacy/manual proposals remain supported, but may not masquerade as
+    // a verified registry record. The server must load the actual approved cost.
+    if ($acquisitionRecordId<0) {
+        throw new DomainException('Choose a valid approved acquisition-cost record.');
+    }
+    if ($acquisitionRecordId===0) {
+        if ($source==='VERIFIED_COST_RECORD') {
+            throw new DomainException('Verified cost records must come from the independently approved register.');
+        }
+        $cents=lossValuationUnitCents($unitCost);
+        [$reference,$explanation]=lossValuationSource($source,$reference,$explanation);
+    } else {
+        $explanation=trim($explanation);
+        if (mb_strlen($explanation)<20 || mb_strlen($explanation)>500) {
+            throw new DomainException('Explain the selected verified cost and physical loss (20–500 characters).');
+        }
+        $cents=0;
+        $source='VERIFIED_COST_RECORD';
+        $reference='';
+    }
     $manifestId=stockRun($pdo,'SELECT item.inventory_transfer_id
         FROM stock_transfer_loss_cases loss
         JOIN inventory_transfer_items item
@@ -126,6 +144,19 @@ function partsValuationPropose(PDO $pdo, int $actorId, int $lossId,
             throw new DomainException('The original dispatcher cannot propose their own loss valuation.');
         }
         $physical=lossValuationPhysicalSnapshot($pdo,$lossId,(int)$manifestId);
+        if ($acquisitionRecordId>0) {
+            // Prevent caller-controlled SKU/branch, price or invoice substitution.
+            $cost=stockRun($pdo,"SELECT c.* FROM part_acquisition_cost_records c
+                WHERE c.cost_record_id=? AND c.branch_id=? AND c.part_id=?
+                  AND c.status='APPROVED' FOR UPDATE",
+                [$acquisitionRecordId,(int)$manifest['from_branch_id'],
+                    (int)$physical['item']['part_id']])->fetch();
+            if (!$cost) {
+                throw new DomainException('Only an approved acquisition cost for the sending branch and exact part may be used.');
+            }
+            $cents=lossValuationUnitCents((string)$cost['unit_cost_php']);
+            $reference='ACQ-COST-'.$acquisitionRecordId;
+        }
         if ($physical['remaining']!==$expected) {
             throw new DomainException('The remaining loss quantity changed. Reload before preparing a valuation.');
         }
@@ -137,23 +168,25 @@ function partsValuationPropose(PDO $pdo, int $actorId, int $lossId,
                 throw new DomainException('An existing financial valuation is awaiting independent approval.');
             }
         }
-        $lastApproved=stockRun($pdo,"SELECT remaining_quantity,unit_cost_php
+        $lastApproved=stockRun($pdo,"SELECT remaining_quantity,unit_cost_php,part_acquisition_cost_id
             FROM stock_transfer_loss_valuations
             WHERE loss_case_id=? AND status='APPROVED'
             ORDER BY valuation_id DESC LIMIT 1 FOR UPDATE",[$lossId])->fetch();
         if ($lastApproved &&
             stockUnits((string)$lastApproved['remaining_quantity'])===$expected &&
-            lossValuationUnitCents((string)$lastApproved['unit_cost_php'])===$cents) {
+            lossValuationUnitCents((string)$lastApproved['unit_cost_php'])===$cents &&
+            (int)($lastApproved['part_acquisition_cost_id']??0)===$acquisitionRecordId) {
             throw new DomainException('An unchanged physical quantity and unit cost already have an approved valuation.');
         }
         $revision=(int)($existing[0]['revision_no']??0)+1;
         $total=lossValuationAmount($physical['remaining'],$cents);
         stockRun($pdo,"INSERT INTO stock_transfer_loss_valuations
             (loss_case_id,revision_no,remaining_quantity,unit_cost_php,exposure_php,cost_basis,
-             cost_reference,report_reason,prepared_by_user_id,prepared_at,status,currency)
-            VALUES (?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),'PENDING','PHP')",
+             cost_reference,part_acquisition_cost_id,report_reason,
+             prepared_by_user_id,prepared_at,status,currency)
+            VALUES (?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),'PENDING','PHP')",
             [$lossId,$revision,stockNumber($physical['remaining']),lossValuationMoney($cents),
-                $total,$source,$reference,$explanation,$actorId]);
+                $total,$source,$reference,$acquisitionRecordId?:null,$explanation,$actorId]);
         $id=(int)$pdo->lastInsertId();
         stockRun($pdo,"INSERT INTO audit_events
             (actor_type,actor_user_id,entity_type,entity_id,action,after_data,reason,created_at)
@@ -163,7 +196,8 @@ function partsValuationPropose(PDO $pdo, int $actorId, int $lossId,
                 'remaining_quantity'=>stockNumber($physical['remaining']),
                 'unit_cost_php'=>lossValuationMoney($cents),
                 'exposure_php'=>$total,'currency'=>'PHP','cost_basis'=>$source,
-                'cost_reference'=>$reference,'financial_posting'=>false
+                'cost_reference'=>$reference,'acquisition_cost_id'=>$acquisitionRecordId?:null,
+                'financial_posting'=>false
             ],JSON_THROW_ON_ERROR),$explanation]);
         $pdo->commit();
         return $id;
@@ -231,6 +265,20 @@ function partsValuationDecide(PDO $pdo, int $actorId, int $valuationId,
             if ($physical['remaining']!==stockUnits((string)$valuation['remaining_quantity'])) {
                 throw new DomainException('Physical loss changed. Reject this stale valuation and propose a revision.');
             }
+            if ($valuation['part_acquisition_cost_id']!==null) {
+                $stored=stockRun($pdo,"SELECT unit_cost_php FROM part_acquisition_cost_records
+                    WHERE cost_record_id=? AND branch_id=? AND part_id=?
+                      AND status='APPROVED' FOR UPDATE",
+                    [(int)$valuation['part_acquisition_cost_id'],
+                        (int)$manifest['from_branch_id'],(int)$physical['item']['part_id']])->fetchColumn();
+                if (!$stored ||
+                    lossValuationUnitCents((string)$stored)!==
+                        lossValuationUnitCents((string)$valuation['unit_cost_php']) ||
+                    $valuation['cost_basis']!=='VERIFIED_COST_RECORD' ||
+                    $valuation['cost_reference']!=='ACQ-COST-'.$valuation['part_acquisition_cost_id']) {
+                    throw new DomainException('The registered source cost no longer verifies this valuation.');
+                }
+            }
             $actual=lossValuationAmount($physical['remaining'],
                 lossValuationUnitCents((string)$valuation['unit_cost_php']));
             if ($actual!==(string)$valuation['exposure_php'] ||
@@ -278,7 +326,7 @@ function partsValuationHistory(PDO $pdo, int $actorId, int $lossId): array
         [$actorId,(int)$case['from_branch_id'],(int)$case['to_branch_id']])->fetchColumn();
     if (!$check) throw new DomainException('Financial loss history is unavailable.');
     return stockRun($pdo,'SELECT valuation_id,revision_no,status,remaining_quantity,
-        unit_cost_php,exposure_php,cost_basis,cost_reference,report_reason,
+        unit_cost_php,exposure_php,cost_basis,cost_reference,part_acquisition_cost_id,report_reason,
         prepared_by_user_id,prepared_at,reviewed_by_user_id,reviewed_at,review_reason
         FROM stock_transfer_loss_valuations WHERE loss_case_id=?
         ORDER BY revision_no DESC LIMIT 5',[$lossId])->fetchAll();

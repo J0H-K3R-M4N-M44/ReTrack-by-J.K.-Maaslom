@@ -53,7 +53,8 @@ $staff = [];
 $roles = ['MANAGER', 'CASHIER', 'CASHIER'];
 if (in_array('--concurrency', $argv, true) || in_array('--stock-pilot', $argv, true) ||
     in_array('--stock-operations', $argv, true) || in_array('--parts-transfer', $argv, true) ||
-    in_array('--parts-loss', $argv, true) || in_array('--parts-recovery', $argv, true) || in_array('--stock-evidence', $argv, true) || in_array('--stock-valuation', $argv, true)) {
+    in_array('--parts-loss', $argv, true) || in_array('--parts-recovery', $argv, true) || in_array('--stock-evidence', $argv, true) || in_array('--stock-valuation', $argv, true) ||
+    in_array('--part-costs', $argv, true)) {
     $roles[] = 'MANAGER';
     $roles[] = 'TECHNICIAN';
 }
@@ -115,6 +116,10 @@ if (in_array('--stock-evidence', $argv, true)) {
 }
 if (in_array('--stock-valuation', $argv, true)) {
     require __DIR__ . '/stock-valuation.php';
+    exit();
+}
+if (in_array('--part-costs', $argv, true)) {
+    require __DIR__ . '/part-acquisition-costs.php';
     exit();
 }
 if (in_array('--concurrency', $argv, true)) {
