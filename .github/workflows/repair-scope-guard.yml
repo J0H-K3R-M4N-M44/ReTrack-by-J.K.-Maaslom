@@ -42,8 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo systemctl start mysql
-          mysql -h 127.0.0.1 -u root -e "CREATE DATABASE repairtrack_test_guard CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-          sed -e '/^CREATE DATABASE IF NOT EXISTS repairtrack$/d' \
+          sed -e 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_guard/' \
               -e 's/^USE repairtrack;$/USE repairtrack_test_guard;/' database/schema.sql | mysql -h 127.0.0.1 -u root
           mkdir -p "$RUNNER_TEMP/repair-guard-intake" "$RUNNER_TEMP/repair-guard-inventory"
           cat > config/config.php <<'PHP'
