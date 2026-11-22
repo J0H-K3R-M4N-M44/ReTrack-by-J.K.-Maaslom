@@ -47,6 +47,10 @@ The new [read-only SQL restoration reconciliation](local-sql-restore-reconciliat
 
 The candidate includes a PowerShell read-only comparator for **fictional** private intake/inventory evidence, with a Windows CI test for matching, corrupt, missing and extra files and folder isolation. [Instructions and limitations](windows-evidence-integrity-check.md). The synthetic Windows job does **not** execute PHP/MySQL, restore a database or constitute human/XAMPP acceptance. Always record the passing run and exact implementation commit; passing SHA must not be inferred from an earlier branch.
 
+## Windows operator restore gate
+
+[Guarded fictional Windows/XAMPP restore procedure](windows-xampp-fictional-restore.md) is available for a **separate, authorized operator**. Its scripted default is read-only dry-run. Windows CI exercises only dry-run and refusal logic with fake test-only executables; it does **not** run MySQL, PHP, Apache, a real XAMPP restore or any production check. Do not mark Windows/XAMPP restore complete without an operator-attested `-Apply` run on an isolated working MySQL server and independent reconciliation.
+
 ## Required operator gates before any promotion
 
 1. [Hosted pilot read-only evidence](hosted-pilot-verification-2026-11-22.md): host owner supplies redacted exact deployment revision, document root/Apache rules, secret/file storage and HTTPS/session configuration. No intrusive live probing.
