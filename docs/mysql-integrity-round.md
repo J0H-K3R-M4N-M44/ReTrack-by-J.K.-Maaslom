@@ -1,6 +1,6 @@
 # RepairTrack — MySQL integrity test round
 
-**Status: scripts committed; real MySQL execution not yet verified.**
+**Status: eight-stage disposable MySQL integration suite PASSED in GitHub Actions run 44989776748 on commit 83e43d5 (22 Nov 2026).**
 Branch: Partial-Ticket-Ownership. This work must not be merged or deployed until
 the integration checks are verified.
 
@@ -60,7 +60,12 @@ operations must rollback. The runner checks MySQL constraints and data integrity
 not every front-end behavior, cross-branch concurrency, customer consent, or
 authorization cutover. These remain separate release gates.
 
-**Verification record (22 Nov 2026):** Staged PHP and Bash syntax passed local
-checks. The current environment has PHP CLI but no MySQL server and no
-pdo_mysql, so the full MySQL run has **not** been executed or verified here.
-A GitHub Actions pass at the final PR commit must be confirmed before merging.
+**Verification record (22 Nov 2026):** Local staged PHP/Bash syntax passed.
+This working environment has no local MySQL server or pdo_mysql, but the
+**GitHub-hosted MySQL run 44989776748 passed all eight stages** at commit
+83e43d5: real fixture workflows, 17 integrity checks, snapshots of 19 tables,
+old-column migration rehearsal, idempotence, foreign-key/ownership negative tests,
+rollback, interrupted migration recovery and final integrity gate.
+The dedicated workflow runs again on every feature-branch commit, so confirm
+its successful result on the final reviewed HEAD. Browser UI, full authorization
+cutover, production load and real-database deployment remain unverified.
