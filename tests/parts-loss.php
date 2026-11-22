@@ -70,8 +70,8 @@ expectRefusal(fn()=>partsTransferReceive($pdo,$otherManager['user_id'],$itemA,
     '1.000','receive','2.000',$receiptNote,true),'pending approval');
 expectRefusal(fn()=>partsLossDecide($pdo,$cashier['user_id'],$caseId,
     'approve',$approval,true),'branch manager');
-stockRun($pdo,'INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)',
-    [$otherManager['user_id'],$branch]);
+// The shared fixture already assigns this receiving manager to the source branch.
+ // Testing self-review denial must not insert that same assignment twice.
 expectRefusal(fn()=>partsLossDecide($pdo,$otherManager['user_id'],$caseId,
     'approve',$approval,true),'different manager');
 expectRefusal(fn()=>partsLossDecide($pdo,$manager['user_id'],$caseId,
