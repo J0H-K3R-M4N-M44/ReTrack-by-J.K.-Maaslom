@@ -67,6 +67,30 @@ function dispatchDevices(PDO $pdo, int $user, int $origin, int $destination, str
             if ($holds->fetchColumn()) {
                 throw new DomainException('Release unused branch part reservations before dispatching this device.');
             }
+            // Releasing a hold does not make an approved part available at the receiving branch.
+            // Until cross-branch estimate reassignment exists, the part must be installed
+            // at the sending branch before this device can be dispatched.
+            $pendingPart = $pdo->prepare("SELECT i.quote_item_id FROM repair_quote_items i
+                JOIN repair_quotes q ON q.quote_id = i.quote_id
+                WHERE q.ticket_device_id = ? AND q.quote_status = 'APPROVED'
+                AND q.quote_id = (
+                    SELECT latest.quote_id FROM repair_quotes latest
+                    WHERE latest.ticket_device_id = q.ticket_device_id
+                    ORDER BY latest.version_no DESC, latest.quote_id DESC LIMIT 1
+                )
+                AND i.tracks_branch_stock = 1
+                AND NOT EXISTS (
+                    SELECT 1 FROM inventory_transactions m
+                    WHERE m.ticket_device_id = q.ticket_device_id
+                    AND m.transaction_type = 'TICKET_USE'
+                    AND m.reference_code = CONCAT('QUOTE-ITEM-', i.quote_item_id)
+                ) LIMIT 1");
+            $pendingPart->execute([$id]);
+            if ($pendingPart->fetchColumn()) {
+                throw new DomainException(
+                    'An approved catalog part is not installed. Complete installation at the sending branch before transfer.'
+                );
+            }
             $pdo->prepare('INSERT INTO device_transfer_items (device_transfer_id,ticket_device_id,from_location_id,transit_location_id,to_location_id)
                 VALUES (?,?,?,?,?)')->execute([$manifest,$id,$from,$transit,$destination]);
             $pdo->prepare("UPDATE ticket_devices SET custody_state='IN_TRANSIT',physical_location_id=? WHERE ticket_device_id=?")->execute([$transit,$id]);
