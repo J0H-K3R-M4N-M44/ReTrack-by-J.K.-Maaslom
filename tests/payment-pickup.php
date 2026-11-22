@@ -52,7 +52,7 @@ $hash = $browserFixture ? password_hash($password, PASSWORD_DEFAULT) : 'unused';
 $staff = [];
 $roles = ['MANAGER', 'CASHIER', 'CASHIER'];
 if (in_array('--concurrency', $argv, true) || in_array('--stock-pilot', $argv, true) ||
-    in_array('--stock-operations', $argv, true)) {
+    in_array('--stock-operations', $argv, true) || in_array('--parts-transfer', $argv, true)) {
     $roles[] = 'MANAGER';
     $roles[] = 'TECHNICIAN';
 }
@@ -96,6 +96,10 @@ if (in_array('--stock-operations', $argv, true)) {
     require __DIR__ . '/stock-quarantine.php';
     exit();
 }
+if (in_array('--parts-transfer', $argv, true)) {
+    require __DIR__ . '/parts-transfer.php';
+    exit();
+}
 if (in_array('--concurrency', $argv, true)) {
     require __DIR__ . '/checkout-concurrency.php';
     testCheckoutRaces($pdo, $ticket, $device, $staff);
@@ -110,6 +114,14 @@ if ($browserFixture) {
         [$run.'-BAT','Quarantine test battery']);
     stockRun($pdo,'INSERT INTO branch_inventory (branch_id,part_id,quantity_on_hand) VALUES (?,?,3)',
         [$branch,$stockPart]);
+    // The same signed-in browser fixture exercises manager dispatch and independent
+    // administrator receipt at another branch without production accounts.
+    $transferBranch = insertFixture($pdo,
+        'INSERT INTO branches (branch_code,branch_name) VALUES (?,?)',
+        [$run.'-RECV','Browser receiving branch']);
+    $adminId = stockRun($pdo,'SELECT user_id FROM users WHERE email=?',[$emails['admin']])->fetchColumn();
+    stockRun($pdo,'INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)',
+        [$adminId,$transferBranch]);
     $techId = stockRun($pdo, 'SELECT user_id FROM users WHERE email=?', [$emails['technician']])->fetchColumn();
     stockRun($pdo, "UPDATE ticket_devices SET repair_status='DIAGNOSING',assigned_technician_id=?
         WHERE ticket_device_id=?", [$techId,$device]);
@@ -120,6 +132,8 @@ if ($browserFixture) {
         'part' => $part,
         'stock_part' => $stockPart,
         'branch' => $branch,
+        'transfer_branch' => $transferBranch,
+        'transfer_sku' => $run.'-BAT',
     ], JSON_THROW_ON_ERROR);
     exit();
 }
