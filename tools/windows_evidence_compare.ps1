@@ -86,9 +86,14 @@ try {
     if ($intakeOriginal.Count -eq 0 -or $stockOriginal.Count -eq 0) {
         throw 'Test source needs fictional evidence in both categories.'
     }
-    foreach ($pair in @(@($intakeOriginal, $intakeRestored), @($stockOriginal, $stockRestored))) {
-        $original = $pair[0]
-        $restored = $pair[1]
+    foreach ($category in @('intake', 'inventory')) {
+        if ($category -eq 'intake') {
+            $original = $intakeOriginal
+            $restored = $intakeRestored
+        } else {
+            $original = $stockOriginal
+            $restored = $stockRestored
+        }
         if ($original.Count -ne $restored.Count) { throw 'Evidence file count differs.' }
         foreach ($key in $original.Keys) {
             if (-not $restored.ContainsKey($key) -or
@@ -102,6 +107,6 @@ try {
     Write-Output 'SQL/custody/cash reconciliation and human Windows/XAMPP restoration are separate gates.'
     exit 0
 } catch {
-    Write-Error 'BLOCK: fictional evidence comparison failed. Verify isolation, nonempty folders, exact names and hashes. No private file details were emitted.'
+    [Console]::Error.WriteLine('BLOCK: fictional evidence comparison failed. Verify isolation, nonempty folders, exact names and hashes. No private file details were emitted.')
     exit 2
 }
