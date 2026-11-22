@@ -56,7 +56,7 @@ repairGuardDenies(fn() => consoleRepairAccessScope($roles[0], 'enforce'),
     'Unsupported full cutover was silently accepted.');
 repairGuardDenies(fn() => consoleRepairAccessScope($roles[0], 'disabled'),
     'Unsupported flag value was silently accepted.');
-repairGuardDenies(fn() => consoleRepairAccessScope($roles[0], true),
+repairGuardDenies(fn() => consoleRepairAccessScope($roles[0], 'true'),
     'Boolean feature flag was incorrectly permitted.');
 
 echo "PASS: default-equivalent legacy scope, restrict-only repair gate, technician assignment, finance separation, invalid modes denied.\n";
