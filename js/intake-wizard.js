@@ -99,6 +99,7 @@
   // Enter in the customer step advances instead of submitting hidden fields.
   form.addEventListener('submit', (event) => {
     const intent = event.submitter?.value;
+    if (intent === 'search-customer') return;
     if (currentStep === 1 && (intent === 'add-device' || intent?.startsWith('remove-device-'))) return;
     updateCustomerFields();
     if (currentStep === 0) {

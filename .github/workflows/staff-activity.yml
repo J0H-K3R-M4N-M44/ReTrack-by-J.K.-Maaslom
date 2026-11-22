@@ -1,7 +1,7 @@
 name: Staff activity isolation
 on:
   push:
-    branches: [Tracking-And-Activity-UX, Intake-Evidence-Checks, main]
+    branches: [Tracking-And-Activity-UX, Intake-Evidence-Checks, Intake-Customer-Search, main]
     paths:
       - '.github/workflows/staff-activity.yml'
       - 'tests/*.php'
@@ -11,6 +11,7 @@ on:
       - 'track.php'
       - 'tests/activity-browser.mjs'
       - 'tests/intake-receipt-browser.mjs'
+      - 'tests/intake-search-browser.mjs'
       - 'views/**'
       - 'css/**'
       - 'js/**'
@@ -83,3 +84,4 @@ jobs:
           trap 'kill "$server_pid"' EXIT
           curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
           node tests/intake-receipt-browser.mjs
+          node tests/intake-search-browser.mjs

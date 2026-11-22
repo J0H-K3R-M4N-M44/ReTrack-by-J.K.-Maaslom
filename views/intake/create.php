@@ -169,32 +169,31 @@
 
                         <section class="intake-search-panel" aria-labelledby="customer-search-title">
                             <p id="customer-search-title"><strong>Returning customer?</strong> Search first so you do not create a duplicate.</p>
-                            <form class="intake-search" method="get" action="intake_create.php"><input type="hidden" name="id" value="<?= $draftId ?>">
+                            <div class="intake-search">
                                 <label for="customer-search">Name, phone, or email
-                                    <input id="customer-search" name="customer_search" value="<?php echo h(
+                                    <input id="customer-search" form="intake-entry" name="customer_search" value="<?php echo h(
                                         $values['customer_search'],
                                     ); ?>" autocomplete="off" placeholder="Enter at least 2 characters">
                                 </label>
-                                <button class="secondary-btn" type="submit"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Search</button>
-                            </form>
+                                <button class="secondary-btn" type="submit" form="intake-entry" name="intent" value="search-customer"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Search</button>
+                            </div>
                             <?php if ($values['customer_search'] !== ''): ?>
                                 <p class="form-help" >
-                                    <?php echo count($customerResults)
-                                        ? count($customerResults) .
+                                    <?php echo mb_strlen($values['customer_search']) < 2
+                                        ? 'Enter at least two characters to search.'
+                                        : ($matchCount
+                                        ? $matchCount .
                                             ' matching customer(s) shown (up to 10). Choose one, or narrow your search.'
-                                        : 'No matches found. Start a new customer record below.'; ?>
+                                        : 'No matching customers. Try a different name or contact.'); ?>
                                 </p>
                             <?php endif; ?>
                         </section>
 
-                        <form class="intake-form" method="post" action="intake_create.php" data-intake-wizard data-start-step="<?= $showDeviceStep ? 1 : 0 ?>" novalidate><input type="hidden" name="form_key" value="<?= h(
+                        <form id="intake-entry" class="intake-form" method="post" action="intake_create.php" data-intake-wizard data-start-step="<?= $showDeviceStep ? 1 : 0 ?>" novalidate><input type="hidden" name="form_key" value="<?= h(
                             $formKey,
                         ) ?>">
                             <input type="hidden" name="csrf_token" value="<?php echo h(
                                 csrfToken(),
-                            ); ?>">
-                            <input type="hidden" name="customer_search" value="<?php echo h(
-                                $values['customer_search'],
                             ); ?>">
 
                             <fieldset class="intake-step" data-intake-step>

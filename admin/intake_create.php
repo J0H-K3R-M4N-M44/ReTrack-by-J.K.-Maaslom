@@ -58,7 +58,11 @@ try {
         $intent = requestText($_POST, 'intent');
         $showDeviceStep = true;
         $digest = hash('sha256', json_encode($values, JSON_THROW_ON_ERROR));
-        if ($intent === 'add-device') {
+        if ($intent === 'search-customer') {
+            // Redisplay the posted intake without validating or saving an unfinished device.
+            $showDeviceStep = false;
+            unset($_SESSION['intake_forms'][$formKey]['review_hash']);
+        } elseif ($intent === 'add-device') {
             if (count($values['extra_devices']) + 1 < $limit) {
                 $values['extra_devices'][] = intakeDeviceFields();
             }
@@ -133,6 +137,7 @@ try {
         }
     }
     $customerResults = intakeSearchCustomers($pdo, $values['customer_search']);
+    $matchCount = count($customerResults);
     if (
         ctype_digit($values['customer_id']) &&
         !in_array(

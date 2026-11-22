@@ -6,7 +6,7 @@ This milestone completes the administrator draft-intake workflow. It does not co
 
 1. An active administrator signs in. The server checks the password immediately. The browser only displays “Signing in…” during the request.
 2. Open Repair workbench and search issued records or pending drafts. Lists display their totals and offer Previous/Next links in pages of 12. Dashboard summaries cover the whole system; they are not branch-filtered.
-3. Start intake. Search for an existing customer first, or enter a name and one phone/email contact. Search displays up to 20 matches; narrow the search if necessary. Searching again reloads the form, so do this before typing unsaved device details.
+3. Start intake. Search for an existing customer first, or enter a name and one phone/email contact. Search displays up to 10 matches. Searching again preserves the current selection and device entries. Only the reviewed save action writes the draft.
 4. Enter device type, brand/model, reported problem and visible condition. Serial number is optional. Only active branches assigned to the administrator can accept a draft.
 5. Select Review details. PHP validates the fields and renders the review. Confirm the review, then save. Enter on the first JavaScript step advances to device details; it cannot save. Without JavaScript, both entry sections are visible and the same server review is required.
 6. Open the draft link from the workbench to edit it. Existing customer contact details are not overwritten. Saved drafts stay at their original branch. Drafts can contain up to five devices. You can remove a device added on the current form before saving. Previously saved devices can be edited in place. Issued records are closed to draft edits.
