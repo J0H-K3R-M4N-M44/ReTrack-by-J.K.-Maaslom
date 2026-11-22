@@ -27,6 +27,9 @@ on:
       - 'database/inventory_stocktaking.sql'
       - 'database/device_repair_branches.sql'
       - 'tests/repair-branch-migration.php'
+      - 'tests/ticket-issuance.php'
+      - 'tools/check_repair_branch_integrity.php'
+      - 'tools/simulation_data.php'
       - 'database/part_acquisition_cost_records.sql'
       - 'database/stock_transfer_loss_valuations.sql'
       - 'database/stock_transfer_evidence.sql'
@@ -81,6 +84,9 @@ jobs:
           php -l admin/stocktaking.php
           php -l tests/stocktaking.php
           php -l tests/repair-branch-migration.php
+          php -l tools/check_repair_branch_integrity.php
+          php -l tests/ticket-issuance.php
+          php -l app/console/transfers.php
           php -l app/intake/issuance.php
           php -l admin/acquisition_costs.php
           php -l tests/part-acquisition-costs.php
@@ -157,6 +163,7 @@ jobs:
           REPAIR_ROWS_AFTER=$(MYSQL_PWD=root mysql -N -h 127.0.0.1 -u root repairtrack_test_pickup -e "SELECT CONCAT((SELECT COUNT(*) FROM ticket_devices), ':', (SELECT COUNT(*) FROM repair_bills), ':', (SELECT COUNT(*) FROM inventory_transactions), ':', (SELECT COUNT(*) FROM audit_events))")
           test "$REPAIR_ROWS_BEFORE" = "$REPAIR_ROWS_AFTER"
           php tests/repair-branch-migration.php
+          php tools/check_repair_branch_integrity.php
           php tools/migrate.php --status
       - name: Walk through billing and pickup in Chrome
         run: |
