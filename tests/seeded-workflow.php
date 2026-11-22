@@ -45,6 +45,22 @@ try {
     checkWorkflow($file !== false && file_put_contents($file, $schema) !== false, 'Cannot stage schema.');
     migrationRunFile($pdo, $file);
     checkWorkflow($pdo->query('SELECT DATABASE()')->fetchColumn() === $database, 'Wrong test database.');
+    // Fresh schema must be complete without needing the incremental migration runner.
+    checkWorkflow(migrationPending($pdo) === [], 'Fresh schema left a pending migration.');
+    foreach (['inventory_transfers'=>'status','inventory_transfer_items'=>'item_status'] as $table=>$column) {
+        $query = $pdo->prepare("SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?");
+        $query->execute([$table,$column]);
+        checkWorkflow(str_contains((string)$query->fetchColumn(),"'LOSS_CLOSED'"),
+            'Inventory transfer is missing operational loss closure status.');
+    }
+    foreach (['device_transfers'=>'status','device_transfer_items'=>'item_status'] as $table=>$column) {
+        $query = $pdo->prepare("SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?");
+        $query->execute([$table,$column]);
+        checkWorkflow(!str_contains((string)$query->fetchColumn(),"'LOSS_CLOSED'"),
+            'Device custody transfers must not acquire inventory-loss statuses.');
+    }
 
     $pdo->exec('DROP TABLE staff_activity_reads');
     checkWorkflow(migrationPending($pdo) === ['staff_activity.sql'], 'Unexpected migration status.');
