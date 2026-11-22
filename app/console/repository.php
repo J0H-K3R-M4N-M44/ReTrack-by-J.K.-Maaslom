@@ -10,9 +10,10 @@ require_once __DIR__ . '/../inventory/reservations.php';
 
 function consoleScope(array $user): array
 {
-    // Preserve existing ticket-scoped behavior. Do not switch this shared helper
-    // to the proposed device scope: reports and other callers also use it.
-    return consoleCurrentDeviceScope($user);
+    // Legacy is the default. Opt-in restrict mode only intersects existing
+    // device rights with verified branch alignment; it never grants new rights.
+    // Finance-only reports use consoleTicketFinanceScope(), not this helper.
+    return consoleRepairAccessScope($user);
 }
 
 function consoleDevices(PDO $pdo, array $user, array $input): array

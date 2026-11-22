@@ -69,3 +69,57 @@ function consoleTicketFinanceScope(array $user): array
         [(int) $user['user_id']],
     ];
 }
+
+
+/**
+ * Deliberately restrictive cutover preflight:
+ *
+ * legacy   - exact existing ticket/assigned-technician behavior.
+ * restrict - legacy AND confirmed, active, matching device/ticket branch.
+ *
+ * "restrict" never gives a new branch permission to open a repair. An eventual
+ * mixed-branch authorization cutover requires a separate audited feature.
+ * Do not enable this mode on a persistent database until every issued row is
+ * backfilled and the operator has reviewed the effect on access.
+ */
+function consoleRepairGuardMode(): string
+{
+    $path = __DIR__ . '/../../config/config.php';
+    $config = is_file($path) ? require $path : [];
+    if (!is_array($config)) {
+        throw new DomainException('Invalid repair authorization configuration.');
+    }
+    $mode = $config['repair_scope_mode'] ?? 'legacy';
+    if (!in_array($mode, ['legacy', 'restrict'], true)) {
+        // Never silently fall back to permissive access on a typo.
+        throw new DomainException('Invalid repair authorization mode. Access is blocked.');
+    }
+    return $mode;
+}
+
+/**
+ * Both aliases t and d are mandatory. Only use for device-specific data.
+ * Caller-supplied $mode is intended for CLI scope tests; HTTP callers always
+ * resolve the mode exclusively from the server-owned config file.
+ */
+function consoleRepairAccessScope(array $user, ?string $mode = null): array
+{
+    $mode ??= consoleRepairGuardMode();
+    if (!in_array($mode, ['legacy', 'restrict'], true)) {
+        throw new DomainException('Invalid repair authorization mode. Access is blocked.');
+    }
+    [$scope, $params] = consoleCurrentDeviceScope($user);
+    if ($mode === 'restrict') {
+        // A mismatched or unverified device is NOT an approved transfer.
+        // Keep legacy branch AND technician assignment checks in force.
+        $scope .= " AND d.repair_branch_id IS NOT NULL
+            AND d.repair_branch_id = t.accountable_branch_id
+            AND EXISTS (SELECT 1 FROM branches repair_guard
+                WHERE repair_guard.branch_id = d.repair_branch_id
+                AND repair_guard.is_active = 1)
+            AND EXISTS (SELECT 1 FROM users repair_actor
+                WHERE repair_actor.user_id = ? AND repair_actor.is_active = 1)";
+        $params[] = (int) $user['user_id'];
+    }
+    return [$scope, $params];
+}

@@ -5,6 +5,12 @@ return [
     // Open assigned devices across all branches, excluding finished/cancelled work.
     'technician_active_limit' => 5,
 
+    // Safe rollout preflight; default: legacy (no behavior change).
+    // 'restrict' DENIES mismatched/unverified device repair access but NEVER
+    // grants the receiving branch repair, stock or ticket-finance authority.
+    // Do not activate outside an approved, fully migrated test environment.
+    'repair_scope_mode' => 'legacy',
+
     'host' => 'localhost',
     'port' => 3306,
     'database' => 'repairtrack',
