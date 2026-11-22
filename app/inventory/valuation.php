@@ -168,13 +168,14 @@ function partsValuationPropose(PDO $pdo, int $actorId, int $lossId,
                 throw new DomainException('An existing financial valuation is awaiting independent approval.');
             }
         }
-        $lastApproved=stockRun($pdo,"SELECT remaining_quantity,unit_cost_php
+        $lastApproved=stockRun($pdo,"SELECT remaining_quantity,unit_cost_php,part_acquisition_cost_id
             FROM stock_transfer_loss_valuations
             WHERE loss_case_id=? AND status='APPROVED'
             ORDER BY valuation_id DESC LIMIT 1 FOR UPDATE",[$lossId])->fetch();
         if ($lastApproved &&
             stockUnits((string)$lastApproved['remaining_quantity'])===$expected &&
-            lossValuationUnitCents((string)$lastApproved['unit_cost_php'])===$cents) {
+            lossValuationUnitCents((string)$lastApproved['unit_cost_php'])===$cents &&
+            (int)($lastApproved['part_acquisition_cost_id']??0)===$acquisitionRecordId) {
             throw new DomainException('An unchanged physical quantity and unit cost already have an approved valuation.');
         }
         $revision=(int)($existing[0]['revision_no']??0)+1;
