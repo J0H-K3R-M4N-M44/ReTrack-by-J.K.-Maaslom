@@ -1,53 +1,64 @@
-# Run database upgrades with PHP
+# Database migration runner — current operations
 
-The runner upgrades an existing RepairTrack database using your local `config/config.php`. It is command-line only; opening it in a browser returns 404. It never imports demo seeds, recreates the database, creates accounts, or pulls/switches Git branches.
+**Updated for the feature branch on 22 November 2026.** `tools/migrate.php` is a CLI-only updater of an *existing* configured RepairTrack database. It does **not** create a fresh schema, seed users, pull Git branches, or perform backups. Feature-branch migrations must not be applied to a live system without explicit review.
 
-## XAMPP / Git Bash
+## Basic commands
 
-Start MySQL. Open Git Bash in the repository folder and check the database settings in `config/config.php`.
+~~~bash
+php tools/migrate.php --help
+php tools/migrate.php --status       # read-only
+php tools/migrate.php --dry-run      # read-only status
+php tools/migrate.php --apply        # prompts for exact configured database name
+php tools/migrate.php --apply --yes  # only controlled disposable/approved maintenance
+~~~
 
-```bash
-cd /c/xampp/htdocs/qwert
-/c/xampp/php/php.exe tools/migrate.php
-```
+On Windows using XAMPP PHP, substitute `/c/xampp/php/php.exe` for `php`. Confirm `config/config.php` points to the database you intend to upgrade; never paste credentials into command logs.
 
-This shows the configured database, server version and pending steps without changing database contents. Back up through MySQL Workbench and pause application writes. Then run:
+## Supported incremental SQL steps (in runner order)
 
-```bash
-/c/xampp/php/php.exe tools/migrate.php --apply
-```
+| Sequence | File | What it adds or repairs |
+| --- | --- | --- |
+| 1 | `database/password_reset.sql` | Hashed password-reset token table |
+| 2 | `database/staff_workspace.sql` | Staff role, repair-start tracking, short public code/PIN |
+| 3 | `database/payment_handover.sql` | Cash payments and handover prerequisites |
+| 4 | `database/staff_activity.sql` | Activity read receipts |
+| 5 | `database/bill_corrections.sql` | Correction/refund history |
+| 6 | `database/stock_reservations.sql` | Catalog stock holds |
+| 7 | `database/stock_quarantine.sql` | Quarantine records |
+| 8 | `database/stock_approvals.sql` | Independent quarantine/count decisions |
+| 9 | `database/stock_transfer_losses.sql` | Physical parts loss state and investigation |
+| 10 | `database/stock_transfer_recoveries.sql` | Post-loss physical recovery |
+| 11 | `database/stock_transfer_evidence.sql` | Private investigation attachments |
+| 12 | `database/stock_transfer_loss_valuations.sql` | Independently approved loss exposure |
+| 13 | `database/part_acquisition_cost_records.sql` | Verified supplier cost register and provenance |
+| 14 | `database/inventory_stocktaking.sql` | Physical stocktake sessions and counted lines |
+| 15 | `database/device_repair_branches.sql` | **Unmerged PR #55:** per-device repair branch FK/index and backfill |
 
-Type the exact database name when prompted. If PHP is already in PATH, use `php` instead of `/c/xampp/php/php.exe`.
+`database/schema.sql` contains the fresh target structure, including the additive field only on the feature branch. The migration runner detects known pending conditions (missing tables, columns, indexes, enums, and limited data backfills). It does **not** perform an exhaustive diff against the 47-table schema.
 
-The runner applies the supported pending migrations in order:
+## Required safeguards before applying
 
-1. `database/password_reset.sql` — password recovery token storage, if missing.
-2. `database/staff_workspace.sql` — repair start time/backfill, short-code/PIN fields, unique code index and CASHIER role.
-3. `database/payment_handover.sql` — counter-cash payment history for existing issued bills.
+1. Confirm exact Git commit/branch and database selected in `config/config.php`; check status before doing anything.
+2. Back up **relational data and private evidence folders together**; verify a restore into a disposable schema, not just a backup file's existence.
+3. Pause application writes. The MySQL advisory migration lock excludes other migration runners, **not** concurrent staff requests.
+4. Rehearse upgrades on populated fictional/test data and compare row counts, cash, inventory, custody and audit records.
+5. Obtain explicit schema/permission approval; only then run `--apply`. Use a least-privilege service credential suitable for the operation.
 
-It checks the resulting schema and reports success. Already-applied steps are skipped; manual Workbench upgrades are recognized too. No new migration-history table is required. Quote-and-Approval uses existing tables.
-
-## Options
-
-| Command | Behavior |
-| --- | --- |
-| `php tools/migrate.php` | Read-only status |
-| `php tools/migrate.php --status` | Same status check |
-| `php tools/migrate.php --dry-run` | Same status check; no SQL applied |
-| `php tools/migrate.php --apply` | Confirm database name, then upgrade |
-| `php tools/migrate.php --apply --yes` | Explicit unattended upgrade; back up first |
-| `php tools/migrate.php --help` | Usage without connecting |
-
-Status checks and successful/cancelled runs exit with code 0. Invalid options or failed upgrades exit with code 1. A status check returning 0 does not mean no migrations are pending; read its output.
+DDL may **implicitly commit**, so a failed run may leave some tables/columns modified even if later SQL fails. Rerun only after diagnosing the failure; do not blindly undo a column that may have historical references.
 
 ## Failure recovery
 
-MySQL DDL commits immediately. The runner does not promise all-or-nothing rollback and cannot create a backup itself. If an upgrade stops, read the error, correct the issue and rerun. Existing values are preserved; repair-start backfill fills only missing dates. The unique index can now be repaired even when its column already exists. Duplicate tracking codes must be reviewed manually; the runner does not delete or overwrite conflicting data.
+- Capture the first SQL error and the exact `--status` report. Keep logs private and redact credentials and customer data.
+- Check the affected `information_schema` tables/indexes/constraints and the source migration procedure.
+- Restore a known-good backup or rehearse the incremental forward-fix on a **disposable** database.
+- Recheck all integrity invariants after re-application. An invalid FK target or duplicate unique public code may need manual review; do not silently delete/edit customer records.
+- Keep old whole-ticket custody, stock uses and bill histories intact. **Reverting mixed per-device ownership to one ticket branch is not a safe generic rollback.**
 
-Only one runner can upgrade the same database at a time using a MySQL advisory lock. That lock does not pause normal application requests. The database account needs the privileges required by the supplied scripts, including CREATE/ALTER and CREATE ROUTINE/ALTER ROUTINE/EXECUTE for the workspace procedure. A missing core schema stops the runner; fresh installations still use `database/schema.sql`.
+## Tests
 
-The statement reader supports the three bundled SQL files, including their DELIMITER commands. It is not a general SQL importer. Future migrations need an explicit pending-state check and an entry in the ordered list. Status checks verify these supported upgrade markers, not every possible schema modification.
+- `tests/migrations.php`: status, cancellation, advisory lock, rerun, selected incomplete-constraint recovery.
+- `tests/repair-branch-migration.php`: additive repair-branch backfill, FK/index recovery, timestamp preservation.
+- `tests/mysql-integrity-round.sh` and `.github/workflows/mysql-integrity.yml`: eight-stage disposable MySQL rehearsal with 19-table snapshots.
+- Confirmed dedicated run [44989851868](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44989851868) passed at `738bfada`, **not** a certification for future commits or production.
 
-## Regression test
-
-`tests/migrations.php` is destructive to its disposable fixture schema and refuses database names outside `repairtrack_test_*`. It checks status-only behavior, cancelled confirmation, concurrent-run protection, upgrade, repeated execution, missing-index recovery, invalid flags and preserved account/ticket counts. Never point test configuration at your real database.
+[Setup](local-setup.md) · [Database reference](database-reference.md) · [Verification](testing-and-verification.md).

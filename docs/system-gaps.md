@@ -1,35 +1,32 @@
-# RepairTrack: what is still missing
+# RepairTrack: open gaps, constraints and historical pilot detail
 
-PHP `main` includes final billing, counter-cash payment and pickup, audited paid-bill corrections/refunds, whole-ticket cancellation checkout, and an initial branch-stock pilot. The remaining work below concerns PHP workflows.
+**Current review: 22 November 2026.** See [release status](release-status.md) and [system overview](system-overview.md). This page preserves implementation detail for past bounded stock milestones; below, **“pilot” means implemented PHP logic with explicit limits, not a deployed production accounting service**.
 
-## Implemented foundation
+## Already present in main (bounded implementations)
 
-Shared login and password recovery; branch-scoped staff accounts; reviewed intake with device/problem/damage menus; draft editing; evidence-backed ticket issuance; admin summaries; manager technician assignment; assigned technician queues and private notes; limited repair-stage updates; read-only courier manifests and viewer status; status-filtered queues; private customer tracking; staff-issued/replaced access codes; separate customer updates and private technician notes; custody dispatch and receiving with role/branch checks; catalog-part holds, installation checks, manager-confirmed reusable-part returns, and manager-only damaged-stock quarantine and cycle-count adjustment controls.
+Staff role/branch access; intake and evidence-backed issuance; customer-safe tracking; assigned technician stages, quotes and staff-recorded decisions; cash final bills, partial payments, correction/refund and counter pickup; whole-ticket physical device dispatch/receive and destination manager acceptance; stock reservations/installations/reusable returns, quarantine and independent count approvals; physical parts transfers, loss/recovery/evidence investigations; reviewed supplier costs and loss exposure valuation; and physical stocktake/reconciliation sign-off. These are not all fully production-certified.
 
-## Work still needed, in practical order
+## Current outstanding priorities
 
-| Priority | Missing workflow | Why it matters |
+| Priority | Unfinished or blocked | Why it must wait or be reviewed |
 | --- | --- | --- |
-| 1 | Customer self-approval, proof attachments and change orders | Staff can now prepare/revise estimates and record customer decisions. Public self-approval and changes after repair starts remain unfinished. |
-| 2 | Stock disposition and cross-branch accounting | Usable-part returns, damaged shelf/installed-part quarantine and verified usable counts are implemented in this pilot. Quarantine disposition and second-person review for significant count corrections are staged in this milestone. Value-based thresholds and mixed-location ticket handling still need separate controls; dedicated physical parts transfer reconciliation is included in this milestone. |
-| 3 | COD and financial reversal review | Whole-ticket cancellation with an agreed diagnostic fee, paid-bill corrections and cash refunds are implemented. COD, bill void/reissue, customer refund evidence, and cash-drawer reconciliation need further safeguards. |
-| 4 | Transfers across branch repair ownership | Device dispatch/receiving and explicit whole-ticket manager acceptance are implemented for early-stage repairs. Partial-ticket ownership, courier exception recovery, customer-confirmed branch changes and destination stock procurement outside the existing part catalog need additional workflows. |
-| 5 | QR convenience and richer customer actions | Private-code tracking now works. QR generation/scanning and customer approval/request actions remain. Receipt numbers alone never open a repair. |
-| 6 | Customer consultation and requests | Technician/customer messages, upgrades, cancellations and approval responses need real storage, permissions and audited decisions. |
-| 7 | Notifications and usable history screens | Current audit/status records are not a full notification inbox or searchable admin history. Add role/device scope, read state and grouped delivery. SMS/email repair alerts remain unimplemented. |
-| 8 | Branch and store operations UI | Branch/location setup and technician skills/availability management are incomplete. |
-| 9 | Diagnosis, demand and historical workload analysis | Staff reports cover 7/30/90-day repair milestones, intake-to-return time, gross counter collections and outstanding peso balances. Damage causes, upgrade demand and workload attribution at the time of reassignment need reliable structured records. |
-| 10 | Deployment and recovery verification | Validate on the target MySQL version, configure actual mail delivery/HTTPS, test backups/restores and concurrent edits, and establish retention and monitoring. Local test success is not production certification. |
+| 0 | Documentation consistency and CI across the current feature head | Prevent old release/branch instructions and partial checks from masquerading as a deployment pass |
+| 1 | **Partial-ticket device repair ownership** | The additive field and read-only display are on a **draft unmerged branch**, but quote/stock/device authorization and audited origin/destination acceptance are not cut over |
+| 2 | Consent and change-order process | Staff can record a customer's estimate decision, but direct customer self-approval, new work after repair begins, evidence and revised charges require policy and server-side flow |
+| 3 | Browser/role security and recovery proof | Denied-role and sibling isolation, concurrent transfer/stock/cash behavior, mobile/keyboard testing, backup + restore on target XAMPP/MySQL |
+| 4 | Chat, customer requests and notifications | Two-way device conversation, upgrade/cancellation request decisions, and real outbound SMS/email delivery need storage, scoping and provider handling |
+| 5 | Logistics and finance completeness | COD remittance/delivery collection, void/reissue, cash-drawer audit, external accounting/GL and customer refund evidence are incomplete |
+| 6 | Branch and technician administration | Branch/location management UI, skills, schedules/availability, cross-branch resource planning remain limited |
+| 7 | Rich analytics and QR/maps | Damage/upgrade trends, live map/GPS tracking, and camera-based QR scanning are not verified PHP production flows |
+| 8 | Production hardening | HTTPS, private data retention, backups/restore, monitoring, load tests, compliant records and target-server validation |
 
-## Recommended next milestone
+## Next gate (not an authorization to merge)
 
-Consolidate **branch-stock custody and accounting correctness** before introducing automated messaging. After independently approved quarantine disposition, count corrections, physical parts transfers, secure investigation evidence and operational loss closure, add financial exposure review, periodic stocktaking deployment readiness and partial-ticket ownership. Preserve existing bills, original installation movements and custody records. Public customer self-approval, COD and live notification delivery remain unfinished.
+The eight-stage dedicated MySQL integrity run passed at commit `738bfada`, but PR #55 remains draft. Complete the documentation review; recheck full CI at the final head; then design/verify the **atomic** device repair / quote / stock authorization cutover, including billing separation and two-operator negative tests. Only afterward consider an audited partial-device transfer workflow. Do not change the ticket's cashier branch on mere physical receipt.
 
-Use `php tools/migrate.php --apply` only after backups and a disposable migration rehearsal. Existing databases may need the bill-corrections, staff-activity, stock-reservations, and stock-quarantine migrations; fresh schema scripts contain these tables. No migration or deployment has been performed in production.
+## Historical detail of completed stock pilots
 
-## Demo separation
-
-Demo-System contains the standalone prototype and the expanded demo seeder. Simplified-System is the PHP application integration branch. Small original SQL fixtures may remain there for regression tests; the new presentation dataset is owned by Demo-System.
+The following sections record the scope and guardrails of **past** PHP pilot increments. Their original wording is retained as functional history. Use current [schema](database-reference.md), [architecture](architecture.md) and [migration guide](migration-runner.md) when executing work. No GitHub commit here deploys those features to real shops.
 
 ## Reusable-part return policy (pilot)
 

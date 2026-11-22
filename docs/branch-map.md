@@ -1,46 +1,37 @@
-# RepairTrack branch map
+# Branch map and code provenance
 
-Current release: 2026-11-15. The tested application through Database-Migrations is integrated into main. See [release notes](main-release.md). The branch descriptions below retain the earlier consolidation history; references to main being unchanged describe that earlier milestone.
+**Current review:** 22 November 2026. This page replaces the November 8–15 consolidation branch plan as a *navigation* reference; the original merge history remains available in Git and [the historical comparison](current-vs-simplified.md).
 
-`Simplified-System` is the integration branch. The category branches below start from the same tested, consolidated application. They are work areas for future changes, not separate applications or completed backend implementations. Existing features depend on shared authentication, database and UI files, so those files remain available in every branch.
+## Branches that matter today
 
-| Branch | Feature ownership | Existing sources consolidated | Main files |
-| --- | --- | --- | --- |
-| `Code-Readability-Cleanup` | Shared formatting, comments and code guide | `feature/code-readability-cleanup`, `feature/beginner-readable-code` | `.editorconfig`, `.prettierrc.json`, `docs/code-style.md` |
-| `Access-Accounts` | Login, logout, password recovery, staff access | Access portion of `feature/simple-access-activity` | `app/auth.php`, `app/password_reset.php`, auth pages in `admin/`, `js/login.js`, `js/trans.js` |
-| `Home-Content` | Public homepage content, preparation guidance and FAQs | Current public landing page | `index.php`, `css/landing.css`, `js/landing.js` |
-| `Intake-Tracking` | Customers, intake drafts, device tracking | `feature/simple-intake-tracking` | `app/intake/`, `admin/intake_create.php`, `views/intake/`, `js/intake-wizard.js` |
-| `Repair-Operations` | Diagnostics, assignments, repair stages, parts requests, testing | Repair portion of `feature/simple-repair-custody` | Workflow functions in `Demo-System: demo-prototype/app.js`; PHP implementation remains planned |
-| `Branches-Logistics` | Branch locations, transfers, pickup, delivery and custody | `feature/sogod-branch-maps`; custody portion of `feature/simple-repair-custody` | `Demo-System: demo-prototype/branch-maps.js`, logistics and transfer functions in `Demo-System: demo-prototype/app.js` |
-| `Payments-Inventory` | Quotes, bills, cash, refunds, COD and stock | `feature/simple-quotes-cash` | Finance, quote and stock functions in `Demo-System: demo-prototype/app.js` |
-| `Notifications-History` | Alerts, conversation visibility and activity history | `feature/repair-alert-delivery`; activity portion of `feature/simple-access-activity` | `Demo-System: demo-prototype/ticket-alerts.js`, `Demo-System: demo-prototype/demo-email.php`, history and message functions in `Demo-System: demo-prototype/app.js` |
-| `Dashboards-Reports` | Staff overview, summaries and reporting | `feature/simple-reports` | `app/dashboard_data.php`, `admin/dashboard.php`, demo report functions |
-| `Simplified-System` | Integrates tested category work and shared foundation | All above plus `feature/simple-foundation` and the prior `System-Consolidation` baseline | Whole application; `docs/current-vs-simplified.md` |
+| Branch/ref | Role | Status at this checkpoint |
+| --- | --- | --- |
+| `main` at `f817154f2e5f5ac04daf8bf0c5b3dd0167e17f0b` | Last checked integrated PHP application baseline | Has auth, intake, customer tracking, repair consoles, billing/cash, whole-ticket device logistics, stock pilots and stocktaking |
+| `Partial-Ticket-Ownership` | Active feature/documentation branch | Draft [PR #55](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/pull/55); **not merged** |
+| `Demo-System` | Separate interactive demonstration and presentation data | Simulated actions are not automatically backend features |
+| `Google-Maps-Tracking` | Earlier demo maps/alerts concepts | Not a verified live branch-location/GPS integration |
+| `Simplified-System`, `Staff-Workspace`, `Device-Handovers`, `Branches-Logistics`, `Repair-Operations` | Earlier development sources | Previous comparison showed their useful incorporated work was already present on `main`; do not wholesale merge outdated files |
 
-## What the audit found
+Other historical names (including `PHP-Bill-Corrections`, `PHP-Stock-Pilot`, `Interface-Navigation` and feature-prefixed branches) may still exist in Git. **Recompare against the latest main head before any reuse; no cleanup/deletion is authorized by this document.**
 
-The five `feature/simple-*` branches other than foundation had the same commit as `Simplified-System` and `System-Consolidation`. They contained no separate feature implementation to extract. The maps commit was already an ancestor of alerts, and alerts was already an ancestor of the latest readability cleanup. Re-merging those ancestors would not add any code.
+## Why not merge the old category branches?
 
-The earlier readability branch diverged by one formatting commit. Its 24 changed PHP/JavaScript files were checked against their common ancestor and had equivalent parsed logic. Where its formatting conflicts with the newer cleanup, the newer cleanup wins. The separate foundation branch contributes the current-versus-planned-system document. The consolidation commit preserves both divergent branches in its parent history.
+The November 22 comparison found old modules behind current integrated PHP/SQL features, or diverged from `main`. Cherry-picking a whole historical branch can reintroduce outdated permission, stock, billing or presentation logic. A review must inspect a **specific file or commit** first, reimplement safely against current main, and run the affected tests. This is especially true for browser maps and prototype notification code.
 
-The original `feature/` branches are legacy references, retained until they can be removed using an authenticated branch-management interface. Use the names in the table for new work. `System-Consolidation` remains a historical baseline. `main` remains unchanged.
+## Current work branch
 
-## Working rules
+PR #55 adds only: an additive per-device branch field, compatibility with whole-ticket acceptance, read-only ownership labels, separate proposed authorization scopes, negative tests, migration recovery and MySQL integrity CI. Its proposed per-device repair scope is **not used for operational actions**. A receiving branch can handle physical custody without gaining ticket billing authority. See [ownership plan](partial-ticket-ownership.md) and [security audit](authorization-cutover-audit.md).
 
-1. Choose the category for the behavior being changed. Shared files may serve more than one category.
-2. Use the settings from `Code-Readability-Cleanup`: four spaces in PHP; two in JavaScript, CSS and HTML; expanded function bodies and useful comments.
-3. Test the changed workflow and format the affected files before merging into `Simplified-System`.
-4. Bring tested shared changes back into category branches as needed. Avoid maintaining different copies of authentication or the schema.
-5. Review database changes separately. This consolidation does not change tables, columns or stored data.
+## Safe Git procedure
 
-The current PHP backend supports shared staff authentication, branch-scoped administrator staff management, dashboard queries, one-device draft intake and ticket issuance. The fuller repair, cash and logistics workflows remain demonstrations. A category name does not mean its production backend is finished.
+~~~bash
+git fetch origin
+git status
+git branch --show-current
+git log --oneline --decorate -8
+git diff --stat origin/main..origin/Partial-Ticket-Ownership
+~~~
 
+Before any merge, check latest refs again, verify PR checks, review every changed SQL/PHP authorization path, and **do not** force push, delete branches or run a migration as a side effect. `main` and local database state remain unchanged simply because documentation was updated.
 
-
-## Staff consoles and quick intake update
-
-The shared tested update belongs to Dashboards-Reports (staff consoles/admin summaries), Repair-Operations (assignments/progress) and Intake-Tracking (menu-driven intake and intake-role permissions). These category branches share this integration point because the permissions and console links depend on the same code. Main remains unchanged. See [staff consoles](staff-consoles.md).
-
-## Demo separation and legacy cleanup
-
-Demo-System preserves the standalone prototype and expanded console seeder. The demo-prototype directory has been removed from Simplified-System; existing small SQL fixtures remain for regression tests. Main is unchanged. The requested System-Consolidation and feature/* reference deletion remains pending authenticated GitHub write access. Their heads are already ancestors of Simplified-System. See [cleanup commands](branch-cleanup.md).
+[Documentation index](README.md) · [Release status](release-status.md) · [Historical cleanup reference](branch-cleanup.md).

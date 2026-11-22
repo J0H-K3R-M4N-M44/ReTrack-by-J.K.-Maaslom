@@ -1,5 +1,7 @@
 # Database demo and integrity checks
 
+> **Historical/demo fixture — not the current schema.** This guide and `seed-counts.json` refer to an earlier **33-table, 963-row** fictional snapshot in `tests/fixtures/demo/`. The current feature-branch `database/schema.sql` declares **47 tables** and has independently versioned migrations/stocktaking. Do **not** treat this fixture as a current 47-table integrity test or import it over `repairtrack`; review its own `repairtrack_demo` schema first. Current relational and migration verification lives in [database reference](database-reference.md), [testing](testing-and-verification.md) and [MySQL round](mysql-integrity-round.md). Statements below describe the original fixture only.
+
 This fixture inserts **963 fictional rows into all 33 existing tables**: the 32-table schema plus `password_reset_tokens`. It creates and uses **`repairtrack_demo`**, leaving the existing `repairtrack` database and its accounts untouched. No tables or columns have been added to the application schema.
 
 ## Files and import order

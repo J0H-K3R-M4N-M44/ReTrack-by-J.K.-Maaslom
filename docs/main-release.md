@@ -1,5 +1,7 @@
 # Main release — 15 November 2026
 
+> **Historical release note (15 November 2026).** This documents the earlier `Database-Migrations` integration checkpoint, **not** the complete application status on 22 November. Later `main` commits implemented the bounded cash/payment, physical device transfers, stock return/quarantine, parts loss/recovery, supplier-cost and physical stocktaking workflows. Statements below describing those as “not completed” must be read **as of 15 November**, not as current limitations. Use [current release status](release-status.md), [system overview](system-overview.md) and [branch map](branch-map.md) for the latest source. This is not a live deployment announcement.
+
 Main incorporates the application history through Database-Migrations (`aea76fe80042e85434c36c7dc64dfde885f8f7a1`). Its source includes Simplified-System, Customer-Portal-and-Consoles, Staff-Workspace, Quote-and-Approval and the older application-category branches. No main-only changes are discarded. Demo-System and Google-Maps-Tracking remain separate; their prototype behavior is not advertised as working PHP functionality.
 
 ## Included
