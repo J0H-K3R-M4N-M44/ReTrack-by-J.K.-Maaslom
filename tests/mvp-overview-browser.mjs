@@ -41,7 +41,15 @@ async function noOverflow(page, label) {
         left: Math.round(box.left),
         right: Math.round(box.right),
       }));
-    return { page: pageWidth, visible, offenders };
+    const scrollContainers = [...document.querySelectorAll('html, body, body *')]
+      .filter(element => element.scrollWidth > element.clientWidth + 1)
+      .slice(0, 16)
+      .map(element => ({
+        selector: element.tagName.toLowerCase() +
+          (typeof element.className === 'string' ? '.' + element.className.trim().replaceAll(' ', '.') : ''),
+        client: element.clientWidth, scroll: element.scrollWidth,
+      }));
+    return { page: pageWidth, visible, offenders, scrollContainers };
   });
   assert(size.page <= size.visible + 1,
     label + ' overflows: ' + JSON.stringify(size));
