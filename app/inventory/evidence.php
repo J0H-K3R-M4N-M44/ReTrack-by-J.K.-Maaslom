@@ -140,6 +140,12 @@ function stockEvidenceSaveStaged(PDO $pdo, int $actor, string $type, int $caseId
         !in_array($type,['LOSS','RECOVERY'],true)) {
         throw new DomainException('Choose a file with a safe name of up to 150 characters.');
     }
+    $nameExtension=strtolower(pathinfo($name,PATHINFO_EXTENSION));
+    $expectedMime=['jpg'=>'image/jpeg','jpeg'=>'image/jpeg','png'=>'image/png',
+        'pdf'=>'application/pdf'][$nameExtension] ?? null;
+    if ($expectedMime!==($details['mime'] ?? null)) {
+        throw new DomainException('File extension does not match verified evidence content.');
+    }
     $directory=stockEvidenceDirectory();
     $resolved=realpath($stagedPath);
     if ($resolved===false || is_link($stagedPath) ||
