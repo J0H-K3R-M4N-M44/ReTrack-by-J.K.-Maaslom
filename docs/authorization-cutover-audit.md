@@ -45,6 +45,12 @@ Status: **SCOPE PREPARATION COMMITTED / NO REPAIR PERMISSION CUTOVER**. This fil
 
 **Release gate remains BLOCKED:** no run result has been confirmed for the final HEAD, and the proposed repair builder is intentionally **not wired to HTTP handlers**. No partial-ticket acceptance service, role permissions change, quote/stock branch cutover, migration on persistent databases, or merge into `main` has occurred.
 
+## Verification evidence — 22 November 2026
+
+The stand-alone `app/console/scopes.php` + `tests/scope-separation.php` pair and `app/console/ownership.php` + `tests/device-ownership-view.php` pair were copied from the feature branch into an isolated temporary local PHP 8.4 CLI directory. Both PHP lint checks and both pure test scripts **passed** there. This confirms only the standalone helper contracts; it does **not** confirm MySQL query execution, migration, role-specific HTTP access, browser behavior, or release readiness.
+
+GitHub commit status lookup returned no statuses and the available workflow-run lookup covers PR-triggered runs rather than all push-triggered jobs. **No successful GitHub Actions integration run has been verified** at the feature branch head. The PR remains draft, and `main` is unchanged.
+
 ## Phase 3 gating design
 
 1. Define **two explicit scope builders** rather than changing the old shared scope in place: a device-repair scope for approved device operations and a ticket/finance scope for billing and full-ticket records.
