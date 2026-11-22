@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # CI-only destructive test: affects ONLY a fresh disposable restore database.
 set -euo pipefail
-[[ "\${REPAIRTRACK_DISPOSABLE_RESTORE:-}" == "I_CONFIRM_DISPOSABLE_CI" && "\${GITHUB_ACTIONS:-}" == "true" && -n "\${RUNNER_TEMP:-}" ]] ||
+[[ "${REPAIRTRACK_DISPOSABLE_RESTORE:-}" == "I_CONFIRM_DISPOSABLE_CI" && "${GITHUB_ACTIONS:-}" == "true" && -n "${RUNNER_TEMP:-}" ]] ||
   { echo "Refusing backup/restore outside explicitly approved ephemeral CI." >&2; exit 2; }
 
 source_db=repairtrack_test_journey
@@ -9,7 +9,7 @@ restore_db=repairtrack_test_restore
 intake_source="$RUNNER_TEMP/journey-evidence"
 stock_source="$RUNNER_TEMP/journey-stock"
 mysql_cmd=(mysql -h 127.0.0.1 -u root -N -B)
-query() { "\${mysql_cmd[@]}" "$1" -e "$2"; }
+query() { "${mysql_cmd[@]}" "$1" -e "$2"; }
 for directory in "$intake_source" "$stock_source"; do
   [[ -d "$directory" && ! -L "$directory" ]] || exit 2
   [[ -z "$(find "$directory" -type l -print -quit)" ]] ||
@@ -17,7 +17,7 @@ for directory in "$intake_source" "$stock_source"; do
 done
 [[ "$(query "$source_db" "SELECT COUNT(*) FROM repair_tickets WHERE record_stage='ISSUED' AND case_state='CLOSED'")" == "1" ]] ||
   { echo "Source must be the completed fictional journey." >&2; exit 2; }
-[[ "$("\${mysql_cmd[@]}" -e "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='$restore_db'")" == "0" ]] ||
+[[ "$("${mysql_cmd[@]}" -e "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='$restore_db'")" == "0" ]] ||
   { echo "Destination already exists; refusing overwrite." >&2; exit 2; }
 
 # Inventory directory fixture: a valid, UNLINKED fictional PNG. Database-linked
@@ -31,7 +31,7 @@ work_dir="$(mktemp -d "$RUNNER_TEMP/rt-restore.XXXXXXXX")"
 restore_created=0
 cleanup() {
   if (( restore_created )); then
-    "\${mysql_cmd[@]}" -e "DROP DATABASE IF EXISTS $restore_db" >/dev/null || true
+    "${mysql_cmd[@]}" -e "DROP DATABASE IF EXISTS $restore_db" >/dev/null || true
   fi
   rm -rf -- "$work_dir"
   rm -f -- "$stock_source/$fixture_name"
@@ -52,9 +52,9 @@ manifest "$stock_source" > "$work_dir/stock.sha"
 test -s "$work_dir/intake.sha" && test -s "$work_dir/stock.sha" ||
   { echo "Missing evidence in disposable source." >&2; exit 1; }
 
-"\${mysql_cmd[@]}" -e "CREATE DATABASE $restore_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+"${mysql_cmd[@]}" -e "CREATE DATABASE $restore_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
 restore_created=1
-"\${mysql_cmd[@]}" "$restore_db" < "$work_dir/backup/sql.sql"
+"${mysql_cmd[@]}" "$restore_db" < "$work_dir/backup/sql.sql"
 cp -a "$work_dir/backup/intake/." "$work_dir/restored/intake/"
 cp -a "$work_dir/backup/stock/." "$work_dir/restored/stock/"
 manifest "$work_dir/restored/intake" > "$work_dir/intake-restored.sha"
