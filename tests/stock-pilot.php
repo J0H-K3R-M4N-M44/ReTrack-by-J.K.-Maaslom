@@ -75,6 +75,37 @@ expectRefusal(fn() => dispatchDevices($pdo, $manager['user_id'], $branch,
     $receivingLocation, (string) $heldCode), 'Release unused branch part reservations');
 expectResult((int) stockRun($pdo, 'SELECT COUNT(*) FROM stock_reservations WHERE quote_item_id = ?',
     [$held['item_id']])->fetchColumn() === 1, 'Refused transfer removed the original reservation.');
+// A released or never-reserved catalog item still requires installation before transfer.
+$waitingCode = stockRun($pdo, 'SELECT item_code FROM ticket_devices WHERE ticket_device_id = ?',
+    [$waiting['target_id']])->fetchColumn();
+expectRefusal(fn() => dispatchDevices($pdo, $manager['user_id'], $branch,
+    $receivingLocation, (string) $waitingCode), 'approved catalog part is not installed');
+expectResult((int) stockRun($pdo, 'SELECT COUNT(*) FROM device_transfers WHERE from_branch_id = ?',
+    [$branch])->fetchColumn() === 0, 'Refused stock transfer left a manifest behind.');
+expectResult(stockRun($pdo, 'SELECT custody_state FROM ticket_devices WHERE ticket_device_id = ?',
+    [$waiting['target_id']])->fetchColumn() === 'AT_LOCATION',
+    'Refused stock transfer changed the device custody state.');
+
+// Transfers without stock-tracked parts remain available, but receiving requires branch assignment.
+$ordinaryCode = stockRun($pdo, 'SELECT item_code FROM ticket_devices WHERE ticket_device_id = ?',
+    [$device])->fetchColumn();
+$manifestCode = dispatchDevices($pdo, $manager['user_id'], $branch,
+    $receivingLocation, (string) $ordinaryCode);
+$manifestItem = (int) stockRun($pdo, 'SELECT x.device_transfer_item_id FROM device_transfer_items x
+    JOIN device_transfers t ON t.device_transfer_id = x.device_transfer_id
+    WHERE t.transfer_code = ?', [$manifestCode])->fetchColumn();
+expectResult($manifestItem > 0, 'Ordinary device transfer did not create a manifest.');
+expectRefusal(fn() => confirmTransferItem($pdo, $manager['user_id'], $manifestItem,
+    'IN_TRANSIT', 'receive', 'Received at next branch'), 'assignment at the handling branch');
+stockRun($pdo, 'INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)',
+    [$manager['user_id'], $neighbor]);
+confirmTransferItem($pdo, $manager['user_id'], $manifestItem, 'IN_TRANSIT',
+    'receive', 'Received at next branch');
+$receivedDevice = stockRun($pdo, 'SELECT custody_state,physical_location_id FROM ticket_devices
+    WHERE ticket_device_id = ?', [$device])->fetch();
+expectResult($receivedDevice['custody_state'] === 'AT_LOCATION' &&
+    (int) $receivedDevice['physical_location_id'] === $receivingLocation,
+    'Ordinary device transfer was not received at the selected branch.');
 $cashTicket = fn(array $job) => cashTicketVersion(cashPageTicket($pdo,$manager,$job['ticket']));
 $cancelBill = cashIssueFinalBill($pdo,$manager['user_id'],$held['ticket'],$cashTicket($held),
     ['reason'=>'Customer approved at counter','confirm'=>'yes','amount'=>'350']);
