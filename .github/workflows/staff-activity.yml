@@ -5,6 +5,11 @@ on:
     paths:
       - '.github/workflows/staff-activity.yml'
       - 'tests/staff-activity.php'
+      - 'tests/activity-browser.mjs'
+      - 'admin/activity.php'
+      - 'views/**'
+      - 'css/**'
+      - 'js/**'
       - 'tools/simulation_data.php'
       - 'database/schema.sql'
       - 'app/**'
@@ -32,3 +37,17 @@ jobs:
               'username' => 'root', 'password' => getenv('MYSQL_PWD')];
           PHP
           php tests/staff-activity.php
+      - name: Verify signed-in desktop and mobile inboxes
+        env:
+          MYSQL_PWD: root
+        run: |
+          set -euo pipefail
+          npm install --no-save --package-lock=false playwright-core@1.56.1
+          export ACTIVITY_FIXTURE="$RUNNER_TEMP/activity-password"
+          umask 077
+          php -r 'require "app/db.php"; require "tools/simulation_data.php"; $pdo = getPDO(); if ($pdo->query("SELECT DATABASE()")->fetchColumn() !== "repairtrack_test_activity") exit(1); echo seedSimulation($pdo);' > "$ACTIVITY_FIXTURE"
+          php -S 127.0.0.1:8742 > "$RUNNER_TEMP/activity-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"; rm -f "$ACTIVITY_FIXTURE"' EXIT
+          curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
+          node tests/activity-browser.mjs
