@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../app/auth.php';
 require_once __DIR__ . '/../app/quotes/repository.php';
+require_once __DIR__ . '/../app/console/ownership.php';
 startAppSession();
 $user = requireRoles(['ADMIN', 'MANAGER', 'TECHNICIAN', 'INTAKE_AGENT', 'VIEWER']);
 header('Cache-Control: no-store, private');
@@ -119,6 +120,9 @@ try {
     error_log('RepairTrack device details: ' . $problem->getMessage());
     unavailablePage('Device details are temporarily unavailable.');
 }
+// The device query has already enforced the existing staff/branch scope.
+// The ownership summary is read-only and must never replace that check.
+$ownership = consoleOwnershipDetails($device);
 $saved = $_SESSION['device_saved'] ?? false;
 unset($_SESSION['device_saved']);
 require __DIR__ . '/../views/console/device.php';
