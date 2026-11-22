@@ -7,7 +7,7 @@ if (PHP_SAPI!=='cli' || !isset($pdo,$staff,$run,$branch)) {
 require_once __DIR__ . '/../app/inventory/acquisition_costs.php';
 [$sender,$cashier,,$receivingManager,$technician]=$staff;
 $destination=insertFixture($pdo,'INSERT INTO branches (branch_code,branch_name) VALUES (?,?)',
-    [$run.'-COST-DEST','Cost audit receiving branch']);
+    [$run.'-CDEST','Cost audit receiving branch']);
 stockRun($pdo,'INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)',
     [$receivingManager['user_id'],$destination]);
 $costAdmin=insertFixture($pdo,"INSERT INTO users (full_name,email,password_hash,role)
@@ -19,7 +19,7 @@ $financeAdmin=insertFixture($pdo,"INSERT INTO users (full_name,email,password_ha
 stockRun($pdo,'INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)',
     [$financeAdmin,$branch]);
 $unrelatedBranch=insertFixture($pdo,'INSERT INTO branches (branch_code,branch_name) VALUES (?,?)',
-    [$run.'-COST-OTHER','Unassigned acquisition branch']);
+    [$run.'-COTHER','Unassigned acquisition branch']);
 $outsider=insertFixture($pdo,"INSERT INTO users (full_name,email,password_hash,role)
     VALUES (?,?,?,'MANAGER')",['Unassigned cost reviewer',$run.'-outsider@example.test','unused']);
 stockRun($pdo,'INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)',
