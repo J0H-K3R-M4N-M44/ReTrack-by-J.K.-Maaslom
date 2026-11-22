@@ -154,13 +154,13 @@ function stockChange(PDO $pdo, int $actorId, int $deviceId, int $itemId, int $ex
                 throw new DomainException('Stock changed. Reopen the estimate before continuing.');
             }
             if ($action === 'reserve' && !$holdId) {
-            if ($available < (int) round((float) $quantity * 1000)) {
-                throw new DomainException('Not enough unreserved stock at this branch.');
-            }
-            stockRun($pdo, 'INSERT INTO stock_reservations (quote_item_id,branch_id,part_id,quantity,reserved_by)
-                VALUES (?,?,?,?,?)', [$itemId,$branch,$part,$quantity,$actorId]);
-        } elseif ($holdId && in_array($action, ['release','install'], true)) {
-            if ($action === 'install') {
+                if ($available < (int) round((float) $quantity * 1000)) {
+                    throw new DomainException('Not enough unreserved stock at this branch.');
+                }
+                stockRun($pdo, 'INSERT INTO stock_reservations (quote_item_id,branch_id,part_id,quantity,reserved_by)
+                    VALUES (?,?,?,?,?)', [$itemId,$branch,$part,$quantity,$actorId]);
+            } elseif ($holdId && in_array($action, ['release','install'], true)) {
+                if ($action === 'install') {
                 if ($device['repair_status'] !== 'IN_PROGRESS') {
                     throw new DomainException('Start the repair before recording installation.');
                 }
