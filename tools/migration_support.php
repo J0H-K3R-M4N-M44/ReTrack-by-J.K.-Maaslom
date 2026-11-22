@@ -118,12 +118,34 @@ function migrationPending(PDO $pdo): array
         !migrationHasTable($pdo, 'inventory_stocktake_lines')) {
         $pending[] = 'inventory_stocktaking.sql';
     }
+    // The device-level branch column is additive; repairs still use ticket-level
+    // permissions until the separately reviewed authorization cutover.
+    $deviceBranchPending = !migrationHasColumn($pdo, 'ticket_devices', 'repair_branch_id');
+    if (!$deviceBranchPending) {
+        $index = $pdo->query("SELECT COUNT(*) FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='ticket_devices'
+            AND INDEX_NAME='idx_td_repair_branch'")->fetchColumn();
+        $fk = $pdo->query("SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='ticket_devices'
+            AND COLUMN_NAME='repair_branch_id' AND REFERENCED_TABLE_NAME='branches'
+            AND REFERENCED_COLUMN_NAME='branch_id'")->fetchColumn();
+        $deviceBranchPending = (int) $index === 0 || (int) $fk === 0;
+    }
+    if (!$deviceBranchPending) {
+        $deviceBranchPending = (bool) $pdo->query("SELECT EXISTS(
+            SELECT 1 FROM ticket_devices d JOIN repair_tickets t ON t.ticket_id=d.ticket_id
+            WHERE t.record_stage='ISSUED' AND d.repair_branch_id IS NULL
+        )")->fetchColumn();
+    }
+    if ($deviceBranchPending) {
+        $pending[] = 'device_repair_branches.sql';
+    }
     return $pending;
 }
 function migrationPrintStatus(array $pending): void
 {
     foreach (
-        ['password_reset.sql', 'staff_workspace.sql', 'payment_handover.sql', 'staff_activity.sql', 'bill_corrections.sql', 'stock_reservations.sql', 'stock_quarantine.sql', 'stock_approvals.sql', 'stock_transfer_losses.sql', 'stock_transfer_recoveries.sql', 'stock_transfer_evidence.sql', 'stock_transfer_loss_valuations.sql', 'part_acquisition_cost_records.sql', 'inventory_stocktaking.sql']
+        ['password_reset.sql', 'staff_workspace.sql', 'payment_handover.sql', 'staff_activity.sql', 'bill_corrections.sql', 'stock_reservations.sql', 'stock_quarantine.sql', 'stock_approvals.sql', 'stock_transfer_losses.sql', 'stock_transfer_recoveries.sql', 'stock_transfer_evidence.sql', 'stock_transfer_loss_valuations.sql', 'part_acquisition_cost_records.sql', 'inventory_stocktaking.sql', 'device_repair_branches.sql']
         as $filename
     ) {
         echo (in_array($filename, $pending, true) ? '[pending] ' : '[ready]   ') . $filename . "\n";
