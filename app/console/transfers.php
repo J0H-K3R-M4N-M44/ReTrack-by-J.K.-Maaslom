@@ -92,7 +92,7 @@ function dispatchDevices(PDO $pdo, int $user, int $origin, int $destination, str
                     WHERE ticket_id = ? ORDER BY ticket_device_id FOR UPDATE');
                 $allCodes->execute([(int) $row['ticket_id']]);
                 foreach ($allCodes->fetchAll(PDO::FETCH_COLUMN) as $requiredCode) {
-                    if (!in_array((string) $requiredCode, $codes, true)) {
+                    if (!in_array(strtoupper((string) $requiredCode), $codes, true)) {
                         throw new DomainException(
                             'Transfer every device on this ticket together before moving an uninstalled approved part.'
                         );
