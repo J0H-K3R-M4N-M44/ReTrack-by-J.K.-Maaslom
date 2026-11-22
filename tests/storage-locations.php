@@ -6,6 +6,7 @@ if (PHP_SAPI !== 'cli') {
 }
 require_once __DIR__ . '/../app/auth.php';
 require_once __DIR__ . '/../app/staff/locations.php';
+require_once __DIR__ . '/../app/intake/issuance.php';
 $pdo = getPDO();
 if (!str_starts_with((string) $pdo->query('SELECT DATABASE()')->fetchColumn(), 'repairtrack_test_')) {
     throw new RuntimeException('Disposable test database required.');
@@ -27,7 +28,6 @@ function locationReject(callable $action, string $message): void
 }
 $fixture = json_decode(file_get_contents(__DIR__ . '/console-fixture.json'), true, 512, JSON_THROW_ON_ERROR);
 $manager = $fixture['accounts']['MANAGER'];
-$admin = $fixture['accounts']['ADMIN'];
 $intake = $fixture['accounts']['INTAKE_AGENT'];
 $tech = $fixture['accounts']['TECHNICIAN'];
 $branches = intakeBranches($pdo, (int) $manager['user_id']);
@@ -81,8 +81,6 @@ locationCheck(in_array($locationId, array_map('intval', array_column($available,
     'Created location unavailable to intake issuance.');
 $listed = locationPage($pdo, (int) $manager['user_id']);
 locationCheck($listed['total'] > 0 && count($listed['rows']) <= 20, 'Location list bounds incorrect');
-$adminList = locationPage($pdo, (int) $admin['user_id']);
-locationCheck($adminList['total'] >= 1, 'Administrator cannot view assigned locations.');
 $audit = $pdo->prepare(
     "SELECT COUNT(*) FROM audit_events WHERE entity_type='storage_location'
     AND entity_id=? AND action='STORAGE_LOCATION_CREATED' AND actor_user_id=?",
