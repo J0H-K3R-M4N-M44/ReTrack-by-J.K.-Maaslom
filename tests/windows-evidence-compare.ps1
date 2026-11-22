@@ -74,3 +74,7 @@ try {
         if (Test-Path -LiteralPath $folder) { Remove-Item -LiteralPath $folder -Recurse -Force }
     }
 }
+# Expected negative subprocesses deliberately exit 2. Reset that exit status only
+# after every expected denial and every valid path has been checked.
+exit 0
+
