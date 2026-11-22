@@ -9,12 +9,12 @@ require_once __DIR__ . '/../app/db.php';
 require_once __DIR__ . '/simulation_data.php';
 
 try {
-    if ((databaseConfig()['database'] ?? 'repairtrack') !== 'repairtrack') {
-        throw new RuntimeException('Set database to repairtrack in config/config.php.');
+    if ((databaseConfig()['database'] ?? '') !== 'repairtrack_test_operator') {
+        throw new RuntimeException('Simulation is permitted only in repairtrack_test_operator.');
     }
     $pdo = getPDO();
-    if ($pdo->query('SELECT DATABASE()')->fetchColumn() !== 'repairtrack') {
-        throw new RuntimeException('Simulation requires repairtrack in config/config.php.');
+    if ($pdo->query('SELECT DATABASE()')->fetchColumn() !== 'repairtrack_test_operator') {
+        throw new RuntimeException('Simulation requires the isolated operator test database.');
     }
     $pdo->beginTransaction();
     $password = seedSimulation($pdo);
