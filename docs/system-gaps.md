@@ -4,14 +4,14 @@ PHP `main` includes final billing, counter-cash payment and pickup, audited paid
 
 ## Implemented foundation
 
-Shared login and password recovery; branch-scoped staff accounts; reviewed intake with device/problem/damage menus; draft editing; evidence-backed ticket issuance; admin summaries; manager technician assignment; assigned technician queues and private notes; limited repair-stage updates; read-only courier manifests and viewer status; status-filtered queues; private customer tracking; staff-issued/replaced access codes; separate customer updates and private technician notes; custody dispatch and receiving with role/branch checks; catalog-part holds, installation checks, and manager-confirmed returns of physically inspected reusable parts before testing and billing.
+Shared login and password recovery; branch-scoped staff accounts; reviewed intake with device/problem/damage menus; draft editing; evidence-backed ticket issuance; admin summaries; manager technician assignment; assigned technician queues and private notes; limited repair-stage updates; read-only courier manifests and viewer status; status-filtered queues; private customer tracking; staff-issued/replaced access codes; separate customer updates and private technician notes; custody dispatch and receiving with role/branch checks; catalog-part holds, installation checks, manager-confirmed reusable-part returns, and manager-only damaged-stock quarantine and cycle-count adjustment controls.
 
 ## Work still needed, in practical order
 
 | Priority | Missing workflow | Why it matters |
 | --- | --- | --- |
 | 1 | Customer self-approval, proof attachments and change orders | Staff can now prepare/revise estimates and record customer decisions. Public self-approval and changes after repair starts remain unfinished. |
-| 2 | Stock quarantine, adjustments, and cross-branch use | Verified reusable-part return, controlled whole-ticket destination acceptance, and new-branch reservations are supported in this pilot. Damaged-part quarantine, cycle counts, stock adjustments, mixed-location tickets and independent parts-transfer reconciliation still need controls. |
+| 2 | Stock disposition and cross-branch accounting | Usable-part returns, damaged shelf/installed-part quarantine and verified usable counts are implemented in this pilot. Quarantine disposition (scrap/release), second-person approval for large adjustments, mixed-location tickets and physical parts-transfer reconciliation still need dedicated workflows. |
 | 3 | COD and financial reversal review | Whole-ticket cancellation with an agreed diagnostic fee, paid-bill corrections and cash refunds are implemented. COD, bill void/reissue, customer refund evidence, and cash-drawer reconciliation need further safeguards. |
 | 4 | Transfers across branch repair ownership | Device dispatch/receiving and explicit whole-ticket manager acceptance are implemented for early-stage repairs. Partial-ticket ownership, courier exception recovery, customer-confirmed branch changes and destination stock procurement outside the existing part catalog need additional workflows. |
 | 5 | QR convenience and richer customer actions | Private-code tracking now works. QR generation/scanning and customer approval/request actions remain. Receipt numbers alone never open a repair. |
@@ -23,9 +23,9 @@ Shared login and password recovery; branch-scoped staff accounts; reviewed intak
 
 ## Recommended next milestone
 
-Consolidate **branch-stock custody and accounting correctness** before introducing automated messaging. Next address damaged-part quarantine and cycle-count adjustments, partial-ticket ownership limits, and independent stock-transfer reconciliation. Preserve existing bills, original installation movements and custody records. Public customer self-approval, COD and live notification delivery remain unfinished.
+Consolidate **branch-stock custody and accounting correctness** before introducing automated messaging. Next address quarantined-part disposition, second-person inventory adjustment approval, partial-ticket ownership limits, and independent stock-transfer reconciliation. Preserve existing bills, original installation movements and custody records. Public customer self-approval, COD and live notification delivery remain unfinished.
 
-Use `php tools/migrate.php --apply` only after backups and a disposable migration rehearsal. Existing databases may need the bill-corrections, staff-activity and stock-reservations migrations; fresh schema scripts contain these tables. No migration or deployment has been performed in production.
+Use `php tools/migrate.php --apply` only after backups and a disposable migration rehearsal. Existing databases may need the bill-corrections, staff-activity, stock-reservations, and stock-quarantine migrations; fresh schema scripts contain these tables. No migration or deployment has been performed in production.
 
 ## Demo separation
 
@@ -44,3 +44,13 @@ Physical transfer/receipt does **not** silently change repair responsibility. Fo
 Acceptance preserves the intake branch, original estimates, movement and custody events. It updates the ticket's accountable branch, clears former technician assignments, and creates an audit event with original branch and assignments. The receiving branch can then assign a local technician and reserve an approved catalog part from its **own** inventory. It does not silently move physical inventory, issue a new quote or notify the customer.
 
 Tickets partially transferred, already billed, actively being repaired, in unresolved custody exception, or with active part reservations cannot be accepted by this workflow. A separate workflow would be required for partial-ticket work ownership, disputed returns, price changes, and audited inter-branch parts transfers.
+
+## Damaged stock quarantine and verified cycle counts (pilot)
+
+The inventory page is available only to active ADMIN/MANAGER staff assigned to the selected active branch. Shelf quarantine requires a physical damage description, a positive quantity (up to three decimal places), explicit separation confirmation, an unchanged usable-shelf snapshot and a current inventory movement watermark. Existing repair reservations remain protected: usable on-hand cannot be reduced below already-held stock. The action writes a negative ADJUSTMENT movement and a `stock_quarantines` record tied to it; the removed stock is never automatically made available again.
+
+A verified shelf count records the **usable on-hand** quantity, excluding quarantined parts. Positive or negative differences use an immutable ADJUSTMENT ledger entry, before/after audit evidence and the same branch, reason, confirmation, reservation-floor and stale-request validation. An unchanged count is rejected to avoid fake movements. Count corrections here are manager-recorded; separate independent approval thresholds and periodic count sign-off remain future work.
+
+A damaged part physically removed from an in-progress repair may be quarantined by the accountable-branch ADMIN/MANAGER before billing, with a reason and explicit isolation confirmation. Its original issue history remains, but the quarantined installation is no longer considered active; no positive usable-stock movement is created because the issue already reduced on-hand. Replacement requires another reservation and installation before testing/billing. Duplicate quarantine, technician attempts, and bill-stage changes are refused.
+
+Quarantine records are intentionally **held** until a dedicated disposal or inspected-release decision is implemented. This pilot does not support unauthorized resale, automatic write-off reconciliation, cross-branch damaged-part shipping, cash refunds or post-billing reversals. To upgrade an existing database, back up and rehearse locally before running `php tools/migrate.php --apply`; the added table is `database/stock_quarantine.sql`.

@@ -51,6 +51,11 @@ function stockActiveInstallation(PDO $pdo, int $deviceId, int $itemId): int
                 AND reversal.transaction_type = 'RETURN'
                 AND reversal.reference_code = CONCAT('RETURN-USE-', m.inventory_transaction_id)
         )
+        AND NOT EXISTS (
+            SELECT 1 FROM stock_quarantines q
+            WHERE q.source_type = 'INSTALLATION'
+            AND q.original_use_movement_id = m.inventory_transaction_id
+        )
         ORDER BY m.inventory_transaction_id DESC LIMIT 1", [$deviceId, $base, $base . '-R%']);
     return (int) ($query->fetchColumn() ?: 0);
 }
@@ -64,11 +69,11 @@ function stockChange(PDO $pdo, int $actorId, int $deviceId, int $itemId, int $ex
         if (!$actor || !$actor['is_active'] || !in_array($actor['role'], ['ADMIN','MANAGER','TECHNICIAN'], true)) {
             throw new DomainException('This account cannot change branch stock.');
         }
-        if (!in_array($action, ['reserve', 'release', 'install', 'return'], true)) {
+        if (!in_array($action, ['reserve', 'release', 'install', 'return', 'quarantine'], true)) {
             throw new DomainException('Choose a supported stock action.');
         }
         if ($actor['role'] === 'TECHNICIAN' && $action !== 'install') {
-            throw new DomainException('Ask a branch manager to reserve, return, or release stock.');
+            throw new DomainException('Ask a branch manager to reserve, return, quarantine, or release stock.');
         }
         $device = consoleDevice($pdo, $actor, $deviceId, true);
         $branch = (int) $device['accountable_branch_id'];
@@ -109,7 +114,42 @@ function stockChange(PDO $pdo, int $actorId, int $deviceId, int $itemId, int $ex
         }
         $baseReference = 'QUOTE-ITEM-' . $itemId;
         $activeInstallation = stockActiveInstallation($pdo, $deviceId, $itemId);
-        if ($action === 'return') {
+        if ($action === 'quarantine') {
+            $reason = trim($reason);
+            if ($device['repair_status'] !== 'IN_PROGRESS') {
+                throw new DomainException('Remove and isolate the damaged part before testing.');
+            }
+            if (!$restockConfirmed || mb_strlen($reason) < 10 || mb_strlen($reason) > 500) {
+                throw new DomainException('Confirm the part was physically removed and quarantined; give a reason of 10–500 characters.');
+            }
+            if ($holdId || !$activeInstallation || $expectedHold !== $activeInstallation) {
+                throw new DomainException('Stock changed. Reopen the estimate before quarantining the installed part.');
+            }
+            $original = stockRun($pdo, "SELECT branch_id,part_id,quantity_delta FROM inventory_transactions
+                WHERE inventory_transaction_id=? AND ticket_device_id=?
+                  AND transaction_type='TICKET_USE' FOR UPDATE",
+                [$activeInstallation,$deviceId])->fetch();
+            if (!$original || (int)$original['branch_id'] !== $branch ||
+                (int)$original['part_id'] !== $part ||
+                (int)round((float)$original['quantity_delta']*1000) !==
+                    -(int)round((float)$quantity*1000)) {
+                throw new DomainException('The original installation does not match this branch and part.');
+            }
+            // The original issue already decreased available stock. Do NOT debit it again.
+            stockRun($pdo, "INSERT INTO stock_quarantines
+                (branch_id,part_id,quantity,source_type,original_use_movement_id,ticket_device_id,
+                 reason,recorded_by_user_id,created_at)
+                VALUES (?,?,?,'INSTALLATION',?,?,?,?,UTC_TIMESTAMP())",
+                [$branch,$part,$quantity,$activeInstallation,$deviceId,$reason,$actorId]);
+            $quarantineId = (int)$pdo->lastInsertId();
+            stockRun($pdo, "INSERT INTO audit_events
+                (actor_type,actor_user_id,entity_type,entity_id,action,after_data,reason,created_at)
+                VALUES ('USER',?,'quote_item',?,'STOCK_QUARANTINE_INSTALLED',?,?,UTC_TIMESTAMP())",
+                [$actorId,$itemId,json_encode([
+                    'branch_id'=>$branch,'part_id'=>$part,'quantity'=>$quantity,
+                    'original_use_movement_id'=>$activeInstallation,'quarantine_id'=>$quarantineId,
+                    'ticket_device_id'=>$deviceId], JSON_THROW_ON_ERROR),$reason]);
+        } elseif ($action === 'return') {
             $reason = trim($reason);
             if ($device['repair_status'] !== 'IN_PROGRESS') {
                 throw new DomainException('Return the removed part before testing the repaired device.');

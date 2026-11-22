@@ -54,7 +54,11 @@ try {
                 (int) requestText($_POST, 'hold_id'), requestText($_POST, 'stock_action'),
                 requestText($_POST, 'return_reason'), requestText($_POST, 'restock_confirm') === 'yes');
             unset($_SESSION['quote_forms'][$formKey]);
-            $_SESSION['quote_saved'] = 'Branch stock updated.';
+            $_SESSION['quote_saved'] = match (requestText($_POST,'stock_action')) {
+                'quarantine' => 'Damaged installed part isolated; replacement installation required.',
+                'return' => 'Reusable part returned to usable stock.',
+                default => 'Branch stock updated.',
+            };
             header('Location: quote.php?' . http_build_query(['id' => $id, 'return' => $returnQuery]), true, 303);
             exit();
         }

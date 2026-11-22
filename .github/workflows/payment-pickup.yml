@@ -1,7 +1,7 @@
 name: PHP shop workflow checks
 on:
   push:
-    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, PHP-Bill-Corrections-Integration, PHP-Stock-Cancellation-Integration, Stock-Transfer-Integrity, Stock-Returns-Integrity, Branch-Repair-Acceptance, main]
+    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, PHP-Bill-Corrections-Integration, PHP-Stock-Cancellation-Integration, Stock-Transfer-Integrity, Stock-Returns-Integrity, Branch-Repair-Acceptance, Stock-Quarantine-Counts, main]
     paths:
       - '.github/workflows/payment-pickup.yml'
       - 'tests/payment-pickup.php'
@@ -16,6 +16,8 @@ on:
       - 'tests/payment-browser.mjs'
       - 'tests/checkout-concurrency.php'
       - 'tests/stock-pilot.php'
+      - 'tests/stock-quarantine.php'
+      - 'database/stock_quarantine.sql'
       - 'app/inventory/**'
       - 'database/stock_reservations.sql'
   workflow_dispatch:
@@ -51,11 +53,21 @@ jobs:
               'intake_hmac_key' => str_repeat('a', 64),
           ];
           PHP
+          php -l app/inventory/stock_ops.php
+          php -l app/inventory/reservations.php
+          php -l admin/inventory.php
+          php -l tests/stock-quarantine.php
+          php -l views/quotes/editor.php
+          # Emulate upgrading an existing RepairTrack database on disposable test data.
+          MYSQL_PWD=root mysql -h 127.0.0.1 -u root repairtrack_test_pickup -e 'DROP TABLE stock_quarantines;'
+          php tools/migrate.php --apply --yes
+          php tools/migrate.php --status
           php tests/payment-pickup.php
           php tests/payment-pickup.php --cancel
           php tests/payment-pickup.php --cancel-free
           php tests/payment-pickup.php --concurrency
           php tests/payment-pickup.php --stock-pilot
+          php tests/payment-pickup.php --stock-operations
       - name: Walk through billing and pickup in Chrome
         run: |
           npm install --no-save --package-lock=false playwright-core@1.56.1

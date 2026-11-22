@@ -218,6 +218,9 @@ function cashCancelDevice(PDO $pdo, array $device, int $actorId, string $reason)
             SELECT 1 FROM inventory_transactions r
             WHERE r.transaction_type = 'RETURN' AND r.ticket_device_id = u.ticket_device_id
             AND r.reference_code = CONCAT('RETURN-USE-', m.inventory_transaction_id)
+        ) AND NOT EXISTS (
+            SELECT 1 FROM stock_quarantines q WHERE q.source_type='INSTALLATION'
+            AND q.original_use_movement_id=m.inventory_transaction_id
         ) LIMIT 1 FOR UPDATE");
     $parts->execute([$id]);
     if ($parts->fetchColumn()) {
