@@ -3,6 +3,10 @@
   grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
+.payments-page > .dashboard-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .payments-page .staff-heading {
   align-items: flex-start;
 }
