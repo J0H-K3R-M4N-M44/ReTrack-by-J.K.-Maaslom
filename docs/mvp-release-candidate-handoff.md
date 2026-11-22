@@ -39,6 +39,10 @@ Exit code **0** = local prerequisites checked; **2** = blocked; **3** = warning 
 
 The script reads local PHP config in its own process but does not print secret values or absolute private paths, connect to MySQL, make network requests, change files, migrate, or edit `main`. It requires a loopback local URL and a fictional `repairtrack_test_*` database as a guardrail. Use `php tests/local-acceptance-preflight.php` for synthetic self-tests.
 
+## Additional SQL comparison evidence
+
+The new [read-only SQL restoration reconciliation](local-sql-restore-reconciliation.md) checks actual row-content equality and rejects a deliberately altered restored fixture with unchanged row counts. This enhances Linux CI recovery evidence; it does not execute the physical Windows/XAMPP restore or certify a production snapshot.
+
 ## Windows-specific automated evidence
 
 The candidate includes a PowerShell read-only comparator for **fictional** private intake/inventory evidence, with a Windows CI test for matching, corrupt, missing and extra files and folder isolation. [Instructions and limitations](windows-evidence-integrity-check.md). The synthetic Windows job does **not** execute PHP/MySQL, restore a database or constitute human/XAMPP acceptance. Always record the passing run and exact implementation commit; passing SHA must not be inferred from an earlier branch.
