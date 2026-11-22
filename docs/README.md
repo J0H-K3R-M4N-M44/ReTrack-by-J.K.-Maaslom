@@ -1,0 +1,19 @@
+# RepairTrack documentation index
+
+**Recommended current starting point:** [MVP scope and stabilization](mvp-stabilization.md). The current branch is a reviewable MVP effort, **not a production release**.
+
+## Current verification and handover
+
+- [Full end-to-end regression report](mvp-test-report.md): one actual service-layer ticket plus independent browser journeys and broad CI evidence
+- [Manual user acceptance checklist](mvp-uat-checklist.md): 20 executable staff/customer scenarios, **awaiting human sign-off**
+- [Focused accessibility review](mvp-accessibility-review.md): verified public keyboard/mobile checks, with remaining screen-reader/contrast work
+- [Database and private evidence recovery rehearsal](mvp-recovery-rehearsal.md): verified isolated restore and operational stop conditions
+
+## Functional modules and existing guides
+
+- [Staff consoles](staff-consoles.md), [staff workspace](staff-workspace.md), [ticket issuance](ticket-issuance.md)
+- [Customer tracking](customer-tracking.md), [quoting](quote-and-approval.md), [billing and handover](payment-and-handover.md)
+- [Schema demo](database-demo.md), [migration runner](migration-runner.md), [current system gaps](system-gaps.md)
+- [Workflow blueprint](workflow-blueprint.md), [interface wireframes](wireframes/index.html)
+
+These older documents describe features and intermediate milestones and may not reflect the very latest stabilized branch. Use the current CI report for tested claims. Optional partial-device repair ownership remains deferred in [draft PR #55](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/pull/55).

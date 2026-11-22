@@ -4,7 +4,7 @@
 
 ## Result and CI evidence
 
-**All targeted jobs passed.** The tested application commit is `bcdfcd2e`; the two broader suites were rerun at the same code checkpoint.
+**All targeted jobs passed.** The latest tested application commit is `2821057e`, including focused accessibility checks. The staff/intake and payment/checkout suites were rerun at this code checkpoint.
 
 | Area | Verification | Outcome |
 | --- | --- | --- |
@@ -35,12 +35,20 @@ Existing regression suites also exercise escaped customer/quote content, stale/r
 
 The first newly scheduled public browser check timed out when a no-JavaScript user attempted to activate the animated **View repair** button. Removing the unnecessary 240ms entry animation from `css/public.css` made the tracking form stationary; the unchanged browser test passed in [run 44996054209](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996054209). Public tracking credentials and authorization were not changed.
 
+## Additional accessibility and recovery verification
+
+- **PASS:** [Run 44996725360](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996725360) with all four jobs green at `2821057e`. The public browser job now checks keyboard skip focus, correctly labelled tracking inputs, 44px interaction height, reduced motion, no-JavaScript support and 320–1440px overflow.
+- **PASS:** [Staff/intake run 44996725335](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996725335) and [payment/pickup run 44996725374](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996725374), same application checkpoint.
+- **PASS:** [Isolated SQL + private evidence restore run 44996590305](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996590305), 47 base tables with matching counts, PHP 375.00 cash ledger, closed ticket, customer custody, database-linked intake files and matching private-directory hashes. It is a CI-only rehearsal, not a production backup/restore.
+- **PREPARED, NOT EXECUTED BY PEOPLE:** [Manual UAT checklist](mvp-uat-checklist.md) includes 20 role-specific acceptance cases with actual-result and approval fields.
+- Scope and gaps: [Accessibility review](mvp-accessibility-review.md) · [Recovery rehearsal](mvp-recovery-rehearsal.md).
+
 ## Limitations and next safety gates
 
 - A complete **one-ticket PHP service-layer journey** passed. The browser flows were independently tested, not as one continuous browser session switching between every staff/customer role.
-- Not certified: production deployment, persistent database/private evidence backup-and-restore, manual stakeholder acceptance, load testing, full accessibility audit, external integration or security penetration testing.
+- Not certified: production deployment or restore of an actual persistent installation, manual stakeholder acceptance, load testing, full accessibility audit, external integration or security penetration testing.
 - Still excluded: customer self-approval, secure chat, COD remittance, payment gateways, SMS/email, GPS and partial-device repair ownership.
 
-**Next practical work:** manual acceptance on a representative XAMPP/MySQL setup; keyboard/mobile accessibility checks; database and private-evidence restoration rehearsal; final academic handover documentation. No need to expand roles or partial branch transfers to call this MVP functional.
+**Next practical work:** execute the prepared UAT with actual role testers, complete a screen-reader/keyboard/contrast review across staff consoles, and rehearse an authorized restore on a representative XAMPP deployment with a safe maintenance window. No need to expand roles or partial branch transfers.
 
 [Stabilization scope](mvp-stabilization.md) · [Test workflow](../.github/workflows/mvp-stabilization.yml) · [Single-ticket script](../tests/mvp-single-ticket-journey.php) · [Deferred optional PR #55](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/pull/55).

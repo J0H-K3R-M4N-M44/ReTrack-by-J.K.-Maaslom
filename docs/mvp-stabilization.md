@@ -46,6 +46,13 @@ reliably activate **View repair** with JavaScript disabled. The rerun passed wit
 the tracking code/PIN rules. A one-ticket *browser* journey across every role remains separate
 from the verified single-ticket *service-layer* test.
 
+## Second checkpoint: accessibility, UAT planning and isolated recovery
+
+- [Verified accessibility smoke test](mvp-accessibility-review.md): keyboard skip focus, input names/help, 44px customer targets, reduced motion, no-JavaScript interaction and small screens passed in [CI 44996725360](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996725360). A full staff screen-reader/contrast audit is **not done**.
+- [Twenty-scenario manual user-acceptance checklist](mvp-uat-checklist.md) prepared for real testers; **no human sign-off claimed**.
+- [Disposable SQL + evidence recovery rehearsal](mvp-recovery-rehearsal.md) passed in [CI 44996590305](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996590305), including 47 database tables and hashed private files. **No production restore performed.**
+- Broader [intake/staff](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996725335) and [payment/pickup](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996725374) suites also passed at the latest tested application checkpoint.
+
 ## Practical MVP completion checklist
 
 1. Verify mainline login, intake/issuance, technician workflow, public tracking,
