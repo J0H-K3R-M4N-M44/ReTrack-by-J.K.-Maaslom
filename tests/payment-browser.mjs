@@ -155,6 +155,47 @@ try {
   await late.locator('[name=confirm]').check();
   await press(admin,'Record physical receipt');
   await admin.getByText('Status RECEIVED', {exact:false}).first().waitFor();
+  // A second shipment is independently investigated; no missing part is received
+  // or credited merely because the source branch accepts an operational loss.
+  await manager.goto(base + '/admin/parts_transfers.php?branch=' + fixture.branch);
+  await manager.locator('summary').filter({hasText:'New parts manifest'}).click();
+  const lossDispatch = manager.locator('details').filter({hasText:'New parts manifest'}).locator('form');
+  await lossDispatch.locator('[name=destination]').selectOption(String(fixture.transfer_branch));
+  await lossDispatch.locator('[name=sku_lines]').fill(fixture.transfer_sku + ',1');
+  await lossDispatch.locator('[name=note]').fill('Second independently counted battery shipment with signed seal reference.');
+  await lossDispatch.locator('[name=confirm]').check();
+  await press(manager,'Record parts dispatch');
+  await manager.getByRole('status').getByText('Parts dispatched under manifest',{exact:false}).waitFor();
+  await admin.goto(base + '/admin/parts_transfers.php?branch=' + fixture.transfer_branch);
+  const missingItem = admin.locator('article.dashboard-card').filter({hasText:fixture.transfer_sku}).first();
+  await missingItem.locator('summary').filter({hasText:'Confirm receipt or report shortage'}).click();
+  const missingForm = missingItem.locator('form').filter({has:admin.locator('button[value=missing]')});
+  await missingForm.locator('[name=note]').fill('Courier and receiving manager verified a missing sealed battery case.');
+  await missingForm.locator('[name=confirm]').check();
+  await missingForm.locator('button[value=missing]').click();
+  await admin.getByRole('status').getByText('Missing-part discrepancy recorded',{exact:false}).waitFor();
+  const investigationItem = admin.locator('article.dashboard-card').filter({hasText:fixture.transfer_sku}).first();
+  await investigationItem.locator('summary').filter({hasText:'Open formal loss investigation'}).click();
+  const investigation = investigationItem.locator('form').filter({has:admin.locator('button[value=report-loss]')});
+  await investigation.locator('[name=evidence_reference]').fill('SEAL-'+fixture.transfer_sku+'-INCIDENT');
+  await investigation.locator('[name=reason]').fill(
+    'Checked signed dispatch sheet, shipment seal and receiver count; battery remains missing.');
+  await investigation.locator('[name=confirm]').check();
+  await investigation.locator('button[value=report-loss]').click();
+  await admin.getByRole('status').getByText('Formal loss investigation recorded',{exact:false}).waitFor();
+  const reviewer = await login('loss_reviewer',1440);
+  await reviewer.goto(base + '/admin/parts_transfers.php?branch=' + fixture.branch);
+  const reviewItem = reviewer.locator('article.dashboard-card').filter({hasText:fixture.transfer_sku}).first();
+  await reviewItem.locator('summary').filter({hasText:'Independently review missing-stock case'}).click();
+  const decision = reviewItem.locator('form').filter({has:reviewer.locator('button[value=decide-loss]')});
+  await decision.locator('[name=decision]').selectOption('approve');
+  await decision.locator('[name=reason]').fill(
+    'Independently verified origin manifest, destination incident report and sealed shipment discrepancy.');
+  await decision.locator('[name=confirm]').check();
+  await decision.locator('button[value=decide-loss]').click();
+  await reviewer.getByRole('status').getByText('Independent loss decision recorded',{exact:false}).waitFor();
+  await reviewer.getByText('Status LOSS_CLOSED',{exact:false}).first().waitFor();
+  await reviewer.context().close();
   await admin.context().close();
   await manager.goto(base + '/admin/staff_home.php');
   const sidebar = await manager.locator('.rt-side').boundingBox();

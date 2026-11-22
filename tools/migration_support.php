@@ -90,12 +90,23 @@ function migrationPending(PDO $pdo): array
         !migrationHasTable($pdo, 'stock_count_reviews')) {
         $pending[] = 'stock_approvals.sql';
     }
+    $lossItemType = $pdo->query("SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME='inventory_transfer_items'
+        AND COLUMN_NAME='item_status'")->fetchColumn();
+    $lossTransferType = $pdo->query("SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME='inventory_transfers'
+        AND COLUMN_NAME='status'")->fetchColumn();
+    if (!migrationHasTable($pdo,'stock_transfer_loss_cases') ||
+        !str_contains((string)$lossItemType,"'LOSS_CLOSED'") ||
+        !str_contains((string)$lossTransferType,"'LOSS_CLOSED'")) {
+        $pending[]='stock_transfer_losses.sql';
+    }
     return $pending;
 }
 function migrationPrintStatus(array $pending): void
 {
     foreach (
-        ['password_reset.sql', 'staff_workspace.sql', 'payment_handover.sql', 'staff_activity.sql', 'bill_corrections.sql', 'stock_reservations.sql', 'stock_quarantine.sql', 'stock_approvals.sql']
+        ['password_reset.sql', 'staff_workspace.sql', 'payment_handover.sql', 'staff_activity.sql', 'bill_corrections.sql', 'stock_reservations.sql', 'stock_quarantine.sql', 'stock_approvals.sql', 'stock_transfer_losses.sql']
         as $filename
     ) {
         echo (in_array($filename, $pending, true) ? '[pending] ' : '[ready]   ') . $filename . "\n";

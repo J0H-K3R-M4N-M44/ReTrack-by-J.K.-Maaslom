@@ -52,7 +52,8 @@ $hash = $browserFixture ? password_hash($password, PASSWORD_DEFAULT) : 'unused';
 $staff = [];
 $roles = ['MANAGER', 'CASHIER', 'CASHIER'];
 if (in_array('--concurrency', $argv, true) || in_array('--stock-pilot', $argv, true) ||
-    in_array('--stock-operations', $argv, true) || in_array('--parts-transfer', $argv, true)) {
+    in_array('--stock-operations', $argv, true) || in_array('--parts-transfer', $argv, true) ||
+    in_array('--parts-loss', $argv, true)) {
     $roles[] = 'MANAGER';
     $roles[] = 'TECHNICIAN';
 }
@@ -100,6 +101,10 @@ if (in_array('--parts-transfer', $argv, true)) {
     require __DIR__ . '/parts-transfer.php';
     exit();
 }
+if (in_array('--parts-loss', $argv, true)) {
+    require __DIR__ . '/parts-loss.php';
+    exit();
+}
 if (in_array('--concurrency', $argv, true)) {
     require __DIR__ . '/checkout-concurrency.php';
     testCheckoutRaces($pdo, $ticket, $device, $staff);
@@ -122,6 +127,13 @@ if ($browserFixture) {
     $adminId = stockRun($pdo,'SELECT user_id FROM users WHERE email=?',[$emails['admin']])->fetchColumn();
     stockRun($pdo,'INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)',
         [$adminId,$transferBranch]);
+    $lossReviewerEmail = "$run-independent-origin@example.test";
+    $lossReviewerId = insertFixture($pdo,
+        "INSERT INTO users (full_name,email,password_hash,role) VALUES (?,?,?,'MANAGER')",
+        ['Independent origin manager',$lossReviewerEmail,$hash]);
+    stockRun($pdo,'INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)',
+        [$lossReviewerId,$branch]);
+    $emails['loss_reviewer'] = $lossReviewerEmail;
     $techId = stockRun($pdo, 'SELECT user_id FROM users WHERE email=?', [$emails['technician']])->fetchColumn();
     stockRun($pdo, "UPDATE ticket_devices SET repair_status='DIAGNOSING',assigned_technician_id=?
         WHERE ticket_device_id=?", [$techId,$device]);
