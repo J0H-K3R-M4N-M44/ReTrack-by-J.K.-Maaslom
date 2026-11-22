@@ -317,7 +317,7 @@ CREATE TABLE IF NOT EXISTS device_transfers (
   transfer_code VARCHAR(32) NOT NULL,
   from_branch_id BIGINT UNSIGNED NOT NULL,
   to_branch_id BIGINT UNSIGNED NOT NULL,
-  status ENUM('IN_TRANSIT','RECEIVED','EXCEPTION','CANCELLED') NOT NULL DEFAULT 'IN_TRANSIT',
+  status ENUM('IN_TRANSIT','RECEIVED','EXCEPTION','CANCELLED','LOSS_CLOSED') NOT NULL DEFAULT 'IN_TRANSIT',
   initiated_by_user_id BIGINT UNSIGNED NOT NULL,
   dispatched_at DATETIME NOT NULL,
   received_confirmed_by_user_id BIGINT UNSIGNED NULL,
@@ -342,7 +342,7 @@ CREATE TABLE IF NOT EXISTS device_transfer_items (
   from_location_id BIGINT UNSIGNED NOT NULL,
   transit_location_id BIGINT UNSIGNED NOT NULL,
   to_location_id BIGINT UNSIGNED NOT NULL,
-  item_status ENUM('IN_TRANSIT','RECEIVED','EXCEPTION','CANCELLED') NOT NULL DEFAULT 'IN_TRANSIT',
+  item_status ENUM('IN_TRANSIT','RECEIVED','EXCEPTION','CANCELLED','LOSS_CLOSED') NOT NULL DEFAULT 'IN_TRANSIT',
   sent_condition_note TEXT NULL,
   receipt_condition_note TEXT NULL,
   received_by_user_id BIGINT UNSIGNED NULL,
@@ -796,4 +796,37 @@ CREATE TABLE IF NOT EXISTS stock_count_reviews (
   CONSTRAINT fk_stock_count_movement FOREIGN KEY (adjustment_movement_id) REFERENCES inventory_transactions(inventory_transaction_id),
   CONSTRAINT chk_stock_count_nonnegative CHECK (expected_on_hand >= 0
     AND expected_reserved >= 0 AND target_on_hand >= 0)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS stock_transfer_loss_cases (
+  loss_case_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  inventory_transfer_item_id BIGINT UNSIGNED NOT NULL,
+  missing_audit_event_id BIGINT UNSIGNED NOT NULL,
+  received_at_report DECIMAL(12,3) NOT NULL,
+  missing_quantity DECIMAL(12,3) NOT NULL,
+  evidence_reference VARCHAR(160) NOT NULL,
+  report_reason VARCHAR(500) NOT NULL,
+  reported_by_user_id BIGINT UNSIGNED NOT NULL,
+  reported_at DATETIME NOT NULL,
+  status ENUM('PENDING','APPROVED','REJECTED') NOT NULL DEFAULT 'PENDING',
+  reviewed_by_user_id BIGINT UNSIGNED NULL,
+  reviewed_at DATETIME NULL,
+  review_reason VARCHAR(500) NULL,
+  active_item_id BIGINT UNSIGNED GENERATED ALWAYS AS (
+    CASE WHEN status IN ('PENDING','APPROVED') THEN inventory_transfer_item_id ELSE NULL END
+  ) STORED,
+  PRIMARY KEY (loss_case_id),
+  UNIQUE KEY uq_active_transfer_loss (active_item_id),
+  KEY idx_loss_item_time (inventory_transfer_item_id, reported_at),
+  KEY idx_loss_status_time (status, reported_at),
+  CONSTRAINT fk_loss_transfer_item FOREIGN KEY (inventory_transfer_item_id)
+    REFERENCES inventory_transfer_items(inventory_transfer_item_id),
+  CONSTRAINT fk_loss_missing_event FOREIGN KEY (missing_audit_event_id)
+    REFERENCES audit_events(audit_event_id),
+  CONSTRAINT fk_loss_reported_by FOREIGN KEY (reported_by_user_id)
+    REFERENCES users(user_id),
+  CONSTRAINT fk_loss_reviewed_by FOREIGN KEY (reviewed_by_user_id)
+    REFERENCES users(user_id),
+  CONSTRAINT chk_loss_positive CHECK (missing_quantity > 0),
+  CONSTRAINT chk_loss_received_nonnegative CHECK (received_at_report >= 0)
 ) ENGINE=InnoDB;
