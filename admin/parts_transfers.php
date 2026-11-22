@@ -160,8 +160,7 @@ minlength="10" maxlength="500" placeholder="Record visible seals, condition, cou
 I verified this physical receipt or missing quantity against the shipment manifest.</label>
 <button name="action" value="receive">Record physical receipt</button>
 <?php if ($item['item_status']==='IN_TRANSIT'): ?>
-<button name="action" value="missing" class="secondary-btn" formnovalidate
-onclick="this.form.querySelector('[name=amount]').value='0';">
+<button name="action" value="missing" class="secondary-btn">
 Report missing shipment
 </button>
 <?php endif; ?>
