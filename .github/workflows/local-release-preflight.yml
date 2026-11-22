@@ -1,0 +1,28 @@
+name: Local release acceptance preflight (synthetic)
+
+on:
+  push:
+    branches: [MVP-Release-Candidate-2026-11-22]
+    paths:
+      - 'tools/local_acceptance_preflight.php'
+      - 'tests/local-acceptance-preflight.php'
+      - '.github/workflows/local-release-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safe-preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate CLI and simulated private-storage boundaries
+        run: |
+          set -euo pipefail
+          php -l tools/local_acceptance_preflight.php
+          php -l tests/local-acceptance-preflight.php
+          php tests/local-acceptance-preflight.php
+          php tools/local_acceptance_preflight.php --help
+          # CI has no deployment config; no live host/database access is attempted.
