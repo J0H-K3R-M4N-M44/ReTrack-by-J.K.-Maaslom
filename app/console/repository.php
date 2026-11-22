@@ -5,6 +5,8 @@ require_once __DIR__ . '/workspace.php';
 require_once __DIR__ . '/../intake/repository.php';
 
 // Ticket scope is shared by lists, details and writes.
+require_once __DIR__ . '/../inventory/reservations.php';
+
 function consoleScope(array $user): array
 {
     $sql = "t.record_stage = 'ISSUED' AND EXISTS (
@@ -185,6 +187,13 @@ function consoleSave(PDO $pdo, int $actorId, int $id, string $version, array $in
                 throw new DomainException(
                     'Repair stages cannot change while the device is away or in transit.',
                 );
+            }
+            if ($status !== $device['repair_status'] && in_array($status, ['TESTING','READY_FOR_PICKUP'], true)) {
+                $quoteId = stockRun($pdo, 'SELECT quote_id FROM repair_quotes WHERE ticket_device_id = ?
+                    ORDER BY version_no DESC LIMIT 1', [$id])->fetchColumn();
+                if ($quoteId) {
+                    stockCheckInstalled($pdo, $id, (int) $quoteId);
+                }
             }
             // This conservative gate avoids treating a technician click as customer consent.
             if ($status === 'IN_PROGRESS' && $device['repair_status'] !== 'TESTING') {
