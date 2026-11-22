@@ -27,12 +27,24 @@ async function signedIn(javaScriptEnabled = true) {
   return { page, context };
 }
 async function noOverflow(page, label) {
-  const size = await page.evaluate(() => ({
-    page: document.documentElement.scrollWidth,
-    visible: document.documentElement.clientWidth,
-  }));
+  const size = await page.evaluate(() => {
+    const pageWidth = document.documentElement.scrollWidth;
+    const visible = document.documentElement.clientWidth;
+    const offenders = [...document.querySelectorAll('body *')]
+      .map((element) => ({ element, box: element.getBoundingClientRect() }))
+      .filter(({ box }) => box.right > visible + 1 || box.left < -1)
+      .slice(0, 12)
+      .map(({ element, box }) => ({
+        selector: element.tagName.toLowerCase() + (element.className && typeof element.className === 'string'
+          ? '.' + element.className.trim().replaceAll(' ', '.')
+          : ''),
+        left: Math.round(box.left),
+        right: Math.round(box.right),
+      }));
+    return { page: pageWidth, visible, offenders };
+  });
   assert(size.page <= size.visible + 1,
-    label + ' overflows: ' + size.page + ' > ' + size.visible);
+    label + ' overflows: ' + JSON.stringify(size));
 }
 
 try {
