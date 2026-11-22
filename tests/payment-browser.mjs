@@ -25,8 +25,13 @@ async function press(page, name) {
 }
 
 async function checkWidth(page) {
-  assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-    'Page exceeds viewport: ' + page.url());
+  const overflow = await page.evaluate(() => {
+    if (document.documentElement.scrollWidth <= innerWidth) return null;
+    return [...document.querySelectorAll('body *')]
+      .filter(element => element.getBoundingClientRect().right > innerWidth)
+      .map(element => element.tagName + '.' + element.className);
+  });
+  assert.equal(overflow, null, 'Page exceeds viewport: ' + page.url() + ' ' + (overflow || []).join(', '));
 }
 
 async function checkRole(role, destination) {

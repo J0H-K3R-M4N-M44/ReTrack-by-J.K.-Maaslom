@@ -43,6 +43,8 @@
   overflow-wrap: anywhere;
 }
 .payments-table-wrap {
+  /* Keep absolutely positioned table captions inside the mobile scroll area. */
+  position: relative;
   max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--line, #34434f);
