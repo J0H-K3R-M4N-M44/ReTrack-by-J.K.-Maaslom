@@ -152,6 +152,7 @@ function seedSimulation(PDO $pdo): string
             'repair_status' => $stages[$stage],
             'repair_started_at' => $stage >= 2 ? $time(4) : null,
             'assigned_technician_id' => $staff['TECHNICIAN'],
+            'repair_branch_id' => $branch,
             'physical_location_id' => $closed
                 ? null
                 : $locations[$stage === 4 ? 'PICKUP' : ($stage === 0 ? 'INTAKE' : 'BENCH')],
