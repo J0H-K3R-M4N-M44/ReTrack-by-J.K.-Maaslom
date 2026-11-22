@@ -7,6 +7,7 @@ on:
       - 'admin/dashboard.php'
       - 'css/dashboard.css'
       - 'tests/mvp-overview-browser.mjs'
+      - 'tests/mvp-single-ticket-journey.php'
       - '.github/workflows/mvp-stabilization.yml'
       - 'app/dashboard_data.php'
       - 'database/schema.sql'
@@ -68,3 +69,39 @@ jobs:
           path: mvp-overview-mobile.png
           retention-days: 7
           if-no-files-found: ignore
+
+  single-ticket-journey:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      MYSQL_PWD: root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Provision isolated disposable full-journey MySQL database
+        run: |
+          set -euo pipefail
+          php -l tests/mvp-single-ticket-journey.php
+          sudo systemctl start mysql
+          sed -e 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_journey/' \
+              -e 's/^USE repairtrack;$/USE repairtrack_test_journey;/' database/schema.sql \
+              | mysql -h 127.0.0.1 -u root
+          mkdir -p "$RUNNER_TEMP/journey-evidence" "$RUNNER_TEMP/journey-stock"
+          cat > config/config.php <<'PHP'
+          <?php
+          return [
+              'host' => '127.0.0.1',
+              'database' => 'repairtrack_test_journey',
+              'username' => 'root',
+              'password' => getenv('MYSQL_PWD'),
+              'intake_storage_path' => getenv('RUNNER_TEMP') . '/journey-evidence',
+              'inventory_evidence_path' => getenv('RUNNER_TEMP') . '/journey-stock',
+              'intake_hmac_key' => str_repeat('ab', 32),
+          ];
+          PHP
+      - name: Exercise one ticket through full service lifecycle
+        run: |
+          set -euo pipefail
+          php tests/mvp-single-ticket-journey.php
+          # Confirm the test did not leave an open transaction or skip closing.
+          mysql -N -h 127.0.0.1 -u root repairtrack_test_journey \
+            -e "SELECT COUNT(*) FROM repair_tickets WHERE record_stage='ISSUED' AND case_state='OPEN'" | grep -Fxq 0
