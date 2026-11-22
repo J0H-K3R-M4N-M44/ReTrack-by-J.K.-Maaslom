@@ -28,6 +28,7 @@ on:
       - 'database/device_repair_branches.sql'
       - 'tests/repair-branch-migration.php'
       - 'tests/device-ownership-view.php'
+      - 'tests/scope-separation.php'
       - 'app/console/ownership.php'
       - 'tests/ticket-issuance.php'
       - 'tools/check_repair_branch_integrity.php'
@@ -87,6 +88,10 @@ jobs:
           php -l tests/stocktaking.php
           php -l tests/repair-branch-migration.php
           php -l tests/device-ownership-view.php
+          php -l tests/scope-separation.php
+          php -l app/console/scopes.php
+          php -l app/console/reports.php
+          php tests/scope-separation.php
           php -l app/console/ownership.php
           php -l admin/device.php
           php -l views/console/device.php
