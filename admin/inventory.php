@@ -64,11 +64,16 @@ try {
     $error = 'Inventory could not be updated. No partial stock movement was saved.';
 }
 $inventory = ['rows'=>[], 'page'=>1,'pages'=>1,'total'=>0];
-$pendingWork = ['quarantines'=>[],'counts'=>[]];
+$pendingWork = [
+    'quarantines'=>[],'counts'=>[],
+    'qpage'=>1,'qpages'=>1,'qtotal'=>0,
+    'rpage'=>1,'rpages'=>1,'rtotal'=>0,
+];
 try {
     if ($branch > 0) {
         $inventory = stockDesk($pdo,(int)$user['user_id'],$branch,$q,$pageNumber);
-        $pendingWork = stockPendingWork($pdo,(int)$user['user_id'],$branch);
+        $pendingWork = stockPendingWork($pdo,(int)$user['user_id'],$branch,
+            (int)requestText($_GET,'qpage','1'),(int)requestText($_GET,'rpage','1'));
     }
 } catch (Throwable $problem) {
     error_log('RepairTrack inventory read: ' . $problem->getMessage());
@@ -109,6 +114,8 @@ Count discrepancies of at least 5.000 units require a separate reviewer and do n
 <section class="dashboard-card rt-card"><h2>Pending independent review</h2>
 <p>The same person cannot create and approve a quarantine decision or a significant count correction.
 Only your assigned branch's records appear here. Review the physical evidence before approving.</p>
+<p><?= (int)$pendingWork['qtotal'] ?> quarantines awaiting disposition ·
+<?= (int)$pendingWork['rtotal'] ?> count requests awaiting review. Each list shows 10 per page.</p>
 <?php if (!$pendingWork['quarantines'] && !$pendingWork['counts']): ?>
 <p>No pending quarantine decisions or significant count reviews on this page.</p>
 <?php endif; ?>
@@ -139,6 +146,18 @@ I independently verified the entire quarantined quantity and accept responsibili
 <?php endif; ?>
 </article>
 <?php endforeach; ?>
+<?php if ($pendingWork['qpages']>1): ?>
+<nav class="list-pager" aria-label="Quarantine review pages">
+<span>Quarantine page <?= (int)$pendingWork['qpage'] ?> of <?= (int)$pendingWork['qpages'] ?></span>
+<?php foreach (['Previous'=>-1,'Next'=>1] as $label=>$step):
+$target=$pendingWork['qpage']+$step;
+if ($target<1 || $target>$pendingWork['qpages']) continue; ?>
+<a class="secondary-btn" href="?<?= h(http_build_query([
+  'branch'=>$branch,'q'=>$q,'page'=>$pageNumber,
+  'qpage'=>$target,'rpage'=>$pendingWork['rpage'],
+])) ?>"><?= h($label) ?></a>
+<?php endforeach; ?></nav>
+<?php endif; ?>
 <?php foreach ($pendingWork['counts'] as $review): ?>
 <article class="dashboard-card">
 <h3>Count request #<?= (int)$review['stock_count_review_id'] ?> · <?= h($review['part_name']) ?></h3>
@@ -168,6 +187,18 @@ I verified this decision against the latest branch stock and reservation count.<
 </form>
 </article>
 <?php endforeach; ?>
+<?php if ($pendingWork['rpages']>1): ?>
+<nav class="list-pager" aria-label="Count approval pages">
+<span>Count approval page <?= (int)$pendingWork['rpage'] ?> of <?= (int)$pendingWork['rpages'] ?></span>
+<?php foreach (['Previous'=>-1,'Next'=>1] as $label=>$step):
+$target=$pendingWork['rpage']+$step;
+if ($target<1 || $target>$pendingWork['rpages']) continue; ?>
+<a class="secondary-btn" href="?<?= h(http_build_query([
+  'branch'=>$branch,'q'=>$q,'page'=>$pageNumber,
+  'qpage'=>$pendingWork['qpage'],'rpage'=>$target,
+])) ?>"><?= h($label) ?></a>
+<?php endforeach; ?></nav>
+<?php endif; ?>
 </section>
 <section class="dashboard-card rt-card"><h2>Branch stock</h2>
 <p><?= (int)$inventory['total'] ?> stock records · 10 per page</p>
