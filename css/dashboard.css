@@ -779,6 +779,25 @@
   }
 }
 
+/* Keep admin controls readable at tablet widths without forcing a desktop
+   four-column KPI row into narrow content beside the full sidebar. */
+@media (min-width: 721px) and (max-width: 1024px) {
+  .dashboard-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .dashboard-user {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+  .analytics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* The dashboard is operational: offer real navigation, not a construction badge. */
 .welcome-actions {
   display: flex;
