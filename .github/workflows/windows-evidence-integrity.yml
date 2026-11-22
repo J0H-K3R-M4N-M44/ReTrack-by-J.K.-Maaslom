@@ -1,0 +1,25 @@
+name: Windows fictional evidence integrity (not a restore)
+
+on:
+  push:
+    branches: [MVP-Release-Candidate-2026-11-22]
+    paths:
+      - 'tools/windows_evidence_compare.ps1'
+      - 'tests/windows-evidence-compare.ps1'
+      - '.github/workflows/windows-evidence-integrity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-comparison:
+    runs-on: windows-2022
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare fictional private evidence and exercise failure gates
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & ./tests/windows-evidence-compare.ps1
