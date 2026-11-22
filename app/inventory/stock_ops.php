@@ -116,9 +116,16 @@ function stockShelfAction(PDO $pdo, int $actorId, int $branchId, int $partId,
             if ($pending) {
                 throw new DomainException('A count for this part already awaits independent review.');
             }
-            // Pilot policy: a difference of at least five physical units requires a second person.
-            // For costly one-off parts a future pricing/value threshold should also apply.
-            if (abs($delta) >= 5000) {
+            // Pilot policy: a single difference of >=5 units OR >=5 units across
+            // count adjustments in 24 hours must have a different manager's review.
+            // This prevents splitting one large discrepancy into smaller requests.
+            $recent=stockRun($pdo, "SELECT COALESCE(SUM(ABS(quantity_delta)),0)
+                FROM inventory_transactions
+                WHERE branch_id=? AND part_id=? AND transaction_type='ADJUSTMENT'
+                AND reference_code LIKE 'COUNT-%'
+                AND created_at >= UTC_TIMESTAMP() - INTERVAL 24 HOUR",
+                [$branchId,$partId])->fetchColumn();
+            if (abs($delta)+stockUnits((string)$recent) >= 5000) {
                 stockRun($pdo, "INSERT INTO stock_count_reviews
                     (branch_id,part_id,expected_on_hand,expected_reserved,expected_movement_id,
                      target_on_hand,reason,requested_by_user_id,created_at)
@@ -365,7 +372,7 @@ function stockDecideCount(PDO $pdo, int $actorId, int $reviewId,
                  performed_by_user_id,created_at)
                 VALUES (?,?,'ADJUSTMENT',?,?,?, ?,UTC_TIMESTAMP())",
                 [$branch,$part,stockSigned($delta),'COUNT-APPROVED-' . $reviewId,
-                 $review['reason'] . ' | Approved: ' . mb_substr($reason,0,180),$actorId]);
+                 mb_substr($review['reason'] . ' | Approved: ' . $reason,0,500),$actorId]);
             $movement=(int)$pdo->lastInsertId();
         }
         stockRun($pdo,'UPDATE stock_count_reviews SET status=?,reviewed_by_user_id=?,
