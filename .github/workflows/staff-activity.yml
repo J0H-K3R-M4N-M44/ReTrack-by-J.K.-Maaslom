@@ -10,6 +10,7 @@ on:
       - 'database/*.sql'
       - 'track.php'
       - 'tests/activity-browser.mjs'
+      - 'tests/mvp-staff-accessibility.mjs'
       - 'tests/intake-receipt-browser.mjs'
       - 'tests/intake-search-browser.mjs'
       - 'tests/device-handovers-browser.mjs'
@@ -55,6 +56,7 @@ jobs:
           trap 'kill "$server_pid"; rm -f "$ACTIVITY_FIXTURE"' EXIT
           curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
           node tests/activity-browser.mjs
+          node tests/mvp-staff-accessibility.mjs
       - name: Verify reports, seeded workflow and schema upgrades
         env:
           MYSQL_PWD: root

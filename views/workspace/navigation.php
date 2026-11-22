@@ -121,3 +121,10 @@ $inMore = !in_array($currentSection, $shortcuts, true);
     <?php foreach ($shortcuts as $key) { $showLink($key); } ?>
     <a href="#rt-menu" id="rt-more" <?= $inMore ? 'aria-current="location"' : '' ?>>••• <span>More</span></a>
 </nav>
+
+<noscript>
+<nav class="rt-nojs-pages" aria-label="All workspace pages without JavaScript">
+    <p>All staff pages — JavaScript is turned off</p>
+    <?php foreach ($keys as $key) { $showLink($key); } ?>
+</nav>
+</noscript>

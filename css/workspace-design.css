@@ -143,3 +143,42 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* Progressive enhancement: More uses JavaScript on phones; when scripting is
+   unavailable, expose the same authorized destinations as native links. */
+.rt-nojs-pages { display: none; }
+@media (max-width: 767px) {
+  .rt-nojs-pages {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 14px 12px;
+    background: var(--rt-panel);
+    border-bottom: 1px solid var(--rt-line);
+  }
+  .rt-nojs-pages p {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--rt-muted);
+  }
+  .rt-nojs-pages a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 10px 12px;
+    color: var(--rt-text);
+    text-decoration: none;
+    border: 1px solid var(--rt-line);
+    border-radius: 10px;
+    overflow-wrap: anywhere;
+  }
+  .rt-nojs-pages a[aria-current="page"] {
+    color: var(--rt-accent);
+    background: var(--rt-soft);
+  }
+  .rt-nojs-pages svg { display: none; }
+  .rt-nojs-pages a:focus-visible {
+    outline: 3px solid var(--rt-accent);
+    outline-offset: 2px;
+  }
+}
