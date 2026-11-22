@@ -62,6 +62,28 @@ async function checkRole(role, destination) {
 
 try {
   const manager = await login('manager', 1440);
+  // Exercise shelf quarantine and a verified count through the real manager UI.
+  await manager.goto(base + '/admin/inventory.php?branch=' + fixture.branch);
+  await manager.getByRole('heading', { name: 'Branch inventory' }).waitFor();
+  await checkWidth(manager);
+  const battery = manager.locator('article.dashboard-card').filter({ hasText: 'Quarantine test battery' });
+  await battery.locator('summary').filter({ hasText: 'Quarantine damaged stock' }).click();
+  const quarantine = battery.locator('form').filter({ has: manager.locator('button[value=quarantine]') });
+  await quarantine.locator('[name=quantity]').fill('1');
+  await quarantine.locator('[name=reason]').fill('Damaged battery inspected and isolated in quarantine shelf.');
+  await quarantine.locator('[name=confirm]').check();
+  await press(manager,'Quarantine damaged items');
+  await manager.getByRole('status').getByText('Damaged stock isolated', { exact: false }).waitFor();
+  const afterQuarantine = manager.locator('article.dashboard-card').filter({ hasText: 'Quarantine test battery' });
+  await afterQuarantine.getByText('2.000', { exact: false }).first().waitFor();
+  await afterQuarantine.locator('summary').filter({ hasText: 'Record a verified shelf count' }).click();
+  const recount = afterQuarantine.locator('form').filter({ has: manager.locator('button[value=count]') });
+  await recount.locator('[name=quantity]').fill('3');
+  await recount.locator('[name=reason]').fill('Recount found one additional reusable battery on the shelf.');
+  await recount.locator('[name=confirm]').check();
+  await press(manager,'Save verified count');
+  await manager.getByRole('status').getByText('Verified shelf count recorded', { exact: false }).waitFor();
+  await manager.goto(base + '/admin/staff_home.php');
   const sidebar = await manager.locator('.rt-side').boundingBox();
   const main = await manager.locator('#rt-main').boundingBox();
   assert(main.x >= sidebar.x + sidebar.width, 'Sidebar covers the queue');
@@ -134,6 +156,9 @@ try {
   await manager.getByRole('heading', { name: 'Record counter cash' }).waitFor();
 
   const cashier = await login('cashier', 360);
+  const forbidden = await cashier.goto(base + '/admin/inventory.php');
+  assert.equal(forbidden.status(), 403, 'Cashier gained access to branch inventory.');
+  await cashier.goto(base + '/admin/staff_home.php?view=cash');
   await checkWidth(cashier);
   await cashier.locator('#rt-more').click();
   await cashier.locator('#rt-search').fill('cash');
