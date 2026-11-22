@@ -178,6 +178,8 @@ try {
     integrityAssert(!in_array('device_repair_branches.sql', migrationPending($pdo), true),
         'Device repair-branch migration pending.');
     if ($mode === '--negative') {
+        integrityAssert(getenv('REPAIRTRACK_INTEGRITY_TEST') === '1',
+            'Negative tests require explicit REPAIRTRACK_INTEGRITY_TEST=1 opt-in.');
         integrityNegative($pdo);
         echo "PASS: negative ownership/FK checks and complete transaction rollback.\n";
     } else {
