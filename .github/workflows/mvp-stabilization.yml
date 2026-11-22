@@ -2,7 +2,7 @@ name: MVP dashboard usability regression
 
 on:
   push:
-    branches: [MVP-Stabilization, Repair-Parts-Request-Workflow]
+    branches: [MVP-Stabilization, Repair-Parts-Request-Workflow, MVP-Release-Candidate-2026-11-22]
     paths:
       - 'admin/dashboard.php'
       - 'css/dashboard.css'
@@ -32,6 +32,8 @@ on:
       - 'views/staff/manage.php'
       - 'tests/staff-consoles.php'
       - '.github/workflows/mvp-stabilization.yml'
+      - 'tools/local_acceptance_preflight.php'
+      - 'tests/local-acceptance-preflight.php'
       - 'app/dashboard_data.php'
       - 'database/schema.sql'
   pull_request:
