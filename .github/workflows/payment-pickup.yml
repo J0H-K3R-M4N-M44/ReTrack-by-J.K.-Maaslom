@@ -16,6 +16,7 @@ on:
       - 'tests/payment-browser.mjs'
       - 'tests/ownership-browser.mjs'
       - 'tests/ownership-browser-fixture.php'
+      - 'tests/ownership-browser-cleanup.php'
       - 'tests/checkout-concurrency.php'
       - 'tests/stock-pilot.php'
       - 'tests/stock-quarantine.php'
@@ -92,6 +93,7 @@ jobs:
           php -l tests/repair-branch-migration.php
           php -l tests/device-ownership-view.php
           php -l tests/ownership-browser-fixture.php
+          php -l tests/ownership-browser-cleanup.php
           php -l tests/scope-separation.php
           php -l tests/repair-scope-isolation.php
           php -l app/console/scopes.php
@@ -195,6 +197,7 @@ jobs:
           trap 'kill $!; rm -f "$PICKUP_FIXTURE"' EXIT
           curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
           node tests/ownership-browser.mjs
+          php tests/ownership-browser-cleanup.php
           node tests/payment-browser.mjs
       - name: Save staff workspace screenshots
         if: always()
