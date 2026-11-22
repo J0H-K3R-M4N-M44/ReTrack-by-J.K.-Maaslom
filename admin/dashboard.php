@@ -106,6 +106,7 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                     <a class="nav-item" href="staff_home.php">Staff workspace</a>
                     <a class="nav-item" href="staff_home.php?view=cash">Cash desk</a>
                     <a class="nav-item" href="staff.php"><span class="nav-icon" aria-hidden="true">＋</span><span>Staff management</span></a>
+                    <a class="nav-item" href="inventory.php">Branch inventory</a>
                     <a class="nav-item<?= $tab === 'overview'
                         ? ' is-active'
                         : '' ?>" href="?tab=overview"<?= $tab === 'overview'
