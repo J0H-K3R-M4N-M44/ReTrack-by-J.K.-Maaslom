@@ -1,7 +1,7 @@
 name: PHP shop workflow checks
 on:
   push:
-    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, PHP-Bill-Corrections-Integration, PHP-Stock-Cancellation-Integration, Stock-Transfer-Integrity, Stock-Returns-Integrity, Branch-Repair-Acceptance, Stock-Quarantine-Counts, Stock-Disposition-Approvals, Parts-Transfers-Reconciliation, Parts-Loss-Resolution, Loss-Status-Schema-Hotfix, Parts-Loss-Recovery, Inventory-Evidence-Attachments, Inventory-Loss-Valuation, Verified-Parts-Cost-Register, main]
+    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, PHP-Bill-Corrections-Integration, PHP-Stock-Cancellation-Integration, Stock-Transfer-Integrity, Stock-Returns-Integrity, Branch-Repair-Acceptance, Stock-Quarantine-Counts, Stock-Disposition-Approvals, Parts-Transfers-Reconciliation, Parts-Loss-Resolution, Loss-Status-Schema-Hotfix, Parts-Loss-Recovery, Inventory-Evidence-Attachments, Inventory-Loss-Valuation, Verified-Parts-Cost-Register, Periodic-Stocktaking-Signoff, main]
     paths:
       - '.github/workflows/payment-pickup.yml'
       - 'tests/payment-pickup.php'
@@ -23,6 +23,8 @@ on:
       - 'tests/stock-evidence.php'
       - 'tests/stock-valuation.php'
       - 'tests/part-acquisition-costs.php'
+      - 'tests/stocktaking.php'
+      - 'database/inventory_stocktaking.sql'
       - 'database/part_acquisition_cost_records.sql'
       - 'database/stock_transfer_loss_valuations.sql'
       - 'database/stock_transfer_evidence.sql'
@@ -73,6 +75,9 @@ jobs:
           php -l app/inventory/evidence.php
           php -l app/inventory/valuation.php
           php -l app/inventory/acquisition_costs.php
+          php -l app/inventory/stocktaking.php
+          php -l admin/stocktaking.php
+          php -l tests/stocktaking.php
           php -l admin/acquisition_costs.php
           php -l tests/part-acquisition-costs.php
           php -l tests/stock-valuation.php
@@ -91,6 +96,8 @@ jobs:
           MYSQL_PWD=root mysql -h 127.0.0.1 -u root repairtrack_test_pickup -e 'DROP TABLE stock_count_reviews; DROP TABLE stock_quarantine_dispositions; DROP TABLE stock_quarantines;'
           # Simulate an existing installation with pre-loss enum values and no loss-case table.
           MYSQL_PWD=root mysql -h 127.0.0.1 -u root repairtrack_test_pickup -e "
+            DROP TABLE inventory_stocktake_lines;
+            DROP TABLE inventory_stocktakes;
             DROP TABLE stock_transfer_loss_valuations;
             DROP TABLE part_acquisition_cost_records;
             DROP TABLE stock_transfer_evidence;
@@ -131,6 +138,12 @@ jobs:
           VALUATIONS_AFTER=$(MYSQL_PWD=root mysql -N -h 127.0.0.1 -u root             repairtrack_test_pickup -e "SELECT CONCAT(COUNT(*), ':', COALESCE(SUM(exposure_php),0)) FROM stock_transfer_loss_valuations")
           test "$VALUATIONS_BEFORE" = "$VALUATIONS_AFTER"
           php tests/payment-pickup.php --part-costs
+          php tests/payment-pickup.php --stocktaking
+          # Repeat migration with nonempty signed and cancelled stocktake history.
+          STOCKTAKES_BEFORE=$(MYSQL_PWD=root mysql -N -h 127.0.0.1 -u root repairtrack_test_pickup -e "SELECT CONCAT(COUNT(*), ':', SUM(status='SIGNED_OFF')) FROM inventory_stocktakes")
+          php tools/migrate.php --apply --yes
+          STOCKTAKES_AFTER=$(MYSQL_PWD=root mysql -N -h 127.0.0.1 -u root repairtrack_test_pickup -e "SELECT CONCAT(COUNT(*), ':', SUM(status='SIGNED_OFF')) FROM inventory_stocktakes")
+          test "$STOCKTAKES_BEFORE" = "$STOCKTAKES_AFTER"
       - name: Walk through billing and pickup in Chrome
         run: |
           npm install --no-save --package-lock=false playwright-core@1.56.1
