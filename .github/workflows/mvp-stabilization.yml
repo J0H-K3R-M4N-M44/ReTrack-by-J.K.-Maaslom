@@ -20,6 +20,7 @@ on:
       - 'admin/locations.php'
       - 'views/staff/locations.php'
       - 'tests/storage-locations.php'
+      - 'tests/storage-locations-browser.mjs'
       - 'views/workspace/navigation.php'
       - 'views/intake/issue.php'
       - 'views/staff/manage.php'
@@ -185,7 +186,7 @@ jobs:
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
           case "${{ matrix.suite }}" in
-            quotes) node tests/quotes-browser.mjs ;;
+            quotes) node tests/quotes-browser.mjs && node tests/storage-locations-browser.mjs ;;
             public) node tests/mvp-accessibility-browser.mjs && node tests/public-browser.mjs ;;
             *) exit 2 ;;
           esac
