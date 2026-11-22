@@ -27,6 +27,8 @@ on:
       - 'database/inventory_stocktaking.sql'
       - 'database/device_repair_branches.sql'
       - 'tests/repair-branch-migration.php'
+      - 'tests/device-ownership-view.php'
+      - 'app/console/ownership.php'
       - 'tests/ticket-issuance.php'
       - 'tools/check_repair_branch_integrity.php'
       - 'tools/simulation_data.php'
@@ -84,6 +86,12 @@ jobs:
           php -l admin/stocktaking.php
           php -l tests/stocktaking.php
           php -l tests/repair-branch-migration.php
+          php -l tests/device-ownership-view.php
+          php -l app/console/ownership.php
+          php -l admin/device.php
+          php -l views/console/device.php
+          php -l app/console/repository.php
+          php tests/device-ownership-view.php
           php -l tools/check_repair_branch_integrity.php
           php -l tests/ticket-issuance.php
           php -l app/console/transfers.php
