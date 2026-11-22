@@ -90,6 +90,10 @@ $quote = insertFixture($pdo,
 $pdo->prepare("INSERT INTO repair_quote_items (quote_id,item_type,description,quantity,unit_price,line_total)
     VALUES (?,'LABOR','Charging repair',1,100,100)")->execute([$quote]);
 
+if (in_array('--scope-isolation', $argv, true)) {
+    require __DIR__ . '/repair-scope-isolation.php';
+    exit();
+}
 if (in_array('--stock-pilot', $argv, true)) {
     require __DIR__ . '/stock-pilot.php';
     exit();
