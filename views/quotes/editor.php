@@ -96,6 +96,29 @@ $activeStep = $expired ? 1 : match ($latest['quote_status'] ?? '') {
         </label>
         <button class="secondary-btn" type="submit">Record part return to stock</button>
     </form>
+    <details>
+        <summary>Quarantine the removed part instead</summary>
+        <p>Use this for physically removed damaged or unsafe parts. The installation will be marked
+        inactive, but no usable stock is added. A replacement must be reserved and installed
+        before testing or billing.</p>
+        <form method="post" class="quote-form">
+            <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+            <input type="hidden" name="intent" value="stock">
+            <input type="hidden" name="form_key" value="<?= h($formKey) ?>">
+            <input type="hidden" name="item_id" value="<?= (int) $item['quote_item_id'] ?>">
+            <input type="hidden" name="hold_id" value="<?= (int) $item['installed_movement_id'] ?>">
+            <input type="hidden" name="stock_action" value="quarantine">
+            <label>Defect and quarantine location
+                <textarea name="return_reason" minlength="10" maxlength="500" required rows="2"
+                    placeholder="Explain why the removed part is unsafe or unusable."></textarea>
+            </label>
+            <label class="confirmation-check">
+                <input type="checkbox" name="restock_confirm" value="yes" required>
+                I verified this installed part was removed and physically isolated from usable stock.
+            </label>
+            <button class="secondary-btn" type="submit">Quarantine removed part</button>
+        </form>
+    </details>
     <?php endif; ?>
     <?php if (!$item['installed'] && !in_array($device['repair_status'], ['CANCELLED','COMPLETED'], true)): ?>
     <form method="post" class="staff-actions">
