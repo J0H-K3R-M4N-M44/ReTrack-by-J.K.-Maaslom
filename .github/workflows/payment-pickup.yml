@@ -59,7 +59,7 @@ jobs:
           php -l tests/stock-quarantine.php
           php -l views/quotes/editor.php
           # Emulate upgrading an existing RepairTrack database on disposable test data.
-          mysql -h 127.0.0.1 -u root repairtrack_test_pickup -e 'DROP TABLE stock_quarantines;'
+          MYSQL_PWD=root mysql -h 127.0.0.1 -u root repairtrack_test_pickup -e 'DROP TABLE stock_quarantines;'
           php tools/migrate.php --apply --yes
           php tools/migrate.php --status
           php tests/payment-pickup.php
