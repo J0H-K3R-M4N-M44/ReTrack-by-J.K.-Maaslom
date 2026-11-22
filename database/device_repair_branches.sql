@@ -33,7 +33,8 @@ BEGIN
   -- Backfill only unresolved issued devices. Never overwrite explicit ownership,
   -- even if a previous upgrade was interrupted.
   UPDATE ticket_devices d JOIN repair_tickets t ON t.ticket_id=d.ticket_id
-    SET d.repair_branch_id=t.accountable_branch_id
+    SET d.repair_branch_id=t.accountable_branch_id,
+        d.updated_at=d.updated_at -- Preserve historical sort and update timestamps.
     WHERE t.record_stage='ISSUED' AND d.repair_branch_id IS NULL
       AND t.accountable_branch_id IS NOT NULL;
   IF EXISTS (
