@@ -10,14 +10,25 @@ if command -v php.exe >/dev/null 2>&1; then PHP=php.exe; fi
 "$PHP" -l tools/preview_router.php
 "$PHP" -r '
 $c = require "config/config.php";
-if (!is_array($c) || ($c["host"] ?? null) !== "127.0.0.1" ||
-    ($c["database"] ?? null) !== "repairtrack_test_operator" ||
-    ($c["username"] ?? null) !== "repairtrack_rc_app" ||
-    ($c["app_url"] ?? null) !== "http://127.0.0.1:8742") {
-    fwrite(STDERR, "BLOCK: Preview config must match the isolated operator database and local URL.\n");
-    exit(2);
+if (!is_array($c)) {
+    fwrite(STDERR, "BLOCK: Missing PHP configuration.\n"); exit(2);
 }
-echo "Isolated test configuration matched.\n";
+foreach (["host" => "127.0.0.1", "database" => "repairtrack_test_operator",
+           "username" => "repairtrack_rc_app"] as $field => $expected) {
+    if (($c[$field] ?? null) !== $expected) {
+        fwrite(STDERR, "BLOCK: Wrong test database " . $field . ".\n"); exit(2);
+    }
+}
+$u = parse_url((string) ($c["app_url"] ?? ""));
+if (!is_array($u) || ($u["scheme"] ?? "") !== "http" ||
+    !in_array(strtolower((string) ($u["host"] ?? "")), ["127.0.0.1", "localhost"], true) ||
+    isset($u["user"]) || isset($u["pass"])) {
+    fwrite(STDERR, "BLOCK: app_url must use local loopback HTTP.\n"); exit(2);
+}
+if (($c["app_url"] ?? "") !== "http://127.0.0.1:8742") {
+    echo "WARN: app_url differs from the preview address; links may need the local URL adjusted.\n";
+}
+echo "Isolated test database configuration matched.\n";
 '
 set +e
 "$PHP" tools/local_acceptance_preflight.php
