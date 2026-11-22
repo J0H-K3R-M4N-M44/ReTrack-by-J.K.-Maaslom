@@ -7,6 +7,7 @@ if (PHP_SAPI!=='cli' || !isset($pdo,$staff,$run,$branch)) {
 }
 require_once __DIR__ . '/../app/inventory/valuation.php';
 [$sender,$cashier,,$receiver,$technician]=$staff;
+$cashCountBefore=(int)stockRun($pdo,'SELECT COUNT(*) FROM repair_bill_payments')->fetchColumn();
 
 $destination=insertFixture($pdo,'INSERT INTO branches (branch_code,branch_name) VALUES (?,?)',
     [$run.'-VAL-DEST','Financial loss valuation receiving branch']);
@@ -198,8 +199,7 @@ expectResult((int)stockRun($pdo,"SELECT COUNT(*) FROM inventory_transactions
     WHERE inventory_transfer_item_id=? AND transaction_type='TRANSFER_IN'",
     [$itemId])->fetchColumn()===3,
     'Valuation generated an extra stock movement instead of preserving physical history.');
-expectResult((int)stockRun($pdo,'SELECT COUNT(*) FROM repair_bill_payments
-    WHERE ticket_bill_id IS NOT NULL',[])->fetchColumn()===0,
+expectResult((int)stockRun($pdo,'SELECT COUNT(*) FROM repair_bill_payments')->fetchColumn()===$cashCountBefore,
     'The financial cost register must not create customer payment activity.');
 expectResult((int)stockRun($pdo,"SELECT COUNT(*) FROM audit_events
     WHERE entity_type='inventory_transfer_item' AND entity_id=?
