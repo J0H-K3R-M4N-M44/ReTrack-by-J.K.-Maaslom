@@ -126,7 +126,7 @@ jobs:
     env:
       MYSQL_PWD: root
       MVP_SCREENSHOT_OUTPUT: ${{ github.workspace }}/mvp-screenshots
-      MVP_SCREENSHOT_FIXTURE: ${{ runner.temp }}/mvp-screenshot-fixture.json
+      MVP_SCREENSHOT_FIXTURE: ${{ github.workspace }}/mvp-screenshot-fixture-private.json
     steps:
       - uses: actions/checkout@v4
 
