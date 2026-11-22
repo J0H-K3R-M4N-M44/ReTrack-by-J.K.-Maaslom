@@ -1,0 +1,56 @@
+name: MySQL integrity round (disposable only)
+
+on:
+  push:
+    branches: [Partial-Ticket-Ownership, main]
+    paths:
+      - '.github/workflows/mysql-integrity.yml'
+      - 'tests/mysql-integrity.php'
+      - 'tests/mysql-integrity-round.sh'
+      - 'tests/repair-branch-migration.php'
+      - 'tests/repair-scope-isolation.php'
+      - 'tests/payment-pickup.php'
+      - 'tests/stock-pilot.php'
+      - 'database/**'
+      - 'tools/**'
+      - 'app/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/mysql-integrity.yml'
+      - 'tests/**'
+      - 'database/**'
+      - 'tools/**'
+      - 'app/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      # GitHub-hosted, ephemeral local MySQL only; never real credentials.
+      MYSQL_PWD: root
+      REPAIRTRACK_INTEGRITY_TEST: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify PHP/CLI dependencies and scripts
+        run: |
+          set -euo pipefail
+          php -r 'foreach (["pdo_mysql", "mbstring", "fileinfo"] as $ext) { if (!extension_loaded($ext)) { fwrite(STDERR, "Missing $ext\n"); exit(1); } }'
+          php -l tests/mysql-integrity.php
+          php -l tests/repair-scope-isolation.php
+          php -l tests/repair-branch-migration.php
+          bash -n tests/mysql-integrity-round.sh
+      - name: Start disposable local MySQL
+        run: |
+          set -euo pipefail
+          sudo systemctl start mysql
+          mysql -h 127.0.0.1 -u root -e 'SELECT VERSION(), @@foreign_key_checks;'
+      - name: Run eight-stage integrity and migration rehearsal
+        run: |
+          set -euo pipefail
+          bash tests/mysql-integrity-round.sh
