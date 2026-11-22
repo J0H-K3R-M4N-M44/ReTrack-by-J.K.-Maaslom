@@ -7,6 +7,7 @@ if (PHP_SAPI !== 'cli' || !isset($staff, $pdo)) {
     exit();
 }
 require_once __DIR__ . '/../app/intake/issuance.php';
+require_once __DIR__ . '/../app/console/transfers.php';
 require_once __DIR__ . '/checkout-concurrency.php';
 
 [$manager, $cashier, , $otherManager, $technician] = $staff;
@@ -61,6 +62,19 @@ expectResult($winner !== false && $results[1-$winner] === 'Not enough unreserved
     'Expected exactly one successful reservation: ' . implode(' / ', $results));
 $held = $jobs[$winner];
 $waiting = $jobs[1-$winner];
+// A transfer must never leave an unused reservation stranded at its original branch.
+$transitLocation = insertFixture($pdo,
+    "INSERT INTO storage_locations (branch_id,location_code,location_name,location_type)
+    VALUES (?,'PILOT-TRANSIT','Pilot transit','TRANSIT')", [$branch]);
+$receivingLocation = insertFixture($pdo,
+    "INSERT INTO storage_locations (branch_id,location_code,location_name,location_type)
+    VALUES (?,'PILOT-RECV','Pilot receiving','BRANCH_BIN')", [$neighbor]);
+$heldCode = stockRun($pdo, 'SELECT item_code FROM ticket_devices WHERE ticket_device_id = ?',
+    [$held['target_id']])->fetchColumn();
+expectRefusal(fn() => dispatchDevices($pdo, $manager['user_id'], $branch,
+    $receivingLocation, (string) $heldCode), 'Release unused branch part reservations');
+expectResult((int) stockRun($pdo, 'SELECT COUNT(*) FROM stock_reservations WHERE quote_item_id = ?',
+    [$held['item_id']])->fetchColumn() === 1, 'Refused transfer removed the original reservation.');
 $cashTicket = fn(array $job) => cashTicketVersion(cashPageTicket($pdo,$manager,$job['ticket']));
 $cancelBill = cashIssueFinalBill($pdo,$manager['user_id'],$held['ticket'],$cashTicket($held),
     ['reason'=>'Customer approved at counter','confirm'=>'yes','amount'=>'350']);
