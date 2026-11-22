@@ -86,6 +86,43 @@ try {
   await recount.locator('[name=confirm]').check();
   await press(manager,'Save verified count');
   await manager.getByRole('status').getByText('Verified shelf count recorded', { exact: false }).waitFor();
+  // Quarantine recorder cannot approve their own restock. A distinct admin reviews it.
+  assert.equal(await manager.locator('form').filter({
+    has: manager.locator('input[name=quarantine_id]')
+  }).count(),0,'Quarantine creator can approve their own decision.');
+  const admin = await login('admin',1440);
+  await admin.goto(base + '/admin/inventory.php?branch=' + fixture.branch);
+  const disposition = admin.locator('form').filter({
+    has: admin.locator('input[name=quarantine_id]')
+  }).first();
+  await disposition.locator('[name=decision]').selectOption('RELEASE');
+  await disposition.locator('[name=reason]').fill(
+    'Second-person inspection confirmed the previously isolated battery is reusable.');
+  await disposition.locator('[name=confirm]').check();
+  await press(admin,'Record disposition');
+  await admin.getByRole('status').getByText('Independent quarantine disposition recorded').waitFor();
+  // Five units of newly counted stock must wait for second-person approval.
+  await manager.goto(base + '/admin/inventory.php?branch=' + fixture.branch);
+  const nextBattery = manager.locator('article.dashboard-card').filter({ hasText: 'Quarantine test battery' });
+  await nextBattery.locator('summary').filter({ hasText: 'Record a verified shelf count' }).click();
+  const highCount = nextBattery.locator('form').filter({ has: manager.locator('button[value=count]') });
+  await highCount.locator('[name=quantity]').fill('9');
+  await highCount.locator('[name=reason]').fill('Repeated physical count verified five additional parts at this branch.');
+  await highCount.locator('[name=confirm]').check();
+  await press(manager,'Save verified count');
+  await manager.getByRole('status').getByText('Large count difference queued', {exact:false}).waitFor();
+  await admin.goto(base + '/admin/inventory.php?branch=' + fixture.branch);
+  const countReview = admin.locator('form').filter({
+    has: admin.locator('input[name=review_id]')
+  }).first();
+  await countReview.locator('[name=decision]').selectOption('approve');
+  await countReview.locator('[name=reason]').fill(
+    'Independent recount verified the additional usable batteries before approval.');
+  await countReview.locator('[name=confirm]').check();
+  await press(admin,'Record count decision');
+  await admin.getByRole('status').getByText('Count review decision recorded').waitFor();
+  await admin.getByText('9.000', {exact:false}).first().waitFor();
+  await admin.context().close();
   await manager.goto(base + '/admin/staff_home.php');
   const sidebar = await manager.locator('.rt-side').boundingBox();
   const main = await manager.locator('#rt-main').boundingBox();
