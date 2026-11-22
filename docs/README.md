@@ -13,6 +13,7 @@
 - [Manual user acceptance checklist](mvp-uat-checklist.md): 20 executable staff/customer scenarios, **awaiting human sign-off**
 - [Windows/XAMPP acceptance and recovery handoff](mvp-windows-acceptance-handoff.md): safe, operator-led next steps; **not yet executed**
 - [Windows fictional evidence integrity check](windows-evidence-integrity-check.md): verified PowerShell file-hash comparison; **not a SQL restore**
+- [Guarded Windows/XAMPP fictional restore procedure](windows-xampp-fictional-restore.md): dry-run first; operator-controlled apply; real restore not yet performed
 - [Read-only local SQL restore reconciliation](local-sql-restore-reconciliation.md): compare two fictional SQL schemas without changing them
 - [Integrated release candidate handoff](mvp-release-candidate-handoff.md): current candidate integration and promotion blockers
 - [Focused accessibility review](mvp-accessibility-review.md): verified public keyboard/mobile checks, with remaining screen-reader/contrast work
