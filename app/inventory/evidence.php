@@ -140,6 +140,19 @@ function stockEvidenceSaveStaged(PDO $pdo, int $actor, string $type, int $caseId
         !in_array($type,['LOSS','RECOVERY'],true)) {
         throw new DomainException('Choose a file with a safe name of up to 150 characters.');
     }
+    $directory=stockEvidenceDirectory();
+    $resolved=realpath($stagedPath);
+    if ($resolved===false || is_link($stagedPath) ||
+        dirname($resolved)!==$directory ||
+        !preg_match('/^[a-f0-9]{48}\.(jpg|png|pdf)$/D',basename($resolved))) {
+        throw new DomainException('Evidence must be staged in private inventory storage.');
+    }
+    $verified=stockEvidenceInspect($resolved);
+    if ($verified['mime']!==($details['mime'] ?? null) ||
+        $verified['bytes']!==($details['bytes'] ?? null) ||
+        !hash_equals($verified['sha256'],(string)($details['sha256'] ?? ''))) {
+        throw new DomainException('Evidence changed during private staging.');
+    }
     $case=stockEvidenceCase($pdo,$type,$caseId);
     $pdo->beginTransaction();
     try {
@@ -156,6 +169,10 @@ function stockEvidenceSaveStaged(PDO $pdo, int $actor, string $type, int $caseId
             throw new DomainException('Attach evidence before the investigation is independently decided.');
         }
         stockEvidenceAuthorize($pdo,$actor,$case);
+        $assigned=stockRun($pdo,'SELECT branch_id FROM user_branch_assignments
+            WHERE user_id=? AND branch_id IN (?,?) LIMIT 1',
+            [$actor,(int)$case['from_branch_id'],(int)$case['to_branch_id']])->fetchColumn();
+        stockAuthorizeManager($pdo,$actor,(int)$assigned);
         $column=$type==='LOSS'?'loss_case_id':'recovery_id';
         $count=(int)stockRun($pdo,"SELECT COUNT(*) FROM stock_transfer_evidence
             WHERE $column=?",[$caseId])->fetchColumn();
@@ -237,6 +254,10 @@ function stockEvidenceRead(PDO $pdo, int $actor, int $id): array
         !hash_equals((string)$record['sha256'],$actual['sha256'])) {
         throw new DomainException('This evidence file did not pass its original integrity check.');
     }
+    stockRun($pdo,"INSERT INTO audit_events
+        (actor_type,actor_user_id,entity_type,entity_id,action,created_at)
+        VALUES ('USER',?,'stock_transfer_evidence',?,'STOCK_EVIDENCE_DOWNLOADED',UTC_TIMESTAMP())",
+        [$actor,$id]);
     return [
         'path'=>$path,'mime'=>$actual['mime'],'bytes'=>$actual['bytes'],
         'extension'=>$actual['extension'],'id'=>(int)$record['evidence_id']
