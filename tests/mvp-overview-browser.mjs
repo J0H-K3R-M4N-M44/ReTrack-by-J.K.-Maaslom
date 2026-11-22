@@ -104,8 +104,13 @@ try {
   try {
     writeFileSync(dataFile, original.replace(anchor,
       "    throw new RuntimeException('Fixture data failure');\n" + anchor));
-    await noJs.page.reload();
-    assert((await noJs.page.locator('.system-status').innerText()).includes('data unavailable'));
+    const failureResponse = await noJs.page.goto(base + '/admin/dashboard.php?failure_test=1');
+    const failureStatusText = (await noJs.page.locator('.system-status').innerText()).toLowerCase();
+    assert(failureStatusText.includes('data unavailable'),
+      'Simulated query failure did not reach dashboard: ' + JSON.stringify({
+        statusText: failureStatusText, httpStatus: failureResponse.status(),
+        url: noJs.page.url(),
+      }));
     assert(await noJs.page.locator('.system-status').evaluate(el => el.classList.contains('is-unavailable')));
     assert(await noJs.page.locator('.sidebar-footer').evaluate(el => el.classList.contains('is-unavailable')));
     assert.equal(await noJs.page.locator('.metric-card .metric-value').first().innerText(), '—');
