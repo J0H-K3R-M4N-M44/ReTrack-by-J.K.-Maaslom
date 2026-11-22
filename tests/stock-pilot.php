@@ -123,6 +123,45 @@ $holdId = (int) stockRun($pdo,'SELECT reservation_id FROM stock_reservations WHE
 $install = fn() => stockChange($pdo,$technician['user_id'],$id,(int) $waiting['item_id'],$holdId,'install');
 $install();
 expectRefusal($install,'Stock changed');
+// Return only a physically verified reusable part before testing; preserve all original movements.
+$originalMovement = stockActiveInstallation($pdo, $id, (int) $waiting['item_id']);
+expectResult($originalMovement > 0, 'The first installation was not recorded as active.');
+expectRefusal(fn() => stockChange($pdo, $technician['user_id'], $id,
+    (int) $waiting['item_id'], $originalMovement, 'return',
+    'Inspected, clean, and reusable at the sending branch.', true), 'branch manager');
+expectRefusal(fn() => stockChange($pdo, $manager['user_id'], $id,
+    (int) $waiting['item_id'], $originalMovement, 'return',
+    'Too short', true), 'reason of 10');
+expectRefusal(fn() => stockChange($pdo, $manager['user_id'], $id,
+    (int) $waiting['item_id'], $originalMovement, 'return',
+    'Inspected, clean, and reusable at the sending branch.', false), 'physically removed');
+stockChange($pdo, $manager['user_id'], $id, (int) $waiting['item_id'], $originalMovement,
+    'return', 'Removed, inspected and confirmed serviceable before testing.', true);
+expectResult(stockActiveInstallation($pdo, $id, (int) $waiting['item_id']) === 0,
+    'Returned catalog part still treated as installed.');
+expectResult(stockRun($pdo, 'SELECT quantity_on_hand FROM branch_inventory WHERE branch_id=? AND part_id=?',
+    [$branch,$part])->fetchColumn() === '1.000', 'Usable part was not restocked.');
+expectRefusal(fn() => stockChange($pdo, $manager['user_id'], $id,
+    (int) $waiting['item_id'], $originalMovement, 'return',
+    'Repeated attempt to restock the same part must be refused.', true), 'Stock changed');
+expectRefusal(fn() => stockCheckInstalled($pdo, $id, (int) quoteLatest($pdo, $id)['quote_id']),
+    'Record installation');
+expectRefusal(fn() => dispatchDevices($pdo, $manager['user_id'], $branch,
+    $receivingLocation, (string) $waitingCode), 'approved catalog part is not installed');
+$reversals = stockRun($pdo, "SELECT inventory_transaction_id,quantity_delta,reason FROM inventory_transactions
+    WHERE ticket_device_id=? AND transaction_type='RETURN' AND reference_code=?",
+    [$id, 'RETURN-USE-' . $originalMovement])->fetchAll();
+expectResult(count($reversals) === 1 && $reversals[0]['quantity_delta'] === '1.000' &&
+    $reversals[0]['reason'] !== '', 'Return movement or audit reason missing.');
+stockChange($pdo, $manager['user_id'], $id, (int) $waiting['item_id'], 0, 'reserve');
+$replacementHold = (int) stockRun($pdo, 'SELECT reservation_id FROM stock_reservations WHERE quote_item_id=?',
+    [$waiting['item_id']])->fetchColumn();
+stockChange($pdo, $technician['user_id'], $id, (int) $waiting['item_id'], $replacementHold, 'install');
+$replacementMovement = stockActiveInstallation($pdo, $id, (int) $waiting['item_id']);
+expectResult($replacementMovement > $originalMovement,
+    'New installation did not supersede the returned one.');
+expectResult((int) stockRun($pdo, 'SELECT COUNT(*) FROM ticket_parts_used WHERE ticket_device_id=?',
+    [$id])->fetchColumn() === 2, 'Installation history was lost after the return.');
 pilotProgress($pdo,$technician,$id,'TESTING');
 pilotProgress($pdo,$technician,$id,'READY_FOR_PICKUP');
 $bill = cashIssueFinalBill($pdo,$manager['user_id'],$waiting['ticket'],$cashTicket($waiting));
@@ -138,4 +177,4 @@ foreach ([$branch=>'0.000',$neighbor=>'4.000'] as $branchId=>$expected) {
     expectResult(stockRun($pdo,'SELECT quantity_on_hand FROM branch_inventory WHERE branch_id=? AND part_id=?',
         [$branchId,$part])->fetchColumn() === $expected,'Unexpected shelf count.');
 }
-echo "PASS: intake to handover for two jobs, last-SSD race, cancellation release, installation and exact bills.\n";
+echo "PASS: last-SSD reservation, reusable part return and reinstall, cancellation, transfer safety and exact bills.\n";
