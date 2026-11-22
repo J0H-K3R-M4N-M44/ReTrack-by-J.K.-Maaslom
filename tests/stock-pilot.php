@@ -126,6 +126,11 @@ acceptTransferredRepair($pdo, $manager['user_id'], $manifestId,
 $accepted = stockRun($pdo, 'SELECT accountable_branch_id FROM repair_tickets WHERE ticket_id=?',
     [$ticket])->fetchColumn();
 expectResult((int) $accepted === $neighbor, 'Whole-ticket branch responsibility was not transferred.');
+$unmovedRepairs = stockRun($pdo, 'SELECT COUNT(*) FROM ticket_devices
+    WHERE ticket_id=? AND (repair_branch_id IS NULL OR repair_branch_id<>?)',
+    [$ticket, $neighbor])->fetchColumn();
+expectResult((int) $unmovedRepairs === 0,
+    'Whole-ticket acceptance left a device assigned to its former repair branch.');
 expectResult(stockRun($pdo, 'SELECT assigned_technician_id FROM ticket_devices WHERE ticket_device_id=?',
     [$device])->fetchColumn() === null, 'Original branch technician was not cleared.');
 expectRefusal(fn() => consoleDevice($pdo, $otherManager, $device), 'outside your assigned work');
