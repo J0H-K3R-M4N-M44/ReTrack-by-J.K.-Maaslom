@@ -14,6 +14,8 @@ on:
       - 'css/**'
       - 'js/**'
       - 'tests/payment-browser.mjs'
+      - 'tests/ownership-browser.mjs'
+      - 'tests/ownership-browser-fixture.php'
       - 'tests/checkout-concurrency.php'
       - 'tests/stock-pilot.php'
       - 'tests/stock-quarantine.php'
@@ -89,6 +91,7 @@ jobs:
           php -l tests/stocktaking.php
           php -l tests/repair-branch-migration.php
           php -l tests/device-ownership-view.php
+          php -l tests/ownership-browser-fixture.php
           php -l tests/scope-separation.php
           php -l tests/repair-scope-isolation.php
           php -l app/console/scopes.php
@@ -185,10 +188,13 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright-core@1.56.1
           export PICKUP_FIXTURE="$RUNNER_TEMP/pickup.json"
+          umask 077
           php tests/payment-pickup.php --browser-fixture > "$PICKUP_FIXTURE"
+          php tests/ownership-browser-fixture.php
           php -S 127.0.0.1:8742 > "$RUNNER_TEMP/php-server.log" 2>&1 &
           trap 'kill $!; rm -f "$PICKUP_FIXTURE"' EXIT
           curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
+          node tests/ownership-browser.mjs
           node tests/payment-browser.mjs
       - name: Save staff workspace screenshots
         if: always()
