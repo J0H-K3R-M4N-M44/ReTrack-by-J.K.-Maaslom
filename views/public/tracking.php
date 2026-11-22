@@ -43,8 +43,44 @@
         <section class="public-card">
             <p class="eyebrow"><?= h($device['item_code']) ?></p>
             <h2><?= h(dashboardDeviceLabel($device)) ?></h2>
-            <p class="public-status"><?= h(dashboardStatusLabel($device['repair_status'])) ?></p>
-            <h3>Device custody</h3><p><?= h(publicCustody($device)) ?></p>
+            <div class="public-glance" aria-label="Latest repair information">
+                <div class="public-glance-item">
+                    <span>Current status</span>
+                    <strong class="public-status"><?= h(dashboardStatusLabel($device['repair_status'])) ?></strong>
+                </div>
+                <div class="public-glance-item">
+                    <span>Recorded location</span>
+                    <strong><?= h(publicCustody($device)) ?></strong>
+                </div>
+            </div>
+            <?php
+            // Display the staff-recorded workflow without inventing dates or GPS.
+            // Waiting for approval or parts does not mean repair work has started.
+            $stage = match ($device['repair_status']) {
+                'RECEIVED' => 1,
+                'DIAGNOSING', 'AWAITING_CUSTOMER_APPROVAL', 'AWAITING_PARTS' => 2,
+                'IN_PROGRESS' => 3,
+                'TESTING' => 4,
+                'READY_FOR_PICKUP', 'COMPLETED' => 5,
+                default => 0,
+            };
+            $milestones = ['Received', 'Assessment', 'Repair', 'Testing', 'Collection'];
+            ?>
+            <?php if ($stage > 0): ?>
+            <div class="public-progress">
+                <h3>Repair journey</h3>
+                <ol class="public-progress-steps" aria-label="Recorded repair milestones">
+                    <?php foreach ($milestones as $position => $milestone): ?>
+                    <li class="<?= $position + 1 < $stage ? 'is-done' : ($position + 1 === $stage ? 'is-current' : '') ?>"
+                        <?= $position + 1 === $stage ? 'aria-current="step"' : '' ?>>
+                        <span class="public-progress-dot" aria-hidden="true"></span>
+                        <span><?= h($milestone) ?></span>
+                    </li>
+                    <?php endforeach; ?>
+                </ol>
+                <p class="public-progress-note">Based on saved staff updates, not live device tracking.</p>
+            </div>
+            <?php endif; ?>
             <?php if ($device['estimate']): ?>
             <div class="public-estimate">
                 <h3>Current shared estimate</h3>
