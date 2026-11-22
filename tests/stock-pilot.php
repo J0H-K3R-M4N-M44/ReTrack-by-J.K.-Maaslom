@@ -121,6 +121,17 @@ confirmTransferItem($pdo, $manager['user_id'], $manifestItems[1], 'IN_TRANSIT',
 expectRefusal(fn() => acceptTransferredRepair($pdo, $manager['user_id'], $manifestId,
     $ticket, $branch, 'Source manager approved handoff to destination shop.', false),
     'Confirm whole-ticket receipt');
+// A partial ownership mismatch must never be overwritten by whole-ticket handoff.
+stockRun($pdo, 'UPDATE ticket_devices SET repair_branch_id=? WHERE ticket_device_id=?',
+    [$neighbor, $sibling]);
+expectRefusal(fn() => acceptTransferredRepair($pdo, $manager['user_id'], $manifestId,
+    $ticket, $branch, 'This mixed ownership must not be silently overwritten.', true),
+    'mixed or unverified repair ownership');
+expectResult((int) stockRun($pdo, 'SELECT accountable_branch_id FROM repair_tickets WHERE ticket_id=?',
+    [$ticket])->fetchColumn() === $branch,
+    'Rejected mixed ownership unexpectedly changed ticket authority.');
+stockRun($pdo, 'UPDATE ticket_devices SET repair_branch_id=? WHERE ticket_device_id=?',
+    [$branch, $sibling]);
 acceptTransferredRepair($pdo, $manager['user_id'], $manifestId,
     $ticket, $branch, 'Receiving manager accepted complete ticket and customer quote.', true);
 $accepted = stockRun($pdo, 'SELECT accountable_branch_id FROM repair_tickets WHERE ticket_id=?',
