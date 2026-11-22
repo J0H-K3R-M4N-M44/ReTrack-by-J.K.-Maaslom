@@ -8,6 +8,7 @@ on:
       - 'css/dashboard.css'
       - 'tests/mvp-overview-browser.mjs'
       - 'tests/mvp-single-ticket-journey.php'
+      - 'tests/mvp-backup-restore.sh'
       - 'tests/quotes-browser.mjs'
       - 'tests/public-browser.mjs'
       - 'tests/quotes.php'
@@ -106,10 +107,14 @@ jobs:
       - name: Exercise one ticket through full service lifecycle
         run: |
           set -euo pipefail
-          php tests/mvp-single-ticket-journey.php
-          # Confirm the test did not leave an open transaction or skip closing.
+          JOURNEY_KEEP_EVIDENCE=1 php tests/mvp-single-ticket-journey.php
+          # Verify real issued attachments still exist for the backup job.
           mysql -N -h 127.0.0.1 -u root repairtrack_test_journey \
             -e "SELECT COUNT(*) FROM repair_tickets WHERE record_stage='ISSUED' AND case_state='OPEN'" | grep -Fxq 0
+      - name: Rehearse SQL + private evidence restore into a separate disposable schema
+        run: |
+          set -euo pipefail
+          REPAIRTRACK_DISPOSABLE_RESTORE=I_CONFIRM_DISPOSABLE_CI bash tests/mvp-backup-restore.sh
 
   quote-and-tracking-browser:
     runs-on: ubuntu-24.04
