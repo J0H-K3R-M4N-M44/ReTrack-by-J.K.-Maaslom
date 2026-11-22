@@ -252,6 +252,11 @@ function partsTransferQueue(PDO $pdo, int $actorId, int $branchId, string $searc
             SELECT MAX(v.valuation_id) FROM stock_transfer_loss_valuations v
             WHERE v.loss_case_id=loss.loss_case_id AND v.status='APPROVED'
         )
+        LEFT JOIN part_acquisition_cost_records source_cost ON source_cost.cost_record_id=(
+            SELECT MAX(c.cost_record_id) FROM part_acquisition_cost_records c
+            WHERE c.branch_id=t.from_branch_id AND c.part_id=item.part_id
+              AND c.status='APPROVED'
+        )
         JOIN branches origin ON origin.branch_id=t.from_branch_id
         JOIN branches destination ON destination.branch_id=t.to_branch_id
         WHERE (t.from_branch_id=? OR t.to_branch_id=?)
@@ -289,6 +294,10 @@ function partsTransferQueue(PDO $pdo, int $actorId, int $branchId, string $searc
         accepted_value.valuation_id AS approved_valuation_id,
         accepted_value.remaining_quantity AS approved_valuation_remaining,
         accepted_value.exposure_php AS approved_valuation_exposure,
+        source_cost.cost_record_id AS approved_source_cost_id,
+        source_cost.unit_cost_php AS approved_source_unit_cost,
+        source_cost.supplier_name AS approved_source_supplier,
+        source_cost.document_reference AS approved_source_reference,
         p.part_name,p.sku,origin.branch_name AS origin_name,
         destination.branch_name AS destination_name
         ".$where." ORDER BY t.inventory_transfer_id DESC,
