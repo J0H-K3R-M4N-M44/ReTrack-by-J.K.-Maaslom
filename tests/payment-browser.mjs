@@ -183,7 +183,40 @@ try {
   await investigation.locator('[name=confirm]').check();
   await investigation.locator('button[value=report-loss]').click();
   await admin.getByRole('status').getByText('Formal loss investigation recorded',{exact:false}).waitFor();
+  const verifiedPng = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8//8/AwMDEwMDAwMDAwAkBgMB/DXemwAAAABJRU5ErkJggg==',
+    'base64'
+  );
+  const evidenceItem = admin.locator('article.dashboard-card').filter({hasText:fixture.transfer_sku}).first();
+  await evidenceItem.locator('summary').filter({hasText:'Attach private loss evidence'}).click();
+  const evidenceForm = evidenceItem.locator('form').filter({
+    has: admin.locator('button[value=attach-evidence]')
+  });
+  // Browser-provided MIME/extension cannot bypass server-side file validation.
+  await evidenceForm.locator('[name=evidence]').setInputFiles({
+    name:'false.png',mimeType:'image/png',buffer:Buffer.from('<svg>not an image</svg>')
+  });
+  await evidenceForm.locator('button[value=attach-evidence]').click();
+  await admin.getByRole('alert').getByText('Only verified PNG/JPEG', {exact:false}).waitFor();
+  const retryItem = admin.locator('article.dashboard-card').filter({hasText:fixture.transfer_sku}).first();
+  await retryItem.locator('summary').filter({hasText:'Attach private loss evidence'}).click();
+  const retryForm = retryItem.locator('form').filter({
+    has: admin.locator('button[value=attach-evidence]')
+  });
+  await retryForm.locator('[name=evidence]').setInputFiles({
+    name:'signed-count.png',mimeType:'image/png',buffer:verifiedPng
+  });
+  await retryForm.locator('button[value=attach-evidence]').click();
+  await admin.getByRole('status').getByText('Private inspection evidence attached', {exact:false}).waitFor();
+  const lossEvidenceUrl = await admin.getByRole('link', {name:'signed-count.png'}).first().getAttribute('href');
+  assert(lossEvidenceUrl?.startsWith('stock_evidence.php?id='));
+  const authorizedDownload = await admin.context().request.get(base+'/admin/'+lossEvidenceUrl);
+  assert.equal(authorizedDownload.status(),200);
+  assert.match(authorizedDownload.headers()['content-disposition']||'',/attachment;/);
+  assert.equal(authorizedDownload.headers()['cache-control']?.includes('no-store'),true);
   const reviewer = await login('loss_reviewer',1440);
+  const reviewerDownload = await reviewer.context().request.get(base+'/admin/'+lossEvidenceUrl);
+  assert.equal(reviewerDownload.status(),200,'Origin reviewer cannot inspect destination evidence.');
   await reviewer.goto(base + '/admin/parts_transfers.php?branch=' + fixture.branch);
   const reviewItem = reviewer.locator('article.dashboard-card').filter({hasText:fixture.transfer_sku}).first();
   await reviewItem.locator('summary').filter({hasText:'Independently review missing-stock case'}).click();
@@ -215,7 +248,22 @@ try {
   await recoveryForm.locator('[name=confirm]').check();
   await recoveryForm.locator('button[value=report-recovery]').click();
   await admin.getByRole('status').getByText('Recovered parts held pending',{exact:false}).waitFor();
+  const recoveryEvidenceItem = admin.locator('article.dashboard-card').filter({hasText:fixture.transfer_sku}).first();
+  await recoveryEvidenceItem.locator('summary').filter({hasText:'Attach private recovery evidence'}).click();
+  const recoveryEvidenceForm = recoveryEvidenceItem.locator('form').filter({
+    has: admin.locator('button[value=attach-evidence]')
+  });
+  await recoveryEvidenceForm.locator('[name=evidence]').setInputFiles({
+    name:'recovered-condition.png',mimeType:'image/png',buffer:verifiedPng
+  });
+  await recoveryEvidenceForm.locator('button[value=attach-evidence]').click();
+  await admin.getByRole('status').getByText('Private inspection evidence attached',{exact:false}).waitFor();
+  const recoveryEvidenceUrl = await admin.getByRole('link',{name:'recovered-condition.png'})
+    .first().getAttribute('href');
+  assert(recoveryEvidenceUrl?.startsWith('stock_evidence.php?id='));
   await reviewer.goto(base + '/admin/parts_transfers.php?branch=' + fixture.branch);
+  const reviewerRecoveryDownload = await reviewer.context().request.get(base+'/admin/'+recoveryEvidenceUrl);
+  assert.equal(reviewerRecoveryDownload.status(),200);
   const reviewRecoveryItem = reviewer.locator('article.dashboard-card').filter({
     hasText: fixture.transfer_sku
   }).first();
@@ -312,6 +360,8 @@ try {
   assert.equal(forbidden.status(), 403, 'Cashier gained access to branch inventory.');
   const partsForbidden = await cashier.goto(base + '/admin/parts_transfers.php');
   assert.equal(partsForbidden.status(),403,'Cashier gained access to physical parts transfers.');
+  const evidenceForbidden = await cashier.goto(base+'/admin/'+lossEvidenceUrl);
+  assert.equal(evidenceForbidden.status(),403,'Cashier downloaded confidential inventory evidence.');
   await cashier.goto(base + '/admin/staff_home.php?view=cash');
   await checkWidth(cashier);
   await cashier.locator('#rt-more').click();
