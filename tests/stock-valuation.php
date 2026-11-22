@@ -135,7 +135,7 @@ expectRefusal(fn()=>partsValuationPropose($pdo,$receiver['user_id'],$lossId,'2.0
 $physicalReport='One originally missing SSD was found intact and held in the secured review bin.';
 $recoveryRef='RECOVERED-'.$run.'-001';
 $third=partsValuationPropose($pdo,$receiver['user_id'],$lossId,'2.000',
-    '1249.25','VERIFIED_COST_RECORD','STOCK-COST-CORRECTION-'.$run,$reason,true);
+    '1249.25','OTHER_VERIFIED','STOCK-COST-CORRECTION-'.$run,$reason,true);
 $recovery=partsRecoveryReport($pdo,$receiver['user_id'],$lossId,'1.000',
     '1.000',$recoveryRef,$physicalReport,true);
 expectRefusal(fn()=>partsValuationDecide($pdo,$financeAdmin,$third,
