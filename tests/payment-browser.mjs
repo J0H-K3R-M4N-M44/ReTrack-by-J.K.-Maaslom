@@ -136,8 +136,9 @@ try {
   // Manager verifies physical restock; technician must install the replacement before testing.
   const quoteUrl = base + '/admin/quote.php?id=' + fixture.device;
   await manager.goto(quoteUrl);
-  await manager.locator('[name=return_reason]').fill('Removed and inspected reusable SSD before final testing.');
-  await manager.locator('[name=restock_confirm]').check();
+  const reusableReturn = manager.locator('form').filter({ has: manager.locator('[name=stock_action][value=return]') });
+  await reusableReturn.locator('[name=return_reason]').fill('Removed and inspected reusable SSD before final testing.');
+  await reusableReturn.locator('[name=restock_confirm]').check();
   await press(manager,'Record part return to stock');
   await manager.getByText('Awaiting reservation', {exact:false}).waitFor();
   await press(manager,'Reserve quoted quantity');
