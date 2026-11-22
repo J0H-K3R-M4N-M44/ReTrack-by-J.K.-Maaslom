@@ -53,7 +53,7 @@ $staff = [];
 $roles = ['MANAGER', 'CASHIER', 'CASHIER'];
 if (in_array('--concurrency', $argv, true) || in_array('--stock-pilot', $argv, true) ||
     in_array('--stock-operations', $argv, true) || in_array('--parts-transfer', $argv, true) ||
-    in_array('--parts-loss', $argv, true) || in_array('--parts-recovery', $argv, true) || in_array('--stock-evidence', $argv, true)) {
+    in_array('--parts-loss', $argv, true) || in_array('--parts-recovery', $argv, true) || in_array('--stock-evidence', $argv, true) || in_array('--stock-valuation', $argv, true)) {
     $roles[] = 'MANAGER';
     $roles[] = 'TECHNICIAN';
 }
@@ -113,6 +113,10 @@ if (in_array('--stock-evidence', $argv, true)) {
     require __DIR__ . '/stock-evidence.php';
     exit();
 }
+if (in_array('--stock-valuation', $argv, true)) {
+    require __DIR__ . '/stock-valuation.php';
+    exit();
+}
 if (in_array('--concurrency', $argv, true)) {
     require __DIR__ . '/checkout-concurrency.php';
     testCheckoutRaces($pdo, $ticket, $device, $staff);
@@ -142,6 +146,14 @@ if ($browserFixture) {
     stockRun($pdo,'INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)',
         [$lossReviewerId,$branch]);
     $emails['loss_reviewer'] = $lossReviewerEmail;
+    // A distinct source-branch ADMIN reviews cost, independent of dispatcher and loss reviewer.
+    $valuationReviewerEmail="$run-independent-finance@example.test";
+    $valuationReviewerId=insertFixture($pdo,
+        "INSERT INTO users (full_name,email,password_hash,role) VALUES (?,?,?,'ADMIN')",
+        ['Independent financial valuation administrator',$valuationReviewerEmail,$hash]);
+    stockRun($pdo,'INSERT INTO user_branch_assignments (user_id,branch_id) VALUES (?,?)',
+        [$valuationReviewerId,$branch]);
+    $emails['valuation_reviewer']=$valuationReviewerEmail;
     $techId = stockRun($pdo, 'SELECT user_id FROM users WHERE email=?', [$emails['technician']])->fetchColumn();
     stockRun($pdo, "UPDATE ticket_devices SET repair_status='DIAGNOSING',assigned_technician_id=?
         WHERE ticket_device_id=?", [$techId,$device]);

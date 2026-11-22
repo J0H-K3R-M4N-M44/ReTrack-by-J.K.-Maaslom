@@ -244,6 +244,14 @@ function partsTransferQueue(PDO $pdo, int $actorId, int $branchId, string $searc
             SELECT MAX(r.recovery_id) FROM stock_transfer_recoveries r
             WHERE r.loss_case_id=loss.loss_case_id
         )
+        LEFT JOIN stock_transfer_loss_valuations valuation ON valuation.valuation_id=(
+            SELECT MAX(v.valuation_id) FROM stock_transfer_loss_valuations v
+            WHERE v.loss_case_id=loss.loss_case_id
+        )
+        LEFT JOIN stock_transfer_loss_valuations accepted_value ON accepted_value.valuation_id=(
+            SELECT MAX(v.valuation_id) FROM stock_transfer_loss_valuations v
+            WHERE v.loss_case_id=loss.loss_case_id AND v.status='APPROVED'
+        )
         JOIN branches origin ON origin.branch_id=t.from_branch_id
         JOIN branches destination ON destination.branch_id=t.to_branch_id
         WHERE (t.from_branch_id=? OR t.to_branch_id=?)
@@ -270,6 +278,17 @@ function partsTransferQueue(PDO $pdo, int $actorId, int $branchId, string $searc
         COALESCE((SELECT SUM(r.quantity) FROM stock_transfer_recoveries r
           WHERE r.loss_case_id=loss.loss_case_id AND r.status='APPROVED'),0)
           AS recovered_approved_quantity,
+        valuation.valuation_id,valuation.revision_no AS valuation_revision,
+        valuation.status AS valuation_status,
+        valuation.remaining_quantity AS valuation_remaining,
+        valuation.unit_cost_php AS valuation_unit_cost,
+        valuation.exposure_php AS valuation_exposure,
+        valuation.cost_basis AS valuation_basis,
+        valuation.cost_reference AS valuation_reference,
+        valuation.prepared_by_user_id AS valuation_preparer,
+        accepted_value.valuation_id AS approved_valuation_id,
+        accepted_value.remaining_quantity AS approved_valuation_remaining,
+        accepted_value.exposure_php AS approved_valuation_exposure,
         p.part_name,p.sku,origin.branch_name AS origin_name,
         destination.branch_name AS destination_name
         ".$where." ORDER BY t.inventory_transfer_id DESC,
