@@ -1,7 +1,7 @@
 name: PHP shop workflow checks
 on:
   push:
-    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, PHP-Bill-Corrections-Integration, PHP-Stock-Cancellation-Integration, Stock-Transfer-Integrity, Stock-Returns-Integrity, Branch-Repair-Acceptance, Stock-Quarantine-Counts, Stock-Disposition-Approvals, main]
+    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, PHP-Bill-Corrections-Integration, PHP-Stock-Cancellation-Integration, Stock-Transfer-Integrity, Stock-Returns-Integrity, Branch-Repair-Acceptance, Stock-Quarantine-Counts, Stock-Disposition-Approvals, Parts-Transfers-Reconciliation, main]
     paths:
       - '.github/workflows/payment-pickup.yml'
       - 'tests/payment-pickup.php'
@@ -17,6 +17,7 @@ on:
       - 'tests/checkout-concurrency.php'
       - 'tests/stock-pilot.php'
       - 'tests/stock-quarantine.php'
+      - 'tests/parts-transfer.php'
       - 'database/stock_quarantine.sql'
       - 'database/stock_approvals.sql'
       - 'app/inventory/**'
@@ -55,6 +56,9 @@ jobs:
           ];
           PHP
           php -l app/inventory/stock_ops.php
+          php -l app/inventory/transfers.php
+          php -l admin/parts_transfers.php
+          php -l tests/parts-transfer.php
           php -l app/inventory/reservations.php
           php -l admin/inventory.php
           php -l tests/stock-quarantine.php
@@ -69,6 +73,7 @@ jobs:
           php tests/payment-pickup.php --concurrency
           php tests/payment-pickup.php --stock-pilot
           php tests/payment-pickup.php --stock-operations
+          php tests/payment-pickup.php --parts-transfer
       - name: Walk through billing and pickup in Chrome
         run: |
           npm install --no-save --package-lock=false playwright-core@1.56.1
