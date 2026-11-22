@@ -101,4 +101,5 @@ echo '[8/8] Recover interrupted backfill/index/FK then audit again'
 php tests/repair-branch-migration.php
 php tests/mysql-integrity.php --check
 php tools/check_repair_branch_integrity.php
+mysql -h 127.0.0.1 -u root "$db" < tests/sql/repair_branch_integrity.sql
 printf 'PASS: disposable MySQL integrity round; test database and config removed on exit.\n'
