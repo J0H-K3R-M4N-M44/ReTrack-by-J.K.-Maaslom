@@ -123,4 +123,106 @@ checkShelf($pdo,$branch,$replacementPart,'0.000');
 expectResult((int) stockRun($pdo,'SELECT COUNT(*) FROM ticket_parts_used WHERE ticket_device_id=?',
     [$device])->fetchColumn() === 2, 'Original installed-part history was overwritten.');
 
-echo "PASS: shelf count, reserved floor, damaged quarantine, permissions, stale request and installed-part replacement.\n";
+// A second authorized manager must finalize quarantines. Disposition cannot be repeated.
+$shelfQuarantines=stockRun($pdo,"SELECT quarantine_id FROM stock_quarantines
+    WHERE branch_id=? AND part_id=? AND source_type='SHELF'
+    ORDER BY quarantine_id",[$branch,$part])->fetchAll(PDO::FETCH_COLUMN);
+expectResult(count($shelfQuarantines)===2,'Expected two separate shelf quarantine records.');
+$releaseId=(int)$shelfQuarantines[0];
+$scrapId=(int)$shelfQuarantines[1];
+$reviewReason='Independently verified quantity, condition and sealed holding location.';
+expectRefusal(fn()=>stockDecideQuarantine($pdo,$manager['user_id'],$releaseId,
+    'RELEASE',$reviewReason,true),'different branch manager');
+expectRefusal(fn()=>stockDecideQuarantine($pdo,$cashier['user_id'],$releaseId,
+    'RELEASE',$reviewReason,true),'branch manager');
+stockDecideQuarantine($pdo,$otherManager['user_id'],$releaseId,'RELEASE',$reviewReason,true);
+checkShelf($pdo,$branch,$part,'4.000');
+expectRefusal(fn()=>stockDecideQuarantine($pdo,$otherManager['user_id'],$releaseId,
+    'RELEASE',$reviewReason,true),'already has a final disposition');
+stockDecideQuarantine($pdo,$otherManager['user_id'],$scrapId,'SCRAP',
+    'Independently verified damage and consigned unit for permanent scrap.',true);
+checkShelf($pdo,$branch,$part,'4.000');
+expectResult((int)stockRun($pdo,'SELECT COUNT(*) FROM stock_quarantine_dispositions
+    WHERE quarantine_id IN (?,?)',[$releaseId,$scrapId])->fetchColumn()===2,
+    'Both quarantine decisions must remain on the ledger.');
+expectResult((int)stockRun($pdo,"SELECT COUNT(*) FROM inventory_transactions
+    WHERE branch_id=? AND part_id=? AND reference_code=?",[$branch,$part,'QREL-'.$releaseId])
+    ->fetchColumn()===1,'A quarantine release must create one positive stock movement.');
+$installedQuarantineId=(int)stockRun($pdo,"SELECT quarantine_id FROM stock_quarantines
+    WHERE original_use_movement_id=?",[$firstUse])->fetchColumn();
+stockDecideQuarantine($pdo,$otherManager['user_id'],$installedQuarantineId,
+    'SCRAP','Broken SSD verified and sent to secure disposal; no usable stock recovered.',true);
+checkShelf($pdo,$branch,$replacementPart,'0.000');
+
+// Large discrepancies stay pending. Same-author approval and wrong-role review are refused.
+$state=pilotShelf($pdo,$branch,$part);
+$large=stockShelfAction($pdo,$manager['user_id'],$branch,$part,$state['on_hand'],
+    $state['movement_id'],'count','10.000',$reason,true);
+expectResult($large==='pending','A six-unit count correction must request review.');
+checkShelf($pdo,$branch,$part,'4.000');
+$reviewId=(int)stockRun($pdo,"SELECT stock_count_review_id FROM stock_count_reviews
+    WHERE branch_id=? AND part_id=? AND status='PENDING'",[$branch,$part])->fetchColumn();
+expectResult($reviewId>0,'Pending second-person count request missing.');
+expectRefusal(fn()=>stockShelfAction($pdo,$manager['user_id'],$branch,$part,'4.000',
+    $state['movement_id'],'count','10.000',$reason,true),'already awaits');
+expectRefusal(fn()=>stockDecideCount($pdo,$manager['user_id'],$reviewId,
+    'approve',$reviewReason,true),'different branch manager');
+expectRefusal(fn()=>stockDecideCount($pdo,$cashier['user_id'],$reviewId,
+    'approve',$reviewReason,true),'branch manager');
+// A new quarantine invalidates the old shelf snapshot even when the approver is authorized.
+stockShelfAction($pdo,$manager['user_id'],$branch,$part,'4.000',$state['movement_id'],
+    'quarantine','1.000',$damage,true);
+checkShelf($pdo,$branch,$part,'3.000');
+expectRefusal(fn()=>stockDecideCount($pdo,$otherManager['user_id'],$reviewId,
+    'approve',$reviewReason,true),'Stock changed');
+stockDecideCount($pdo,$otherManager['user_id'],$reviewId,
+    'reject','Fresh shelf count is required after newly quarantined damage.',true);
+expectRefusal(fn()=>stockDecideCount($pdo,$otherManager['user_id'],$reviewId,
+    'approve',$reviewReason,true),'no longer pending');
+$state=pilotShelf($pdo,$branch,$part);
+expectResult(stockShelfAction($pdo,$manager['user_id'],$branch,$part,$state['on_hand'],
+    $state['movement_id'],'count','9.000',$reason,true)==='pending',
+    'Corrected high discrepancy should still await independent review.');
+$newId=(int)stockRun($pdo,"SELECT stock_count_review_id FROM stock_count_reviews
+    WHERE branch_id=? AND part_id=? AND status='PENDING'",[$branch,$part])->fetchColumn();
+stockDecideCount($pdo,$otherManager['user_id'],$newId,'approve',$reviewReason,true);
+checkShelf($pdo,$branch,$part,'9.000');
+expectRefusal(fn()=>stockDecideCount($pdo,$otherManager['user_id'],$newId,
+    'approve',$reviewReason,true),'no longer pending');
+expectResult((int)stockRun($pdo,"SELECT COUNT(*) FROM inventory_transactions
+    WHERE reference_code=?",['COUNT-APPROVED-'.$newId])->fetchColumn()===1,
+    'Approved high count must issue exactly one adjustment.');
+
+// Previously approved corrections count toward the rolling 24-hour threshold.
+$state=pilotShelf($pdo,$branch,$part);
+expectResult(stockShelfAction($pdo,$manager['user_id'],$branch,$part,$state['on_hand'],
+    $state['movement_id'],'count','10.000',$reason,true)==='pending',
+    'Repeated small counts must not bypass independent approval.');
+$cancelId=(int)stockRun($pdo,"SELECT stock_count_review_id FROM stock_count_reviews
+    WHERE branch_id=? AND part_id=? AND status='PENDING'",[$branch,$part])->fetchColumn();
+expectRefusal(fn()=>stockDecideCount($pdo,$otherManager['user_id'],$cancelId,
+    'cancel',$reviewReason,true),'Only the requester');
+stockDecideCount($pdo,$manager['user_id'],$cancelId,'cancel',
+    'Requester cancelled further correction pending a fresh count.',true);
+checkShelf($pdo,$branch,$part,'9.000');
+expectResult((int)stockRun($pdo,"SELECT COUNT(*) FROM stock_count_reviews
+    WHERE stock_count_review_id=? AND status='CANCELLED'",[$cancelId])->fetchColumn()===1,
+    'Cancelled pending review must remain visible in its immutable history.');
+// More than ten pending quarantines must remain accessible through pagination.
+for ($sample=0; $sample<11; $sample++) {
+    $samplePart=insertFixture($pdo,'INSERT INTO parts (sku,part_name) VALUES (?,?)',
+        [$run.'-PENDING-'.$sample,'Sample quarantine #'.$sample]);
+    stockRun($pdo,'INSERT INTO branch_inventory (branch_id,part_id,quantity_on_hand)
+        VALUES (?,?,1)',[$branch,$samplePart]);
+    stockShelfAction($pdo,$manager['user_id'],$branch,$samplePart,'1.000',0,
+        'quarantine','1.000',$damage,true);
+}
+$firstPage=stockPendingWork($pdo,$manager['user_id'],$branch,1,1);
+$secondPage=stockPendingWork($pdo,$otherManager['user_id'],$branch,2,1);
+expectResult($firstPage['qpages']>=2 && count($firstPage['quarantines'])===10 &&
+    count($secondPage['quarantines'])>=1,
+    'Older pending quarantine decisions were hidden without pagination.');
+expectRefusal(fn()=>stockPendingWork($pdo,$manager['user_id'],$otherBranch,1,1),
+    'not assigned');
+echo "PASS: quarantine disposition, independent count approval, stale review, rolling threshold and pagination.\n";
+
