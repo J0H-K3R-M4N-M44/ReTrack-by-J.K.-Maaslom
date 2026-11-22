@@ -209,8 +209,9 @@ try {
     journeyCheck((int) $stmt->fetchColumn() >= 9, 'Intake evidence gates were lost.');
     echo "PASS: ONE ticket: draft -> evidence issue -> PIN tracking -> diagnosis -> approved quote -> repair/QA -> unpaid denial -> partial/full counter cash -> handover/closed portal.\n";
 } finally {
-    // No persistent test artifacts; database itself is discarded with CI runner.
-    if ($evidence !== []) {
+    // Only the disposable recovery job needs to retain genuine issued image
+    // evidence until its independent backup/restore comparison completes.
+    if ($evidence !== [] && getenv('JOURNEY_KEEP_EVIDENCE') !== '1') {
         intakeDiscardEvidence($evidence);
     }
 }
