@@ -105,6 +105,19 @@ expectResult((int)stockRun($pdo,"SELECT COUNT(*) FROM inventory_transactions
 expectResult((int)stockRun($pdo,"SELECT COUNT(*) FROM inventory_transactions
     WHERE inventory_transfer_item_id=? AND transaction_type='TRANSFER_IN'",
     [$itemA])->fetchColumn()===1,'Approved loss credited unreceived quantities.');
+$sent = stockRun($pdo,"SELECT COALESCE(SUM(-quantity_delta),0) FROM inventory_transactions
+    WHERE inventory_transfer_item_id=? AND transaction_type='TRANSFER_OUT'",
+    [$itemA])->fetchColumn();
+$arrived = stockRun($pdo,"SELECT COALESCE(SUM(quantity_delta),0) FROM inventory_transactions
+    WHERE inventory_transfer_item_id=? AND transaction_type='TRANSFER_IN'",
+    [$itemA])->fetchColumn();
+expectResult(stockUnits((string)$sent) ===
+    stockUnits((string)$arrived) + stockUnits((string)$loss['missing_quantity']),
+    'Dispatch does not reconcile to physically received plus independently approved loss.');
+expectResult((int)stockRun($pdo,"SELECT COUNT(*) FROM audit_events
+    WHERE entity_type='inventory_transfer_item' AND entity_id=?
+      AND action='PARTS_MISSING'",[$itemA])->fetchColumn()===1,
+    'Formal closure must preserve the original missing-shipment audit report.');
 expectRefusal(fn()=>partsLossDecide($pdo,$reviewerId,$caseId,
     'approve',$approval,true),'no longer awaiting review');
 expectRefusal(fn()=>partsTransferReceive($pdo,$otherManager['user_id'],$itemA,
