@@ -116,6 +116,20 @@ jobs:
           php tests/payment-pickup.php --parts-recovery
           php tests/payment-pickup.php --stock-evidence
           php tests/payment-pickup.php --stock-valuation
+          # Rehearse an ADD COLUMN + FK migration with historical valuations already present.
+          # This catches schema upgrades that only work on empty new installations.
+          VALUATIONS_BEFORE=$(MYSQL_PWD=root mysql -N -h 127.0.0.1 -u root             repairtrack_test_pickup -e "SELECT CONCAT(COUNT(*), ':', COALESCE(SUM(exposure_php),0)) FROM stock_transfer_loss_valuations")
+          MYSQL_PWD=root mysql -h 127.0.0.1 -u root repairtrack_test_pickup -e "
+            ALTER TABLE stock_transfer_loss_valuations
+              DROP FOREIGN KEY fk_loss_valuation_part_cost,
+              DROP INDEX idx_loss_valuation_part_cost,
+              DROP COLUMN part_acquisition_cost_id;
+            DROP TABLE part_acquisition_cost_records;
+          "
+          php tools/migrate.php --apply --yes
+          php tools/migrate.php --status
+          VALUATIONS_AFTER=$(MYSQL_PWD=root mysql -N -h 127.0.0.1 -u root             repairtrack_test_pickup -e "SELECT CONCAT(COUNT(*), ':', COALESCE(SUM(exposure_php),0)) FROM stock_transfer_loss_valuations")
+          test "$VALUATIONS_BEFORE" = "$VALUATIONS_AFTER"
           php tests/payment-pickup.php --part-costs
       - name: Walk through billing and pickup in Chrome
         run: |
