@@ -7,6 +7,7 @@ if (PHP_SAPI !== 'cli') {
     http_response_code(404);
     exit(1);
 }
+require_once __DIR__ . '/../app/db.php';
 require_once __DIR__ . '/../app/console/repository.php';
 require_once __DIR__ . '/../app/quotes/repository.php';
 require_once __DIR__ . '/../app/payments/repository.php';
