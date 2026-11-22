@@ -1,0 +1,68 @@
+name: Restrict-only repair scope preflight
+
+on:
+  push:
+    branches: [Partial-Ticket-Ownership, main]
+    paths:
+      - '.github/workflows/repair-scope-guard.yml'
+      - 'config/config.example.php'
+      - 'app/console/**'
+      - 'app/quotes/**'
+      - 'app/payments/**'
+      - 'app/inventory/**'
+      - 'tests/repair-scope-gate.php'
+      - 'tests/repair-guard-integration.php'
+      - 'database/schema.sql'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repair-guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      MYSQL_PWD: root
+    steps:
+      - uses: actions/checkout@v4
+      - name: PHP lint and pure legacy/guarded scope assertions
+        run: |
+          set -euo pipefail
+          php -l app/console/scopes.php
+          php -l app/console/repository.php
+          php -l app/quotes/repository.php
+          php -l app/inventory/reservations.php
+          php -l tests/repair-scope-gate.php
+          php -l tests/repair-guard-integration.php
+          php tests/repair-scope-gate.php
+      - name: Initialize one disposable guard-mode MySQL database
+        run: |
+          set -euo pipefail
+          sudo systemctl start mysql
+          mysql -h 127.0.0.1 -u root -e "CREATE DATABASE repairtrack_test_guard CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          sed -e '/^CREATE DATABASE IF NOT EXISTS repairtrack$/d' \
+              -e 's/^USE repairtrack;$/USE repairtrack_test_guard;/' database/schema.sql | mysql -h 127.0.0.1 -u root
+          mkdir -p "$RUNNER_TEMP/repair-guard-intake" "$RUNNER_TEMP/repair-guard-inventory"
+          cat > config/config.php <<'PHP'
+          <?php
+          return [
+              'host' => '127.0.0.1',
+              'database' => 'repairtrack_test_guard',
+              'username' => 'root',
+              'password' => getenv('MYSQL_PWD'),
+              'intake_storage_path' => getenv('RUNNER_TEMP') . '/repair-guard-intake',
+              'inventory_evidence_path' => getenv('RUNNER_TEMP') . '/repair-guard-inventory',
+              'intake_hmac_key' => str_repeat('ab', 32),
+              'repair_scope_mode' => 'restrict',
+          ];
+          PHP
+      - name: Verify no cross-branch repair, quote or stock writes
+        run: |
+          set -euo pipefail
+          php tests/repair-guard-integration.php
+          # The rolled-back negative fixture must leave a clean fresh schema.
+          MYSQL_PWD=root mysql -N -h 127.0.0.1 -u root repairtrack_test_guard \
+            -e "SELECT COUNT(*) FROM repair_tickets" | grep -Fxq 0
