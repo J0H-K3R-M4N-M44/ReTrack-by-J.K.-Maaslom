@@ -211,7 +211,14 @@ function cashCancelDevice(PDO $pdo, array $device, int $actorId, string $reason)
     if (in_array($device['repair_status'], ['DRAFT', 'COMPLETED', 'CANCELLED'], true)) {
         throw new DomainException('Every device must still be open for this whole-ticket cancellation.');
     }
-    $parts = $pdo->prepare('SELECT ticket_part_use_id FROM ticket_parts_used WHERE ticket_device_id = ? LIMIT 1 FOR UPDATE');
+    // Keep historical installations; only physically unreturned parts block diagnostic-only checkout.
+    $parts = $pdo->prepare("SELECT u.ticket_part_use_id FROM ticket_parts_used u
+        JOIN inventory_transactions m ON m.inventory_transaction_id = u.inventory_transaction_id
+        WHERE u.ticket_device_id = ? AND NOT EXISTS (
+            SELECT 1 FROM inventory_transactions r
+            WHERE r.transaction_type = 'RETURN' AND r.ticket_device_id = u.ticket_device_id
+            AND r.reference_code = CONCAT('RETURN-USE-', m.inventory_transaction_id)
+        ) LIMIT 1 FOR UPDATE");
     $parts->execute([$id]);
     if ($parts->fetchColumn()) {
         throw new DomainException('Review installed parts before using diagnostic-only checkout.');
