@@ -55,7 +55,7 @@ jobs:
           umask 077
           export PICKUP_FIXTURE="$RUNNER_TEMP/mvp-fixture.json"
           php tests/payment-pickup.php --browser-fixture > "$PICKUP_FIXTURE"
-          php -S 127.0.0.1:8742 > "$RUNNER_TEMP/mvp-server.log" 2>&1 &
+          php -d opcache.enable_cli=0 -d opcache.validate_timestamps=1 -d opcache.revalidate_freq=0 -S 127.0.0.1:8742 > "$RUNNER_TEMP/mvp-server.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true; rm -f "$PICKUP_FIXTURE"' EXIT
           curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
