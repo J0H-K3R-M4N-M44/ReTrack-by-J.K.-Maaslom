@@ -41,9 +41,10 @@ try {
   assert.equal(await page.getByRole('heading', { name: 'Admin dashboard' }).count(), 1);
   assert.equal(await page.getByText('Under construction', { exact: true }).count(), 0);
   assert.equal(await page.locator('.construction-mark').count(), 0);
-  assert.equal(await page.getByRole('link', { name: 'New intake' }).count(), 1);
-  assert.equal(await page.getByRole('link', { name: 'Review repairs' }).count(), 1);
-  assert.equal(await page.getByRole('link', { name: 'Cash desk' }).count(), 2);
+  const quick = page.getByRole('navigation', { name: 'Quick actions' });
+  assert.equal(await quick.getByRole('link', { name: 'New intake', exact: true }).count(), 1);
+  assert.equal(await quick.getByRole('link', { name: 'Review repairs', exact: true }).count(), 1);
+  assert.equal(await quick.getByRole('link', { name: 'Cash desk', exact: true }).count(), 1);
   assert.equal(await page.getByRole('heading', { name: 'Recently updated devices' }).count(), 1);
   assert((await page.locator('.system-status').innerText()).includes('data loaded'));
   assert(!(await page.locator('.system-status').evaluate(el => el.classList.contains('is-unavailable'))));
@@ -66,7 +67,7 @@ try {
   assert(!(await page.locator('.welcome-actions').isVisible()),
     'Quick actions leaked into the customer roster.');
   await page.goto(base + '/admin/dashboard.php');
-  await page.getByRole('link', { name: 'New intake' }).click();
+  await page.getByRole('navigation', { name: 'Quick actions' }).getByRole('link', { name: 'New intake' }).click();
   assert(page.url().endsWith('/admin/intake_create.php'));
   await session.context.close();
 
