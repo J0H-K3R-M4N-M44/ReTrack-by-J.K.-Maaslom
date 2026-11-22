@@ -53,7 +53,7 @@ $staff = [];
 $roles = ['MANAGER', 'CASHIER', 'CASHIER'];
 if (in_array('--concurrency', $argv, true) || in_array('--stock-pilot', $argv, true) ||
     in_array('--stock-operations', $argv, true) || in_array('--parts-transfer', $argv, true) ||
-    in_array('--parts-loss', $argv, true)) {
+    in_array('--parts-loss', $argv, true) || in_array('--parts-recovery', $argv, true)) {
     $roles[] = 'MANAGER';
     $roles[] = 'TECHNICIAN';
 }
@@ -103,6 +103,10 @@ if (in_array('--parts-transfer', $argv, true)) {
 }
 if (in_array('--parts-loss', $argv, true)) {
     require __DIR__ . '/parts-loss.php';
+    exit();
+}
+if (in_array('--parts-recovery', $argv, true)) {
+    require __DIR__ . '/parts-recovery.php';
     exit();
 }
 if (in_array('--concurrency', $argv, true)) {

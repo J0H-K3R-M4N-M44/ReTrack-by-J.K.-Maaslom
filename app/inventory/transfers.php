@@ -240,6 +240,10 @@ function partsTransferQueue(PDO $pdo, int $actorId, int $branchId, string $searc
             SELECT MAX(l.loss_case_id) FROM stock_transfer_loss_cases l
             WHERE l.inventory_transfer_item_id=item.inventory_transfer_item_id
         )
+        LEFT JOIN stock_transfer_recoveries recovery ON recovery.recovery_id=(
+            SELECT MAX(r.recovery_id) FROM stock_transfer_recoveries r
+            WHERE r.loss_case_id=loss.loss_case_id
+        )
         JOIN branches origin ON origin.branch_id=t.from_branch_id
         JOIN branches destination ON destination.branch_id=t.to_branch_id
         WHERE (t.from_branch_id=? OR t.to_branch_id=?)
@@ -258,6 +262,14 @@ function partsTransferQueue(PDO $pdo, int $actorId, int $branchId, string $searc
         loss.loss_case_id,loss.status AS loss_status,loss.missing_quantity AS loss_quantity,
         loss.evidence_reference,loss.report_reason,loss.reported_by_user_id,
         loss.reviewed_by_user_id,loss.review_reason,
+        recovery.recovery_id,recovery.status AS recovery_status,
+        recovery.quantity AS recovery_quantity,recovery.evidence_reference AS recovery_evidence_reference,
+        recovery.report_reason AS recovery_report_reason,
+        recovery.review_reason AS recovery_review_reason,
+        recovery.reported_by_user_id AS recovery_reported_by,
+        COALESCE((SELECT SUM(r.quantity) FROM stock_transfer_recoveries r
+          WHERE r.loss_case_id=loss.loss_case_id AND r.status='APPROVED'),0)
+          AS recovered_approved_quantity,
         p.part_name,p.sku,origin.branch_name AS origin_name,
         destination.branch_name AS destination_name
         ".$where." ORDER BY t.inventory_transfer_id DESC,
