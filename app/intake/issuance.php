@@ -222,10 +222,11 @@ function intakeIssueTicket(
                 );
             }
             $device = $pdo->prepare("UPDATE ticket_devices SET item_code = ?, alternative_identifiers = ?, accessory_checklist_completed = 1,
-                repair_status = 'RECEIVED', physical_location_id = ?, custody_state = 'AT_LOCATION', duplicate_fingerprint = ?, public_summary = 'Received for assessment.' WHERE ticket_device_id = ?");
+                repair_status = 'RECEIVED', repair_branch_id = ?, physical_location_id = ?, custody_state = 'AT_LOCATION', duplicate_fingerprint = ?, public_summary = 'Received for assessment.' WHERE ticket_device_id = ?");
             $device->execute([
                 $ticketCode . '-' . str_pad((string) $entry['child_sequence'], 2, '0', STR_PAD_LEFT),
                 $details['alternative_identifiers'] ?: null,
+                (int) $draft['intake_branch_id'],
                 $details['location_id'],
                 $fingerprint,
                 $deviceId,
