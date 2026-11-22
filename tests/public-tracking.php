@@ -110,6 +110,80 @@ checkPublic(
         str_contains($url, 'status=DIAGNOSING'),
     'Pagination lost state',
 );
+// Customer estimates are read-only and resolve to the newest revision only.
+// Create fictional versions in the disposable fixture; never expose staff fields.
+$firstView = publicRepair($pdo, $newCode);
+checkPublic($firstView['devices'][0]['estimate'] === null, 'Unshared quote should not appear');
+$pdo->prepare(
+    "INSERT INTO repair_quotes
+    (ticket_device_id, version_no, quote_status, labor_amount, parts_amount,
+     other_amount, total_amount, prepared_by_user_id)
+    VALUES (?, 1, 'DRAFT', 325.35, 0, 0, 325.35, ?)",
+)->execute([$fixture['device'], $manager['user_id']]);
+$firstQuoteId = (int) $pdo->lastInsertId();
+$draftView = publicRepair($pdo, $newCode);
+checkPublic($draftView['devices'][0]['estimate'] === null, 'Draft estimate leaked');
+
+$pdo->prepare(
+    "UPDATE repair_quotes SET quote_status='AWAITING_CUSTOMER',
+     sent_at=UTC_TIMESTAMP(), expires_at=DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 DAY)
+     WHERE quote_id=?",
+)->execute([$firstQuoteId]);
+$sharedView = publicRepair($pdo, $newCode);
+checkPublic($sharedView['devices'][0]['estimate']['total'] === '325.35', 'Shared total absent');
+checkPublic($sharedView['devices'][0]['estimate']['revision'] === 1, 'Wrong shared version');
+checkPublic(!$sharedView['devices'][0]['estimate']['expired'], 'Future estimate treated as expired');
+checkPublic(str_contains(publicNextStep($sharedView['devices'][0]), 'decision'), 'No response instruction');
+
+$pdo->prepare(
+    'UPDATE repair_quotes SET expires_at=DATE_SUB(UTC_TIMESTAMP(), INTERVAL 1 DAY) WHERE quote_id=?',
+)->execute([$firstQuoteId]);
+$expiredView = publicRepair($pdo, $newCode);
+checkPublic($expiredView['devices'][0]['estimate']['expired'], 'Expired response not identified');
+checkPublic(str_contains(publicNextStep($expiredView['devices'][0]), 'updated estimate'),
+    'Expired quote action misleading');
+
+$pdo->prepare("UPDATE repair_quotes SET quote_status='DECLINED' WHERE quote_id=?")
+    ->execute([$firstQuoteId]);
+$declinedView = publicRepair($pdo, $newCode);
+checkPublic(str_contains(publicNextStep($declinedView['devices'][0]), 'declined'),
+    'Declined estimate lacks next action');
+
+$pdo->prepare(
+    "INSERT INTO repair_quotes
+    (ticket_device_id, version_no, quote_status, labor_amount, parts_amount,
+     other_amount, total_amount, prepared_by_user_id)
+    VALUES (?, 2, 'DRAFT', 99, 0, 0, 99, ?)",
+)->execute([$fixture['device'], $manager['user_id']]);
+$secondQuoteId = (int) $pdo->lastInsertId();
+$newDraftView = publicRepair($pdo, $newCode);
+checkPublic($newDraftView['devices'][0]['estimate'] === null,
+    'Latest private draft should hide the obsolete estimate');
+checkPublic(!str_contains(json_encode($newDraftView, JSON_THROW_ON_ERROR), '325.35'),
+    'Superseded estimate amount leaked');
+checkPublic(!str_contains(json_encode($newDraftView, JSON_THROW_ON_ERROR), '99.00'),
+    'Latest draft price leaked');
+
+$pdo->prepare(
+    "UPDATE repair_quotes SET quote_status='AWAITING_CUSTOMER',
+     sent_at=UTC_TIMESTAMP(), expires_at=DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 DAY)
+     WHERE quote_id=?",
+)->execute([$secondQuoteId]);
+$latestView = publicRepair($pdo, $newCode);
+checkPublic($latestView['devices'][0]['estimate']['total'] === '99.00',
+    'Newest shared estimate missing');
+checkPublic(!str_contains(json_encode($latestView, JSON_THROW_ON_ERROR), '325.35'),
+    'Old shared estimate leaked when revised');
+checkPublic(publicRepair($pdo, str_repeat('0', 64)) === null,
+    'Unknown tracking secret obtained estimate');
+checkPublic(publicRepair($pdo, $code) === null,
+    'Revoked tracking secret obtained estimate');
+checkPublic(!isset($latestView['devices'][0]['estimate']['prepared_by_user_id']) &&
+    !isset($latestView['devices'][0]['estimate']['quote_id']),
+    'Staff estimate metadata leaked');
+checkPublic(publicNextStep(['custody_state' => 'WITH_CUSTOMER']) !== '',
+    'Returned device lacks next action');
+
 file_put_contents(
     __DIR__ . '/public-fixture.json',
     json_encode(['ticket' => $ticketId, 'code' => $newCode]),
