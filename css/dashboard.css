@@ -495,7 +495,18 @@
   }
 
   .dashboard-grid {
-    grid-template-columns: 1fr;
+    /* A single 1fr track has an automatic min-content width and can overflow. */
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard-grid > .dashboard-card {
+    min-width: 0;
+    padding: 18px;
+    overflow-wrap: anywhere;
+  }
+  .dashboard-grid .secondary-btn {
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
   }
 
   .analytics-grid {
