@@ -33,6 +33,17 @@ Use a **fictional-only** clean XAMPP/PHP/MySQL environment based on `MVP-Stabili
 | UAT-19 | Screen-reader tester | Navigate each page by landmarks/headings/labels; deliberately trigger validation errors | Status/error changes have meaningful announcements; descriptions and inputs are connected |
 | UAT-20 | Staff | Disconnect database in an isolated test; revisit dashboard | Shows an unavailable state rather than misleading zero or a green connection indicator |
 
+## Candidate-specific manual scenarios (additional, not substitutions)
+
+These two scenarios supplement UAT-01 through UAT-20. They have **not been performed** and must be executed on the exact candidate commit with fictional users and evidence.
+
+| ID | Role | Tester action | Acceptance condition |
+| --- | --- | --- | --- |
+| UAT-21 | Manager, intake agent, unrelated branch | In an isolated branch with no active bin/workbench, attempt fictional issuance; create a bin with assigned manager; retry issuance; attempt setup as intake agent and a manager from another branch | Issuance first blocks with actionable feedback, then newly created active bin is available; unassigned branch and unauthorized roles are denied; no ticket created by a failed attempt |
+| UAT-22 | Assigned technician, manager, unrelated role | Submit an internal part need, acknowledge and resolve it, decline another request, then replay an old decision and inspect stock/quote/billing records | Correct role/branch visibility and request states; stale replay denied; **no procurement, inventory, payment, customer approval, or repair stage changed automatically** |
+
+Windows operator addition: run the **read-only, fictional** comparison described in [Windows evidence integrity check](windows-evidence-integrity-check.md). Record the exact candidate SHA, Windows and PowerShell versions and a redacted evidence reference. It verifies relative names and SHA-256 only; the **SQL restoration and human checks above remain unsigned**.
+
 ## Run log (copy per scenario)
 
 | Field | Tester entry |
