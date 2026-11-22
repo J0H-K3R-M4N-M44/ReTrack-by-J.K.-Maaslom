@@ -26,7 +26,7 @@ $quoteItem=insertFixture($pdo,"INSERT INTO repair_quote_items
     (quote_id,part_id,tracks_branch_stock,item_type,description,quantity,unit_price,line_total)
     VALUES (?,?,1,'PART','Reserved transfer SSD',2,600,1200)",[$quote,$partA]);
 stockRun($pdo,'INSERT INTO stock_reservations (quote_item_id,branch_id,part_id,quantity,reserved_by)
-    VALUES (?,?,?,?,?)',[$quoteItem,$branch,'2.000',$manager['user_id']]);
+    VALUES (?,?,?,?,?)',[$quoteItem,$branch,$partA,'2.000',$manager['user_id']]);
 $dispatchNote='Origin manager counted and sealed physical shipment for branch receiving.';
 $receiptNote='Receiving manager checked seals and independently counted delivered units.';
 $missingNote='Container opened at receiving bench; remaining units not physically delivered.';
