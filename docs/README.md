@@ -10,6 +10,9 @@ Start here instead of reading the original milestone notes in chronological orde
 | --- | --- |
 | [System overview](system-overview.md) | Purpose, users, current scope, workflow, and feature status |
 | [Architecture](architecture.md) | PHP structure, request flow, permissions, state boundaries |
+| [Requirements and traceability](requirements-and-traceability.md) | Functional/nonfunctional requirements with source and test links |
+| [Workflow and state models](workflow-and-state-models.md) | Diagrammed intake, repair, custody, and cash lifecycles |
+| [Role-based user guide](user-guide.md) | Instructions for customer, intake, technician, cashier, manager, courier and inventory staff |
 | [Database reference](database-reference.md) | Current 47-table schema, relationship groups, and migration rules |
 | [Security and privacy](security-and-privacy.md) | Roles, access boundaries, protected customer information, deployment risks |
 | [Local setup and upgrade](local-setup.md) | XAMPP/PHP setup, fresh database, seed, backups, CLI migrations |
