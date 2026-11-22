@@ -4,6 +4,14 @@ Status: PHASES 1–2 IMPLEMENTED; PHASE 3 SCOPE PREPARATION ONLY — 22 November
 Base: main @ f817154f2e5f5ac04daf8bf0c5b3dd0167e17f0b.
 Scope: allow one device in a multi-device ticket to be repaired by another branch **after a confirmed physical transfer and independently audited acceptance**, without moving the financial ownership of the whole ticket.
 
+## Dedicated MySQL integrity rehearsal (scripts added, execution pending)
+
+- `tests/mysql-integrity.php` checks 17 named relational, payment, inventory, custody, and device-branch invariants, verifies repair-branch index/FK metadata, writes no private data to output, and supports rollback-only negative tests with explicit opt-in.
+- `tests/mysql-integrity-round.sh` creates a randomized disposable database and temporary config in a clean checkout, runs real workflow fixtures, snapshots 19 historical tables, removes and reapplies the additive column, tests rerun idempotence and rollback, then executes interrupted-migration recovery and the final SQL audit.
+- `tests/sql/repair_branch_integrity.sql` provides a read-only Workbench view. `.github/workflows/mysql-integrity.yml` runs the dedicated round on the feature branch and PRs.
+- `tests/repair-scope-isolation.php` now rolls back all synthetic mixed-ownership rows before subsequent integrity checks.
+- Local staged PHP/Bash syntax checks passed. **No MySQL server or PDO MySQL extension is available in this execution environment; the database tests and GitHub Actions result have not been observed as passing.** Remain draft/unmerged. See `docs/mysql-integrity-round.md`.
+
 ## Current verified behavior
 
 - A repair ticket has one accountable_branch_id in repair_tickets. Physical device location and custody are already separate in ticket_devices.
