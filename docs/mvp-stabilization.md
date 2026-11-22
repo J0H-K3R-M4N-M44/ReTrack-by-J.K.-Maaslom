@@ -32,6 +32,20 @@ The disposable-MySQL Chrome test validates the dashboard, real links, error
 state, no-JavaScript fallback, tab isolation and 320/390/768/1440px layouts.
 Workflow: .github/workflows/mvp-stabilization.yml.
 
+## Verified customer-to-pickup regression round
+
+[Full test report](mvp-test-report.md) documents a complete single-ticket PHP lifecycle and
+independent, real-browser tests for quote decisions, private customer tracking and dashboard
+navigation. All four targeted jobs passed in [run 44996054209](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996054209).
+The broader [payment/checkout](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996050302)
+and [intake/staff](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996050309)
+regressions also passed against the tested application commit.
+
+A mobile tracking animation was removed after the original public browser suite could not
+reliably activate **View repair** with JavaScript disabled. The rerun passed without changing
+the tracking code/PIN rules. A one-ticket *browser* journey across every role remains separate
+from the verified single-ticket *service-layer* test.
+
 ## Practical MVP completion checklist
 
 1. Verify mainline login, intake/issuance, technician workflow, public tracking,
