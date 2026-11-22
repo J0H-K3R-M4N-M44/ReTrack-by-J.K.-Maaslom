@@ -61,6 +61,10 @@ The added column is nullable during the transitional phase because older fixture
 
 **Release gate remains BLOCKED:** no run result has been confirmed for the final HEAD, and the proposed repair builder is intentionally **not wired to HTTP handlers**. No partial-ticket acceptance service, role permissions change, quote/stock branch cutover, migration on persistent databases, or merge into `main` has occurred.
 
+## Authenticated browser preflight (verified on test-only fixtures)
+
+The repo now has `tests/ownership-browser-fixture.php`, `tests/ownership-browser.mjs` and `tests/ownership-browser-cleanup.php`. They construct and remove a synthetic multi-device branch mismatch, check admin/manager read-only ownership labels and HTML escaping at 320/390/768/1440px, verify no-JavaScript rendering and denied destination/sibling access, and preserve ticket-only cashier authority. The test is **not a live partial-acceptance workflow**. CI runs the browser test separately from the original payment suite to preserve the existing 20-attempt/IP login limiter. Both jobs passed on commit `59065079` in [run 44991528241](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44991528241).
+
 ## Earlier branch reuse decision
 
 - Simplified-System, Staff-Workspace, Device-Handovers, Branches-Logistics and Repair-Operations: fully behind main; do not merge.

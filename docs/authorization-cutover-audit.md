@@ -78,6 +78,12 @@ An isolated eight-stage rehearsal is now scripted in `tests/mysql-integrity-roun
 - Device reports and cash reports produce correct figures on a mixed-branch multi-device ticket, with each bill counted once.
 - Existing whole-ticket handoff, stock returns, inventory loss, payments, refunds and physical pickup remain unchanged with the partial-ownership feature disabled.
 
+## Read-only authorization browser preflight — verified
+
+A hypothetical two-device ticket is generated **only in a disposable MySQL fixture**, with one device assigned to the original branch and the sibling assigned to a different repair-branch field. It is not a real accepted transfer. The Playwright test covers source ADMIN/MANAGER diagnostic labels and mismatch warnings, destination manager/technician denial under **current legacy scope**, limited viewer/intake/technician fields, finance ownership at the source branch, untrusted branch-label escaping, and responsive no-JavaScript behavior at 320/390/768/1440px. Fixture creation and deletion are isolated from the original payment browser suite. The normal payment suite runs in a **separate job**, preserving the existing login limiter.
+
+[CI run 44991528241](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44991528241) passed both `ownership-browser` and `payment-pickup` at `59065079`; [staff activity run 44991375736](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44991375736) also passed on the preceding PHP fixture commit. The current test **does not allow** destination staff to operate on the remotely labelled device. Passing these tests is **not** a claim that Phase 3 operational access is ready.
+
 ## Current review outcome
 
-**Phases 1–2 and Phase 3 scope preparation may be reviewed. Operational Phase 3 remains blocked** pending verified integration CI, the disposable MySQL backfill rehearsal, an atomic authorization/stock cutover design, and all negative/concurrency tests. The new SQL scopes alone do not grant partial ownership. Preserve `main` untouched until those release gates are satisfied.
+**Phases 1–2 and Phase 3 scope preparation may be reviewed. Operational Phase 3 remains blocked** despite verified legacy integration CI and disposable MySQL migration tests, pending an atomic authorization/stock cutover design, explicit customer/branch policy, and *new* mixed-ownership permission/concurrency tests. The new SQL scopes alone do not grant partial ownership. Preserve `main` untouched until those release gates are satisfied.

@@ -7,7 +7,8 @@
 - `main` baseline: `f817154f2e5f5ac04daf8bf0c5b3dd0167e17f0b`, contains prior integrated milestones.
 - `Partial-Ticket-Ownership`: adds database foundation, a read-only ownership display, guarded scope prototypes, negative tests and dedicated disposable MySQL suite.
 - **Observed pass**: GitHub-hosted [MySQL integrity run 44989851868](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44989851868) on commit `738bfada` passed all eight stages. Earlier [run 44989776748](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44989776748) also passed earlier, but run 44989851868 is the later documented passing checkpoint. Each later docs/code commit must have its own run.
-- **Not established by that pass**: independently successful payment-browser and staff-activity workflow runs at the final feature HEAD, deployed database migration, production recovery, complete permission cutover, real SMS, accounting integration or partial-ticket acceptance.
+- **New preflight evidence:** the [PHP shop workflow run 44991528241](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44991528241) passed both isolated `ownership-browser` and original `payment-pickup` jobs at code commit `59065079`. The [staff activity run 44991375736](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44991375736) passed its activity, reports, migration and intake tests at earlier code commit `d2d190ad`. The [MySQL integrity run 44991532074](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44991532074) passed at `59065079` as well.
+- **Still not established:** operational device-repair authorization cutover, actual partial-ticket transfer/acceptance, concurrent two-manager acceptance, persistent database migration/restore, production readiness, customer branch-consent policy, real messaging or accounting integration. Later commits must have their own relevant CI evidence.
 
 ## Test matrix
 
@@ -16,6 +17,7 @@
 | Fresh schema and migration status/apply/recovery | `tests/migrations.php`, `tools/migrate.php` | Pending markers, refusal/cancel, lock, rerun, recovery |
 | MySQL integrity & regression preservation | `tests/mysql-integrity-round.sh`, `tests/mysql-integrity.php`, `.github/workflows/mysql-integrity.yml` | 17 invariants, 19 full-table snapshots, FK/index, negative tests, cleanup |
 | Read-only ownership and scope separation | `tests/device-ownership-view.php`, `tests/scope-separation.php` | Correct labels, no ticket-code echo, role scope boundaries |
+| Authenticated ownership and role/browser isolation | `tests/ownership-browser-fixture.php`, `tests/ownership-browser.mjs`, `tests/ownership-browser-cleanup.php` in the separate `ownership-browser` CI job | 320/390/768/1440 widths, escaped branch label, aligned/divergent warnings, no-JS, origin finance, denied destination staff and sibling access |
 | Mixed-branch device-only isolation (simulated) | `tests/payment-pickup.php --scope-isolation` | Sibling repair isolation, ticket cash ownership, inactive/revoked denies |
 | Whole-ticket transfer, inventory and refunds | `tests/payment-pickup.php --stock-pilot`, `tests/payment-pickup.php`, `tests/checkout-concurrency.php` | Consistent assignments, custody, quote/stock and cash state |
 | Inventory stocktakes, cost provenance and loss recovery | `tests/stocktaking.php`, `tests/part-acquisition-costs.php`, `tests/parts-recovery.php` | Independent approval and preserved stock evidence |
@@ -25,6 +27,14 @@
 | Browser layout/keyboard and workflow | `tests/*-browser.mjs` and `.github/workflows/payment-pickup.yml`, `.github/workflows/staff-activity.yml` | Real page interactions; inspect exact failed/passed job rather than counting test files |
 
 These names describe available test sources. The matrix is **not** a claim that every script was executed in the latest round.
+
+## Role/browser regression preflight (22 November 2026)
+
+The synthetic ownership browser fixture creates **one extra test-only two-device ticket** with device branch differences **without a manager acceptance event**. It is intentionally a *hypothetical invalid operational state*: the current legacy ticket-scoped PHP code still denies destination staff entry even when the proposed device-branch field points there. Source ADMIN/MANAGER see read-only branch labels and a mismatch warning; TECHNICIAN/INTAKE_AGENT/VIEWER do not see those labels. Tests also verify HTML escaping, unaffected ticket finance scope, and that unauthorized cashier/courier accounts cannot open repair details.
+
+The first combined browser run failed because its extra fixture shifted the old board's selected row. A cleanup script fixed that contamination, but the combined run then exceeded the **existing 20-attempt per-IP login limit**. Rather than weaken login protection, the workflow now uses **separate ephemeral GitHub-hosted jobs**, each with its own MySQL, PHP server and limiter state. On commit `59065079`, both `ownership-browser` and `payment-pickup` passed in run 44991528241.
+
+These checks **do not** prove that the receiving branch may operate on the hypothetical remote device; that feature is intentionally OFF. A future real transfer must have separate authorization, quote/stock, origin/destination consent, and concurrency tests.
 
 ## Dedicated MySQL round
 

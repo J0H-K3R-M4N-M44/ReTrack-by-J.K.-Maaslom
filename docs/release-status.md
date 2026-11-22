@@ -9,7 +9,9 @@
 | `main` | `f817154f2e5f5ac04daf8bf0c5b3dd0167e17f0b` | Last checked integrated baseline for this documentation pass; mature PHP work and stocktaking pilots already present |
 | `Partial-Ticket-Ownership` | Documentation started after `738bfadaacc22bda9c1ab2b1b7e28a418a203f3e` | Development branch for additive device repair branch and scope preparation; documentation commits advance HEAD |
 | [Draft PR #55](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/pull/55) | Open, draft, unmerged | **Not** deployment approval |
-| [MySQL integrity run 44989851868](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44989851868) | Passed on `738bfada` | Eight-stage disposable MySQL integrity and migration test, not production validation |
+| [MySQL integrity run 44991532074](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44991532074) | Passed on `59065079` | Eight-stage disposable MySQL integrity and migration test; not production validation |
+| [PHP shop browser/payment run 44991528241](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44991528241) | **Both jobs passed** on `59065079` | Read-only ownership role/viewport isolation **and** existing payment browser tests |
+| [Staff activity run 44991375736](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44991375736) | Passed on `d2d190ad` | PHP activity, browser inbox, reports, migration and intake regression |
 
 Always re-query branch heads and checks when taking an action later; a document can never make a moving ref immutable.
 
@@ -35,6 +37,7 @@ Implemented on the unmerged feature branch:
 - Separate *proposed* repair-device scope and ticket-finance scope; the proposed scope is **not yet activated**.
 - Tests for branch isolation and revocation, 17 MySQL integrity conditions, 19 historical-table snapshots, migration recovery and negative FK/rollback cases.
 - Documentation consolidation of implementation, operations, limitations and evidence.
+- Dedicated authenticated Chrome regression for read-only branch labels, role denials, escaped untrusted branch names, phone/tablet/desktop widths and no-JS; tests run in separate isolated jobs so production login throttling remains unchanged.
 
 **Not in PR #55:** a partial-ticket transfer/acceptance endpoint, approved mixed-branch cash/stock authorization cutover, external GPS or customer chat, deployment scripts for live databases, or permission to merge.
 
@@ -55,10 +58,10 @@ Customer self-approval and revision after started work, two-way technician/custo
 
 ## Next safe work
 
-1. Finish the documentation review and retest its final commit.
-2. Verify broader CI workflows against the feature branch; investigate failures instead of forcing a merge.
-3. Only then implement a feature-flagged, atomic device-scope/quotes/stock permission cutover with exhaustive isolation and transactional tests.
-4. Add manager-approved, audited partial acceptance **after** the preceding invariants are proven.
-5. Revisit production deployment separately and only with a real backup/restore and policy review.
+1. **Completed preflight:** documentation consolidation and repeatable MySQL, staff-activity, payment and isolated browser ownership tests; reference the exact CI runs above. No live permissions were changed.
+2. **Next development milestone (not begun here):** design the feature-flagged, atomic device-scope, quotes and stock permission cutover with explicit role/branch denial and transaction/concurrency tests.
+3. Obtain a reviewed origin/destination manager approval, customer-consent and quote repricing policy; only then implement manager-accepted **partial** repair transfer with immutable audit events.
+4. Validate full suites again at the final code HEAD, then independently rehearse backups/restores and real browser/deployment conditions.
+5. Merge or deploy only after a separate review decision; `main` and production remain unchanged.
 
 [Documentation index](README.md) · [Security audit](authorization-cutover-audit.md) · [MySQL tests](mysql-integrity-round.md) · [Remaining gaps](system-gaps.md).
