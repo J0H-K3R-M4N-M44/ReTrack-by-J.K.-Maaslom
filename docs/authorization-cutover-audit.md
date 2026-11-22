@@ -51,6 +51,10 @@ The stand-alone `app/console/scopes.php` + `tests/scope-separation.php` pair and
 
 GitHub commit status lookup returned no statuses and the available workflow-run lookup covers PR-triggered runs rather than all push-triggered jobs. **No successful GitHub Actions integration run has been verified** at the feature branch head. The PR remains draft, and `main` is unchanged.
 
+## Dedicated MySQL integrity gate
+
+An isolated eight-stage rehearsal is now scripted in `tests/mysql-integrity-round.sh` and `tests/mysql-integrity.php`, with its own GitHub workflow, read-only SQL companion and safety guard. It verifies referential/financial/stock/custody invariants, historical row snapshots before/after migration, negative FK and mixed-owner detection, transaction rollback, and interrupted migration recovery. This test suite **does not establish that partial-ticket authorization is enabled or safe for release**. MySQL execution remains unverified; see `docs/mysql-integrity-round.md`.
+
 ## Phase 3 gating design
 
 1. Define **two explicit scope builders** rather than changing the old shared scope in place: a device-repair scope for approved device operations and a ticket/finance scope for billing and full-ticket records.
