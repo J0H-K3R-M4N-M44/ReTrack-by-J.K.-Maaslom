@@ -199,6 +199,7 @@ try {
   await evidenceForm.locator('button[value=attach-evidence]').click();
   await admin.getByRole('alert').getByText('Only verified PNG/JPEG', {exact:false}).waitFor();
   const retryItem = admin.locator('article.dashboard-card').filter({hasText:fixture.transfer_sku}).first();
+  await retryItem.locator('summary').filter({hasText:'Attach private loss evidence'}).click();
   const retryForm = retryItem.locator('form').filter({
     has: admin.locator('button[value=attach-evidence]')
   });
