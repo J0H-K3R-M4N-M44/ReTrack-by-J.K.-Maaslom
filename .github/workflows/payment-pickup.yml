@@ -1,7 +1,7 @@
 name: PHP shop workflow checks
 on:
   push:
-    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, PHP-Bill-Corrections-Integration, PHP-Stock-Cancellation-Integration, Stock-Transfer-Integrity, main]
+    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, PHP-Bill-Corrections-Integration, PHP-Stock-Cancellation-Integration, Stock-Transfer-Integrity, Stock-Returns-Integrity, main]
     paths:
       - '.github/workflows/payment-pickup.yml'
       - 'tests/payment-pickup.php'
