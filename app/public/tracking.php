@@ -39,6 +39,36 @@ function publicRepair(PDO $pdo, string $token, string $pin = '', string $history
         WHERE d.ticket_id = ? ORDER BY d.child_sequence");
     $devices->execute([$repair['ticket_id']]);
     $repair['devices'] = $devices->fetchAll();
+
+    // Resolve the newest revision only after private ticket access is validated.
+    // Drafts, superseded prices and staff conversation evidence stay private.
+    $quoteQuery = $pdo->prepare(
+        'SELECT version_no, quote_status, currency, total_amount, sent_at, expires_at
+         FROM repair_quotes WHERE ticket_device_id = ?
+         ORDER BY version_no DESC LIMIT 1',
+    );
+    foreach ($repair['devices'] as &$device) {
+        $device['estimate'] = null;
+        $quoteQuery->execute([(int) $device['ticket_device_id']]);
+        $quote = $quoteQuery->fetch();
+        if (
+            $quote &&
+            $quote['sent_at'] !== null &&
+            in_array($quote['quote_status'], ['AWAITING_CUSTOMER', 'APPROVED', 'DECLINED'], true)
+        ) {
+            $device['estimate'] = [
+                'revision' => (int) $quote['version_no'],
+                'status' => $quote['quote_status'],
+                'currency' => $quote['currency'],
+                'total' => $quote['total_amount'],
+                'expired' => $quote['quote_status'] === 'AWAITING_CUSTOMER' &&
+                    $quote['expires_at'] !== null &&
+                    strtotime($quote['expires_at'] . ' UTC') <= time(),
+            ];
+        }
+    }
+    unset($device);
+
     $repair['history_page'] = dashboardPage(
         $pdo,
         "SELECT e.status_event_id, e.to_status, e.public_summary, e.created_at, d.item_code
@@ -60,6 +90,55 @@ function publicCustody(array $device): string
         'IN_TRANSIT' => 'In transit · contact the branch for the next handoff',
         'WITH_CUSTOMER' => 'Returned to the customer',
         default => 'Location awaiting staff confirmation',
+    };
+}
+
+// Labels explain a staff-recorded estimate; viewing it does not grant approval rights.
+function publicEstimateLabel(array $estimate): string
+{
+    if ($estimate['status'] === 'AWAITING_CUSTOMER' && $estimate['expired']) {
+        return 'Response period ended';
+    }
+    return match ($estimate['status']) {
+        'AWAITING_CUSTOMER' => 'Awaiting your response',
+        'APPROVED' => 'Approved (recorded by staff)',
+        'DECLINED' => 'Declined (recorded by staff)',
+        default => 'Contact the branch',
+    };
+}
+
+function publicNextStep(array $device): string
+{
+    if ($device['custody_state'] === 'WITH_CUSTOMER') {
+        return 'This device has been returned. Contact the branch if you need further help.';
+    }
+    if ($device['repair_status'] === 'CANCELLED') {
+        return 'Contact the branch to discuss collection arrangements and any remaining charges.';
+    }
+    if ($device['custody_state'] === 'IN_TRANSIT') {
+        return 'The device is in transit. Contact the branch to confirm the next handoff.';
+    }
+    $estimate = $device['estimate'] ?? null;
+    if ($estimate && $estimate['status'] === 'AWAITING_CUSTOMER') {
+        return $estimate['expired']
+            ? 'The estimate response period ended. Contact the branch to request an updated estimate.'
+            : 'Review the estimate and contact the branch with your decision. Staff must record your response.';
+    }
+    if ($estimate && $estimate['status'] === 'DECLINED') {
+        return 'The estimate was declined. Contact the branch to agree on next steps; this does not cancel the repair.';
+    }
+    return match ($device['repair_status']) {
+        'RECEIVED' => 'The branch has received the device. Staff will begin the assessment.',
+        'DIAGNOSING' => $estimate && $estimate['status'] === 'APPROVED'
+            ? 'The estimate was recorded as approved. Staff can arrange the repair.'
+            : 'Diagnosis is underway. Ask the branch if you need a progress update.',
+        'AWAITING_CUSTOMER_APPROVAL' => 'Ask the branch to confirm the current estimate and how to respond.',
+        'AWAITING_PARTS' => 'Parts are being arranged. Ask the branch for updated timing.',
+        'IN_PROGRESS' => 'Repair work is in progress. Check back for the next staff update.',
+        'TESTING' => 'The device is being tested. The branch will confirm when it is ready.',
+        'READY_FOR_PICKUP' => 'Contact the branch to confirm pickup and any balance before collection. Staff must complete checkout.',
+        'COMPLETED' => 'Ask the branch to confirm the final handover details.',
+        default => 'Contact the branch for the next confirmed step.',
     };
 }
 
