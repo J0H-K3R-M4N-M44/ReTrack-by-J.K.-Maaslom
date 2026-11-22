@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../app/auth.php';
 require_once __DIR__ . '/../app/intake/repository.php';
 require_once __DIR__ . '/../app/inventory/evidence.php';
+require_once __DIR__ . '/../app/inventory/valuation.php';
 startAppSession();
 $user = requireRoles(['ADMIN','MANAGER']);
 header('Cache-Control: no-store, private');
@@ -74,6 +75,20 @@ try {
                 (int)requestText($_POST,'case_id'),$_FILES['evidence'] ?? []);
             $_SESSION['parts_transfer_notice'] =
                 'Private inspection evidence attached to the pending investigation.';
+        } elseif ($action==='propose-valuation') {
+            partsValuationPropose($pdo,(int)$user['user_id'],
+                (int)requestText($_POST,'loss_case_id'),requestText($_POST,'expected'),
+                requestText($_POST,'unit_cost'),requestText($_POST,'cost_basis'),
+                requestText($_POST,'cost_reference'),requestText($_POST,'reason'),
+                requestText($_POST,'confirm')==='yes');
+            $_SESSION['parts_transfer_notice'] =
+                'PHP financial exposure submitted for independent source-branch administrator review. No cash or stock changed.';
+        } elseif ($action==='decide-valuation') {
+            partsValuationDecide($pdo,(int)$user['user_id'],
+                (int)requestText($_POST,'valuation_id'),requestText($_POST,'decision'),
+                requestText($_POST,'reason'),requestText($_POST,'confirm')==='yes');
+            $_SESSION['parts_transfer_notice'] =
+                'Independent PHP valuation decision recorded. No accounting journal, cash or stock was changed.';
         } else {
             throw new DomainException('Choose a valid parts transfer action.');
         }
@@ -160,8 +175,8 @@ I physically counted these usable parts, checked the manifest and handed over th
 <section class="dashboard-card rt-card"><h2>Transfer ledger</h2>
 <p><?= (int)$results['total'] ?> manifest items · 10 per page. A partial receipt creates an exception.
 A confirmed operational loss closes the missing quantity without crediting any unreceived stock.
-Investigation photos or PDFs may now be attached privately before approval;
-each access requires an authorized staff login.</p>
+Investigation evidence remains private. Purchase-cost valuations below are internal PHP
+exposure assessments only, not customer charges, cashier payments or accounting write-offs.</p>
 <?php if (!$results['records']): ?><p>No parts manifests match this branch and search.</p><?php endif; ?>
 <?php foreach ($results['records'] as $item):
 $isRecipient=(int)$item['to_branch_id']===$branch;
@@ -187,6 +202,23 @@ $lossFiles=$item['loss_case_id']
     ? stockEvidenceList($pdo,(int)$user['user_id'],'LOSS',(int)$item['loss_case_id']) : [];
 $recoveryFiles=$item['recovery_id']
     ? stockEvidenceList($pdo,(int)$user['user_id'],'RECOVERY',(int)$item['recovery_id']) : [];
+$valuationStatus=(string)($item['valuation_status']??'');
+$valuationHistory=$item['loss_case_id']
+    ? partsValuationHistory($pdo,(int)$user['user_id'],(int)$item['loss_case_id']) : [];
+$hasPendingRecovery=$recoveryStatus==='PENDING';
+$canProposeValuation=$isRecipient && $lossStatus==='APPROVED' &&
+    $valuationStatus!=='PENDING' && !$hasPendingRecovery &&
+    (int)$item['initiated_by_user_id']!==(int)$user['user_id'];
+$canDecideValuation=$isOrigin && $user['role']==='ADMIN' &&
+    $valuationStatus==='PENDING' &&
+    !in_array((int)$user['user_id'],[
+        (int)$item['initiated_by_user_id'],
+        (int)$item['reported_by_user_id'],
+        (int)$item['reviewed_by_user_id'],
+        (int)$item['valuation_preparer'],
+    ],true);
+$valuationOutdated=$item['approved_valuation_id'] &&
+    (string)$item['approved_valuation_remaining']!==$item['outstanding'];
 ?>
 <article class="dashboard-card">
 <h3><?= h($item['transfer_code']) ?> · <?= h($item['part_name']) ?></h3>
@@ -228,6 +260,109 @@ may download. PDFs are served as downloads rather than displayed in the browser.
   Independently recovered <?= h((string)$item['recovered_approved_quantity']) ?> ·
   Still missing <?= h($item['outstanding']) ?></p>
 <?php endif; ?>
+<?php endif; ?>
+<?php if ($lossStatus==='APPROVED'): ?>
+<section class="rt-card" aria-label="Internal financial loss valuation">
+<h4>PHP purchase-cost exposure · Internal only</h4>
+<p>This is a reviewed estimate of loss at documented acquisition cost. It is
+<strong>not</strong> a sales price, customer bill, tax figure, bank transfer or posted accounting write-off.</p>
+<?php if ($item['approved_valuation_id']): ?>
+<p>Latest approved exposure: <strong>PHP <?= h((string)$item['approved_valuation_exposure']) ?></strong>
+for <?= h((string)$item['approved_valuation_remaining']) ?> missing units.</p>
+<?php if ($valuationOutdated): ?>
+<p role="status"><strong>Reassessment needed:</strong> the approved exposure is a historic
+snapshot. Physical recovery changed the current outstanding quantity to
+<?= h($item['outstanding']) ?>; prepare a revised independent valuation.</p>
+<?php else: ?>
+<p>Current approved exposure corresponds to the latest physically outstanding quantity.</p>
+<?php endif; ?>
+<?php else: ?>
+<p>No independently approved monetary valuation has been recorded for this loss.</p>
+<?php endif; ?>
+<?php if ($item['valuation_id']): ?>
+<p>Latest valuation #<?= (int)$item['valuation_id'] ?> · Revision
+<?= (int)$item['valuation_revision'] ?> · <strong><?= h($valuationStatus) ?></strong>
+ · PHP <?= h((string)$item['valuation_exposure']) ?>
+(<?= h((string)$item['valuation_remaining']) ?> × PHP <?= h((string)$item['valuation_unit_cost']) ?>)
+ · Basis: <?= h((string)$item['valuation_basis']) ?>
+ · Reference: <?= h((string)$item['valuation_reference']) ?></p>
+<?php endif; ?>
+<?php if ($valuationHistory): ?>
+<details><summary>View valuation history (latest five)</summary>
+<ol>
+<?php foreach ($valuationHistory as $entry): ?>
+<li>Revision <?= (int)$entry['revision_no'] ?> — <?= h($entry['status']) ?> ·
+PHP <?= h((string)$entry['exposure_php']) ?> ·
+<?= h((string)$entry['remaining_quantity']) ?> units at PHP
+<?= h((string)$entry['unit_cost_php']) ?> · <?= h($entry['cost_basis']) ?>
+(<?= h($entry['cost_reference']) ?>).
+Prepared <?= h((string)$entry['prepared_at']) ?>
+<?php if ($entry['reviewed_at']): ?>; reviewed <?= h((string)$entry['reviewed_at']) ?><?php endif; ?>
+<?php if ($entry['review_reason']): ?> — <?= h($entry['review_reason']) ?><?php endif; ?>
+</li>
+<?php endforeach; ?>
+</ol></details>
+<?php endif; ?>
+<?php if ($canProposeValuation): ?>
+<details><summary>Propose a PHP purchase-cost valuation</summary>
+<p>Use the verified supplier acquisition cost, not the customer-facing quote price.
+For recovered parts, enter a new revision for the <strong>current</strong> unreceived quantity.
+Only an independent origin-branch ADMIN can approve it. A zero outstanding quantity
+can be valued at PHP 0.00 using a documented unit cost.</p>
+<form method="post">
+<input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+<input type="hidden" name="branch" value="<?= $branch ?>">
+<input type="hidden" name="q" value="<?= h($q) ?>">
+<input type="hidden" name="loss_case_id" value="<?= (int)$item['loss_case_id'] ?>">
+<input type="hidden" name="expected" value="<?= h($item['outstanding']) ?>">
+<label>Verified acquisition cost per part (PHP)
+<input type="number" name="unit_cost" required min="0.01" max="1000000"
+step="0.01" placeholder="2750.00"></label>
+<label>Documented cost source<select name="cost_basis" required>
+<option value="">Choose original purchase-cost evidence</option>
+<option value="SUPPLIER_INVOICE">Supplier invoice</option>
+<option value="PURCHASE_RECEIPT">Purchase receipt</option>
+<option value="VERIFIED_COST_RECORD">Verified cost record</option>
+<option value="OTHER_VERIFIED">Other independently verified source</option>
+</select></label>
+<label>Cost document reference
+<input name="cost_reference" minlength="8" maxlength="160" required
+placeholder="Supplier invoice INV-2026-001"></label>
+<label>Purchase-cost explanation<textarea name="reason" minlength="20" maxlength="500"
+rows="3" required placeholder="Explain part identity, invoice source, acquisition cost and any reconciliation."></textarea></label>
+<label><input type="checkbox" name="confirm" value="yes" required>
+I verified the acquisition-cost source, and this is not a financial posting.</label>
+<button name="action" value="propose-valuation" class="secondary-btn">Submit monetary valuation</button>
+</form></details>
+<?php elseif ($valuationStatus==='PENDING' && $isRecipient): ?>
+<p>A monetary valuation is pending independent source-branch administrator review.</p>
+<?php elseif ($hasPendingRecovery && $isRecipient): ?>
+<p>Resolve physically held recovery stock before preparing or revising the monetary valuation.</p>
+<?php endif; ?>
+<?php if ($canDecideValuation): ?>
+<details><summary>Independently approve PHP loss valuation</summary>
+<p>Recheck supplier cost evidence, the original approved loss and all recorded recoveries.
+Approval only certifies this monetary estimate; it does not debit cash or post an accounting journal.</p>
+<form method="post">
+<input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+<input type="hidden" name="branch" value="<?= $branch ?>">
+<input type="hidden" name="q" value="<?= h($q) ?>">
+<input type="hidden" name="valuation_id" value="<?= (int)$item['valuation_id'] ?>">
+<label>Financial review<select name="decision" required>
+<option value="reject">Reject — cost or physical count cannot be verified</option>
+<option value="approve">Approve — verified PHP acquisition-cost exposure</option>
+</select></label>
+<label>Independent verification record<textarea name="reason" rows="3"
+minlength="20" maxlength="500" required
+placeholder="Record invoice or source review, physical count, exclusions and decision."></textarea></label>
+<label><input type="checkbox" name="confirm" value="yes" required>
+I am an independent source-branch administrator and checked the cost and physical-loss evidence.</label>
+<button name="action" value="decide-valuation">Record financial review</button>
+</form></details>
+<?php elseif ($isOrigin && $valuationStatus==='PENDING'): ?>
+<p>Awaiting a separate eligible source-branch administrator for financial review.</p>
+<?php endif; ?>
+</section>
 <?php endif; ?>
 <?php if ($item['recovery_id']): ?>
 <p><strong>Recovery #<?= (int)$item['recovery_id'] ?> · <?= h($recoveryStatus) ?></strong>
