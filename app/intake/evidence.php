@@ -44,6 +44,23 @@ function intakeEvidencePath(string $name): string
     return intakePrivateDirectory() . DIRECTORY_SEPARATOR . $name;
 }
 
+// Receipts can include older records with no private file, or with a demo asset path.
+function intakeEvidenceAvailable(?string $storedName): bool
+{
+    if (!$storedName) {
+        return false;
+    }
+    try {
+        $path = intakeEvidencePath($storedName);
+        return !is_link($path) && is_file($path) && is_readable($path);
+    } catch (DomainException $error) {
+        return false;
+    } catch (RuntimeException $error) {
+        error_log('RepairTrack intake evidence: ' . $error->getMessage());
+        return false;
+    }
+}
+
 // Validate actual bytes, not the supplied filename or browser content type.
 function intakeInspectImage(string $path): array
 {

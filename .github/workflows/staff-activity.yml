@@ -1,7 +1,7 @@
 name: Staff activity isolation
 on:
   push:
-    branches: [Tracking-And-Activity-UX, main]
+    branches: [Tracking-And-Activity-UX, Intake-Evidence-Checks, main]
     paths:
       - '.github/workflows/staff-activity.yml'
       - 'tests/*.php'
@@ -10,6 +10,7 @@ on:
       - 'database/*.sql'
       - 'track.php'
       - 'tests/activity-browser.mjs'
+      - 'tests/intake-receipt-browser.mjs'
       - 'views/**'
       - 'css/**'
       - 'js/**'
@@ -75,4 +76,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/intake"
           sed 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_intake/;s/^USE repairtrack;$/USE repairtrack_test_intake;/' database/schema.sql | mysql -h 127.0.0.1 -u root
           sed 's/repairtrack_demo/repairtrack_test_intake/g' tests/fixtures/demo/seed_demo.sql | mysql -h 127.0.0.1 -u root
+          export INTAKE_RECEIPT_FIXTURE="$RUNNER_TEMP/receipt-fixture.json"
           php tests/ticket-issuance.php
+          php -S 127.0.0.1:8742 > "$RUNNER_TEMP/receipt-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
+          node tests/intake-receipt-browser.mjs

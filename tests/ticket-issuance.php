@@ -221,3 +221,13 @@ $otherId = (int) $pdo->lastInsertId();
 $pdo->prepare(
     'INSERT INTO user_branch_assignments (user_id, branch_id, is_default) SELECT ?, branch_id, 0 FROM branches WHERE branch_id <> ? LIMIT 1',
 )->execute([$otherId, $draft['intake_branch_id']]);
+
+// Only the disposable browser job requests this two-device receipt fixture.
+if (getenv('INTAKE_RECEIPT_FIXTURE')) {
+    file_put_contents(getenv('INTAKE_RECEIPT_FIXTURE'), json_encode([
+        'id' => $multiId,
+        'code' => $multiCode,
+        'secondPhoto' => intakeEvidencePath($multiEvidence['photo_2']['name']),
+        'signedForm' => intakeEvidencePath($multiEvidence['signed_form']['name']),
+    ], JSON_THROW_ON_ERROR));
+}
