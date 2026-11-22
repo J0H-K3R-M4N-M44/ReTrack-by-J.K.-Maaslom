@@ -19,6 +19,7 @@
 ): ?><li><a href="#<?= h($key) ?>"><?= h(
     $error,
 ) ?></a></li><?php endforeach; ?></ul></div><?php endif; ?>
+<p><a href="locations.php">Manage assigned-branch storage locations</a></p>
 <section class="dashboard-card staff-editor">
 <?php if ($review): ?>
     <h2><?= $action === 'deactivate'
