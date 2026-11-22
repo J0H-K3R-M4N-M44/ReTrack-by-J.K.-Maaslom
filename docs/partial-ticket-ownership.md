@@ -1,6 +1,6 @@
 # Partial-ticket repair ownership: gated implementation plan
 
-Status: PHASE 1 IMPLEMENTED ON FEATURE BRANCH — 22 November 2026. Additive schema, issuance, legacy whole-ticket acceptance alignment, migration tests, and read-only rollout gate committed. **Not deployed, not merged, and no partial-ticket acceptance permitted.** Database/CI integration results have not yet been verified in this session.
+Status: PHASES 1–2 IMPLEMENTED ON FEATURE BRANCH — 22 November 2026. Additive schema, issuance, whole-ticket compatibility, migration tests, and an administrator/manager-only read-only ownership display committed. **Not deployed, not merged, and no partial-ticket acceptance permitted.** Database/CI integration results remain unverified.
 Base: main @ f817154f2e5f5ac04daf8bf0c5b3dd0167e17f0b.
 Scope: allow one device in a multi-device ticket to be repaired by another branch **after a confirmed physical transfer and independently audited acceptance**, without moving the financial ownership of the whole ticket.
 
@@ -29,6 +29,16 @@ Feature branch: `Partial-Ticket-Ownership`. `main` is unchanged.
 **Required verification before progressing:** observe a successful GitHub Actions run for the final branch HEAD (source review alone is not proof), or reproduce the entire workflow on a disposable MySQL installation. Run `php tools/migrate.php --status` before `--apply`, with backup and application writes paused. Verify `php tools/check_repair_branch_integrity.php` after migration. No live database was migrated here; no tests were executed in the local container because MySQL/PDO MySQL are unavailable.
 
 The added column is nullable during the transitional phase because older fixture inserts and pre-issue drafts must remain compatible. Do **not** enable device-level authorization from its value yet. A future permission cutover will add strict invariants and validation for issued rows before activating mixed ownership.
+
+## Phase 2: read-only ownership display
+
+- `app/console/repository.php` fetches the repair branch's name with a **LEFT JOIN after the existing ticket-based scope**. The existing `consoleScope()` and `consoleSave()` authorization logic are unchanged.
+- `app/console/ownership.php` derives display-only labels for an already-authorized device row. It is not a permission resolver and must not be called on unscoped rows.
+- `admin/device.php` passes those details to `views/console/device.php`, where **only ADMIN/MANAGER** see ticket/billing and repair branches; missing or unexpectedly different assignments show a review warning, not an approval.
+- `tests/device-ownership-view.php` covers aligned, missing and divergent branches, plus refusal to leak the ticket identifier in labels. The existing test workflow lints these files and runs the pure helper tests.
+- No extra customer fields, device list rows, public portal changes, staff data scopes, cash privileges, or ownership write actions were introduced.
+
+**Required before Phase 3:** confirm CI/check runs, rehearse the MySQL schema, review all query scope/authorization entry points, then implement device-level permissions and stock-branch rules together with exhaustive negative tests. The existing UI must not be interpreted as enabling mixed-branch repair operations.
 
 ## Earlier branch reuse decision
 
