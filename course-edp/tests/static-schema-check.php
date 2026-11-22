@@ -1,11 +1,12 @@
 <?php
 declare(strict_types=1);
 
-// Source-only sanity check; deliberately makes no database connections.
+// Source-only guard: never connects to MySQL and never modifies an existing DB.
 $schema = file_get_contents(__DIR__ . '/../schema.sql');
 $seed = file_get_contents(__DIR__ . '/../seed_reference.sql');
-if (!is_string($schema) || !is_string($seed)) {
-    throw new RuntimeException('Cannot read academic SQL files.');
+$actions = file_get_contents(__DIR__ . '/../app/actions.php');
+if (!is_string($schema) || !is_string($seed) || !is_string($actions)) {
+    throw new RuntimeException('Academic SQL or isolated domain action source missing.');
 }
 
 preg_match_all('/\bCREATE TABLE\s+([a-z_]+)\s*\(/i', $schema, $matches);
@@ -15,30 +16,49 @@ if (count($tables) !== 22 || count(array_unique($tables)) !== 22) {
 }
 if (!preg_match('/\bUSE\s+repairtrack_edp\s*;/i', $schema)
     || !preg_match('/\bUSE\s+repairtrack_edp\s*;/i', $seed)) {
-    throw new RuntimeException('Both scripts must explicitly select the classroom database.');
+    throw new RuntimeException('Both SQL files must explicitly select the disposable academic database.');
 }
 if (preg_match('/^\s*(?:DROP|ALTER|TRUNCATE|DELETE|REPLACE|UPDATE)\b/im', $schema)) {
-    throw new RuntimeException('Schema must not contain destructive data or schema changes.');
+    throw new RuntimeException('Academic schema must contain no destructive migrations.');
 }
 
-preg_match_all('/\bREFERENCES\s+([a-z_]+)\s*\(/i', $schema, $references);
-foreach ($references[1] as $table) {
+preg_match_all('/\bREFERENCES\s+([a-z_]+)\s*\(/i', $schema, $refs);
+foreach ($refs[1] as $table) {
     if (!in_array($table, $tables, true)) {
         throw new RuntimeException("Foreign key references unknown table: $table");
     }
 }
 
-foreach (['repair_started_at', 'portal_code CHAR(5)', 'portal_pin_hash',
+foreach ([
+    'UNIQUE KEY uq_device_owner',
+    'UNIQUE KEY uq_ticket_customer_pair',
+    'UNIQUE KEY uq_ticket_branch_pair',
+    'FOREIGN KEY (ticket_id, customer_id)',
+    'FOREIGN KEY (customer_device_id, customer_id)',
+    'FOREIGN KEY (ticket_id, branch_id)',
+    'FOREIGN KEY (location_id, branch_id)',
+    'FOREIGN KEY (ticket_device_id, ticket_id)',
+    'repair_started_at', 'portal_code CHAR(5)', 'portal_pin_hash',
     'UNIQUE KEY uq_portal_code', 'UNIQUE KEY uq_payment_request_key',
-    'CHECK (amount > 0)', 'ticket_status_events', 'media_assets'] as $required) {
+    'CHECK (amount > 0)', 'ticket_status_events', 'media_assets',
+    'chk_media_path', 'chk_ticket_state_fields',
+] as $required) {
     if (!str_contains($schema, $required)) {
-        throw new RuntimeException("Required integrity element missing: $required");
+        throw new RuntimeException("Required schema element missing: $required");
     }
 }
-foreach (['IN_PROGRESS', 'READY_FOR_PICKUP', 'SOGOD-DEMO', 'OTHER', 'CASHIER'] as $required) {
-    if (!str_contains($seed, $required)) {
-        throw new RuntimeException("Required reference entry missing: $required");
+foreach (['DRAFT', 'IN_PROGRESS', 'READY_FOR_PICKUP', 'SOGOD-DEMO', 'OTHER', 'CASHIER'] as $needed) {
+    if (!str_contains($seed, $needed)) {
+        throw new RuntimeException("Missing reference entry: $needed");
     }
 }
-
-echo 'PASS: 22 tables, self-contained FKs, no destructive schema commands, expected constraints and catalogs.\n';
+if (preg_match('/\bVALUES\s*\(1\s*,\s*\x27COUNTER\x27/i', $seed)) {
+    throw new RuntimeException('Seed must resolve branch ID by stable branch code.');
+}
+foreach (['edpChangeRepairStatus', 'edpRecordCashPayment', 'FOR UPDATE', 'SAVEPOINT',
+    'allowed_status_transitions', 'APPROVED', 'COUNTER_CASH'] as $required) {
+    if (!str_contains($actions, $required)) {
+        throw new RuntimeException("Academic action safeguard missing: $required");
+    }
+}
+echo "PASS: 22 tables, customer/branch ownership FKs, guarded actions, fictional seed, and no destructive SQL.\n";

@@ -1,4 +1,4 @@
--- RepairTrack EDP classroom schema (v1). New, ISOLATED database only.
+-- RepairTrack EDP classroom schema (v2). New, ISOLATED database only.
 -- The script deliberately contains no DROP, ALTER, REPLACE or destructive migration.
 -- It never selects or changes the historical database named `repairtrack`.
 -- A second execution will fail on CREATE TABLE rather than overwrite existing records.
@@ -110,6 +110,7 @@ CREATE TABLE storage_locations (
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   PRIMARY KEY (location_id),
   UNIQUE KEY uq_location_code (branch_id, location_code),
+  UNIQUE KEY uq_location_branch_pair (location_id, branch_id),
   CONSTRAINT fk_location_branch FOREIGN KEY (branch_id) REFERENCES branches(branch_id)
 ) ENGINE=InnoDB;
 
@@ -121,7 +122,7 @@ CREATE TABLE customers (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (customer_id),
   KEY idx_customer_phone (phone),
-  CONSTRAINT chk_customer_phone CHECK (CHAR_LENGTH(phone) BETWEEN 4 AND 25)
+  CONSTRAINT chk_customer_phone CHECK (phone REGEXP '^[0-9]{4,15}$')
 ) ENGINE=InnoDB;
 
 CREATE TABLE customer_devices (
@@ -133,13 +134,14 @@ CREATE TABLE customer_devices (
   serial_number VARCHAR(190) NULL,
   PRIMARY KEY (customer_device_id),
   KEY idx_customer_device_customer (customer_id),
+  UNIQUE KEY uq_device_owner (customer_device_id, customer_id),
   CONSTRAINT fk_customer_device_customer FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
   CONSTRAINT fk_customer_device_type FOREIGN KEY (device_type_code) REFERENCES device_types(device_type_code)
 ) ENGINE=InnoDB;
 
 CREATE TABLE repair_tickets (
   ticket_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  customer_id BIGINT UNSIGNED NOT NULL,
+  customer_id BIGINT UNSIGNED NULL COMMENT 'A draft may be saved before the customer is selected',
   branch_id INT UNSIGNED NOT NULL COMMENT 'Exactly one accountable repair branch for this ticket',
   ticket_code VARCHAR(24) NULL COMMENT 'Allocated when issuing the draft; distinct from the private portal code',
   portal_code CHAR(5) NULL COMMENT 'Five hexadecimal characters; generated only when issued',
@@ -152,6 +154,8 @@ CREATE TABLE repair_tickets (
   PRIMARY KEY (ticket_id),
   UNIQUE KEY uq_ticket_code (ticket_code),
   UNIQUE KEY uq_portal_code (portal_code),
+  UNIQUE KEY uq_ticket_customer_pair (ticket_id, customer_id),
+  UNIQUE KEY uq_ticket_branch_pair (ticket_id, branch_id),
   KEY idx_ticket_branch (branch_id, ticket_state, intake_at),
   KEY idx_ticket_customer (customer_id, intake_at),
   CONSTRAINT fk_ticket_customer FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
@@ -160,15 +164,23 @@ CREATE TABLE repair_tickets (
   CONSTRAINT chk_portal_code CHECK (portal_code IS NULL OR portal_code REGEXP '^[0-9A-F]{5}$'),
   CONSTRAINT chk_portal_credentials CHECK ((portal_code IS NULL AND portal_pin_hash IS NULL) OR
                                            (portal_code IS NOT NULL AND portal_pin_hash IS NOT NULL)),
-  CONSTRAINT chk_ticket_issued CHECK (ticket_state = 'DRAFT' OR (ticket_code IS NOT NULL AND issued_at IS NOT NULL))
+  CONSTRAINT chk_ticket_state_fields CHECK (
+    (ticket_state = 'DRAFT' AND ticket_code IS NULL AND issued_at IS NULL AND closed_at IS NULL)
+    OR
+    (ticket_state <> 'DRAFT' AND customer_id IS NOT NULL AND
+     ticket_code IS NOT NULL AND issued_at IS NOT NULL AND
+     (ticket_state IN ('OPEN') OR closed_at IS NOT NULL))
+  )
 ) ENGINE=InnoDB;
 
 CREATE TABLE ticket_devices (
   ticket_device_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   ticket_id BIGINT UNSIGNED NOT NULL,
+  customer_id BIGINT UNSIGNED NOT NULL COMMENT 'Must match both the ticket and device owner',
+  branch_id INT UNSIGNED NOT NULL COMMENT 'Must match the ticket accountable branch',
   customer_device_id BIGINT UNSIGNED NOT NULL,
   sequence_no SMALLINT UNSIGNED NOT NULL,
-  status_code VARCHAR(32) NOT NULL DEFAULT 'RECEIVED',
+  status_code VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
   assigned_technician_id INT UNSIGNED NULL,
   location_id INT UNSIGNED NULL,
   reported_symptoms TEXT NOT NULL,
@@ -179,14 +191,22 @@ CREATE TABLE ticket_devices (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (ticket_device_id),
   UNIQUE KEY uq_ticket_device_sequence (ticket_id, sequence_no),
+  UNIQUE KEY uq_ticket_device_once (ticket_id, customer_device_id),
+  UNIQUE KEY uq_td_ticket_pair (ticket_device_id, ticket_id),
   KEY idx_device_status (status_code, updated_at),
   KEY idx_device_technician (assigned_technician_id, status_code),
-  CONSTRAINT fk_td_ticket FOREIGN KEY (ticket_id) REFERENCES repair_tickets(ticket_id),
-  CONSTRAINT fk_td_device FOREIGN KEY (customer_device_id) REFERENCES customer_devices(customer_device_id),
+  CONSTRAINT fk_td_ticket_customer FOREIGN KEY (ticket_id, customer_id)
+    REFERENCES repair_tickets(ticket_id, customer_id),
+  CONSTRAINT fk_td_device_owner FOREIGN KEY (customer_device_id, customer_id)
+    REFERENCES customer_devices(customer_device_id, customer_id),
+  CONSTRAINT fk_td_ticket_branch FOREIGN KEY (ticket_id, branch_id)
+    REFERENCES repair_tickets(ticket_id, branch_id),
   CONSTRAINT fk_td_status FOREIGN KEY (status_code) REFERENCES repair_statuses(status_code),
-  CONSTRAINT fk_td_technician FOREIGN KEY (assigned_technician_id) REFERENCES users(user_id),
-  CONSTRAINT fk_td_location FOREIGN KEY (location_id) REFERENCES storage_locations(location_id),
-  CONSTRAINT chk_td_sequence CHECK (sequence_no BETWEEN 1 AND 5)
+  CONSTRAINT fk_td_tech_branch FOREIGN KEY (assigned_technician_id, branch_id)
+    REFERENCES user_branch_assignments(user_id, branch_id),
+  CONSTRAINT fk_td_location_branch FOREIGN KEY (location_id, branch_id)
+    REFERENCES storage_locations(location_id, branch_id),
+  CONSTRAINT chk_td_sequence CHECK (sequence_no >= 1)
 ) ENGINE=InnoDB;
 
 CREATE TABLE ticket_defects (
@@ -213,6 +233,8 @@ CREATE TABLE ticket_status_events (
   CONSTRAINT fk_event_device FOREIGN KEY (ticket_device_id) REFERENCES ticket_devices(ticket_device_id),
   CONSTRAINT fk_event_from FOREIGN KEY (from_status) REFERENCES repair_statuses(status_code),
   CONSTRAINT fk_event_to FOREIGN KEY (to_status) REFERENCES repair_statuses(status_code),
+  CONSTRAINT fk_event_transition FOREIGN KEY (from_status, to_status)
+    REFERENCES allowed_status_transitions(from_status, to_status),
   CONSTRAINT fk_event_actor FOREIGN KEY (actor_user_id) REFERENCES users(user_id)
 ) ENGINE=InnoDB;
 
@@ -244,7 +266,7 @@ CREATE TABLE repair_bills (
   bill_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   ticket_id BIGINT UNSIGNED NOT NULL,
   version_no SMALLINT UNSIGNED NOT NULL DEFAULT 1,
-  bill_number VARCHAR(32) NOT NULL,
+  bill_number VARCHAR(32) NULL COMMENT 'Drafts have no issued bill number',
   bill_status ENUM('DRAFT','ISSUED','VOIDED') NOT NULL DEFAULT 'DRAFT',
   subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
   discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -260,13 +282,13 @@ CREATE TABLE repair_bills (
   CONSTRAINT chk_bill_nonnegative CHECK (subtotal >= 0 AND discount_amount >= 0 AND
                                        tax_amount >= 0 AND discount_amount <= subtotal),
   CONSTRAINT chk_bill_total CHECK (total_amount = subtotal - discount_amount + tax_amount),
-  CONSTRAINT chk_bill_issued CHECK (bill_status <> 'ISSUED' OR issued_at IS NOT NULL)
+  CONSTRAINT chk_bill_issued CHECK (bill_status <> 'ISSUED' OR (bill_number IS NOT NULL AND issued_at IS NOT NULL))
 ) ENGINE=InnoDB;
 
 CREATE TABLE repair_bill_payments (
   payment_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   bill_id BIGINT UNSIGNED NOT NULL,
-  payment_method ENUM('COUNTER_CASH') NOT NULL DEFAULT 'COUNTER_CASH',
+  payment_method ENUM('COUNTER_CASH','COD') NOT NULL DEFAULT 'COUNTER_CASH' COMMENT 'COD only after verified collection; separate workflow required',
   amount DECIMAL(12,2) NOT NULL,
   request_key CHAR(64) NOT NULL,
   received_by_user_id INT UNSIGNED NOT NULL,
@@ -276,13 +298,14 @@ CREATE TABLE repair_bill_payments (
   KEY idx_payment_bill (bill_id, received_at),
   CONSTRAINT fk_payment_bill FOREIGN KEY (bill_id) REFERENCES repair_bills(bill_id),
   CONSTRAINT fk_payment_cashier FOREIGN KEY (received_by_user_id) REFERENCES users(user_id),
-  CONSTRAINT chk_payment_positive CHECK (amount > 0)
+  CONSTRAINT chk_payment_positive CHECK (amount > 0),
+  CONSTRAINT chk_payment_key CHECK (request_key REGEXP '^[0-9a-fA-F]{64}$')
 ) ENGINE=InnoDB;
 
 -- Actual images are private files, not public URLs. PHP authorizes every download.
 CREATE TABLE media_assets (
   asset_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  customer_id BIGINT UNSIGNED NULL,
+  customer_id BIGINT UNSIGNED NOT NULL COMMENT 'Always bind assets to a known customer',
   ticket_id BIGINT UNSIGNED NULL,
   ticket_device_id BIGINT UNSIGNED NULL,
   asset_category ENUM('CUSTOMER_IMAGE','DEVICE_CONDITION','DAMAGE_DETAIL','SERIAL_LABEL','ACCESSORIES','SIGNATURE','OTHER') NOT NULL,
@@ -294,14 +317,18 @@ CREATE TABLE media_assets (
   uploaded_by_user_id INT UNSIGNED NOT NULL,
   uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (asset_id),
+  UNIQUE KEY uq_media_stored_path (stored_path),
   KEY idx_media_customer (customer_id),
   KEY idx_media_ticket (ticket_id),
   KEY idx_media_ticket_device (ticket_device_id),
   CONSTRAINT fk_media_customer FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
-  CONSTRAINT fk_media_ticket FOREIGN KEY (ticket_id) REFERENCES repair_tickets(ticket_id),
-  CONSTRAINT fk_media_device FOREIGN KEY (ticket_device_id) REFERENCES ticket_devices(ticket_device_id),
+  CONSTRAINT fk_media_ticket_customer FOREIGN KEY (ticket_id, customer_id)
+    REFERENCES repair_tickets(ticket_id, customer_id),
+  CONSTRAINT fk_media_ticket_device FOREIGN KEY (ticket_device_id, ticket_id)
+    REFERENCES ticket_devices(ticket_device_id, ticket_id),
   CONSTRAINT fk_media_uploader FOREIGN KEY (uploaded_by_user_id) REFERENCES users(user_id),
-  CONSTRAINT chk_media_owner CHECK (customer_id IS NOT NULL OR ticket_id IS NOT NULL OR ticket_device_id IS NOT NULL),
+  CONSTRAINT chk_media_owner CHECK (ticket_device_id IS NULL OR ticket_id IS NOT NULL),
+  CONSTRAINT chk_media_path CHECK (stored_path REGEXP '^[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*[.](jpg|jpeg|png|webp)$'),
   CONSTRAINT chk_media_size CHECK (size_bytes BETWEEN 1 AND 5242880),
   CONSTRAINT chk_media_hash CHECK (sha256_hash REGEXP '^[0-9a-fA-F]{64}$')
 ) ENGINE=InnoDB;
@@ -319,9 +346,10 @@ CREATE TABLE notes (
   KEY idx_note_ticket (ticket_id),
   KEY idx_note_device (ticket_device_id),
   CONSTRAINT fk_note_ticket FOREIGN KEY (ticket_id) REFERENCES repair_tickets(ticket_id),
-  CONSTRAINT fk_note_device FOREIGN KEY (ticket_device_id) REFERENCES ticket_devices(ticket_device_id),
+  CONSTRAINT fk_note_device_ticket FOREIGN KEY (ticket_device_id, ticket_id)
+    REFERENCES ticket_devices(ticket_device_id, ticket_id),
   CONSTRAINT fk_note_author FOREIGN KEY (author_user_id) REFERENCES users(user_id),
-  CONSTRAINT chk_note_owner CHECK (ticket_id IS NOT NULL OR ticket_device_id IS NOT NULL)
+  CONSTRAINT chk_note_owner CHECK (ticket_id IS NOT NULL)
 ) ENGINE=InnoDB;
 
 -- A small activity history, not a general enterprise audit/event-stream platform.

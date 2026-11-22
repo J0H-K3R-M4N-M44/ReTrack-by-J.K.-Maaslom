@@ -1,49 +1,50 @@
-# RepairTrack EDP — Isolated academic database (draft v1)
+# RepairTrack EDP — isolated academic database (corrected v2)
 
-This folder contains a **new, smaller schema** for a fictional classroom copy of RepairTrack. It is **not** an upgrade to the existing application database. The legacy application in `app/`, `admin/`, and `views/` still expects its original tables: **do not point it at `repairtrack_edp` yet**.
+This folder contains a **standalone 22-table academic schema**. It is **not an upgrade to the existing RepairTrack database or application**. The PHP site under `app/`, `admin/`, and `views/` still expects the historical schema: **never point it to `repairtrack_edp` until migration and end-to-end tests are complete**.
 
-## Scope
+## What's included
 
-- 22 tables: people/roles, Sogod demo branch, device and defect catalogs, tickets and repair status events, quotations, bills and cashier payments, note records, and private image metadata.
-- Predefined statuses and a transition catalog are enforced by foreign keys. A future PHP handler must **also** check actor permissions, quote approval, technician capacity, payment eligibility, and transition rules transactionally.
-- The public **tracking code** is 5 hexadecimal characters plus a hashed four-digit phone-suffix PIN. It is distinct from the **Ticket Code** used by cashiers. Short credentials require throttling and careful server-side disclosure controls.
-- `repair_started_at` stores first repair start, in UTC. Application code must set it only on first legal entry to `IN_PROGRESS` and display it as local Philippine time.
-- `media_assets` stores *metadata and private file identifiers*. Never use paths as public URLs, and never put customer photos in public document root. The schema has no image BLOBs.
-- `notes` is structured text storage, **not** the Module 3 Notepad/file-watcher integration; that needs an actual file open/save/monitor flow in a later milestone.
-- No real customer, staff, bank, payment, tracking, or image data should be copied from any deployed instance.
+- Five staff roles, branches and branch membership; device/defect/status reference catalogs; accepted transition pairs; Sogod **fictional** classroom branch and locations.
+- Draft tickets may exist before customers are selected. A ticket cannot be issued without a customer, internal Ticket Code and issue time. Device entries require a known customer and must match both their ticket's customer and the saved device's customer.
+- Composite foreign keys prevent a ticket device from being assigned to a different ticket branch, a different-branch storage location or a technician not assigned to the responsible branch. **PHP must still verify technician role, activity, and capacity.**
+- Customer **portal code** is a distinct 5-character hexadecimal identifier and uses the hash of a 4-digit phone-suffix PIN. The internal **Ticket Code** is separate and used by the cashier. Codes must be securely generated with uniqueness retry and portal reads must be throttled. The schema cannot provide those application protections by itself.
+- Repair statuses and valid transition pairs are predefined in MySQL. The isolated `app/actions.php` demonstrates row-locked technician updates, recorded status history and setting `repair_started_at` only on first authorized entry into `IN_PROGRESS`. Changing fields through raw SQL would bypass the service; production DB credentials should not permit arbitrary bypasses.
+- Quotes maintain versioned totals and decision evidence. Draft bills can have no bill number. The isolated cash action locks the bill, confirms its issued state, checks branch/role and remaining balance, handles retry keys, and refuses overpayment.
+- `COUNTER_CASH` is supported by the illustrative payment action. **COD is reserved as a catalog option, not enabled in the UI or service** until proof-of-collection workflow is specified and tested; no electronic payments.
+- Image bytes are in **private file storage**. `media_assets` has an authorized customer reference and optional consistent ticket/device references, plus constrained opaque relative path, MIME, size and checksum. PHP must authorize access to each individual asset and verify its actual file content. Cross-customer ownership is rejected by FKs.
+- `notes` records text and ticket/device ownership. The course's separate Notepad *open/save/file monitor* integration is still outstanding and cannot be satisfied merely by the notes table.
 
-## Safest execution: GitHub Actions
+## What is deliberately NOT complete
 
-The branch-scoped `.github/workflows/edp-schema.yml` starts a disposable MySQL service on an isolated runner, imports these SQL files, and runs integrity checks with fictional data. This avoids access to a real RepairTrack database. It does **not** run the existing PHP app against the new schema.
+This is the **database foundation and isolated reference actions**, not a wired-up website, complete onboarding and issuance service, file upload/streaming code, COD collection, pickup/delivery module, password reset UX, external REST integration, browser-driven EDP exercises, or human acceptance testing. The Sogod prototype's workflow remains the reference. No claim of full PHP compatibility should be made based on these database tests.
 
-## Optional local execution (throwaway MySQL instance only)
+## Verification (disposable MySQL only)
 
-Requires MySQL 8.0.16+ (CHECK constraints) and PHP with `pdo_mysql`. Use a **separate test installation** or a dedicated user restricted to the `repairtrack_edp` schema. Stop if `repairtrack_edp` already contains tables or real data; the SQL is intentionally not an in-place migration and has no table DROPs.
+Requirements: MySQL **8.0.16+** (enforced `CHECK` constraints), PHP CLI with `pdo_mysql`. Use an isolated test server and a restricted database account. MySQL datetime values use UTC; set the SQL session `time_zone` to `+00:00`. The schema's `CREATE TABLE` statements have no `DROP` or destructive migration, and will fail on a second run rather than erase existing data.
 
 ```sh
-# Inspects the SQL source, makes no database connections:
+php -l course-edp/app/actions.php
+php -l course-edp/tests/db-integrity.php
 php course-edp/tests/static-schema-check.php
 
-# Creates ONLY `repairtrack_edp` (not `repairtrack`) and fails rather than
-# silently replacing previously created tables:
+# ONLY on a fresh disposable MySQL instance without existing repairtrack_edp data:
 mysql -u root -p < course-edp/schema.sql
 mysql -u root -p < course-edp/seed_reference.sql
 
-# Run against the separate test instance; set auth via your local environment.
+# The test requires an explicit academic DB name. The fixture wraps writes
+# in a transaction and rolls all fictional data back afterwards.
 export REPAIRTRACK_EDP_TEST_DB=repairtrack_edp
 export REPAIRTRACK_EDP_TEST_HOST=127.0.0.1
 export REPAIRTRACK_EDP_TEST_USER=your_restricted_test_user
-# MYSQL_PWD is read by CLI tools. Prefer interactive local credentials.
 php course-edp/tests/db-integrity.php
 ```
 
-The PHP integration test rejects the wrong database name, begins a transaction, tests that invalid data is rejected, and rolls all fictional fixture writes back. The CI runner database itself is disposable.
+The branch-specific `.github/workflows/edp-schema.yml` uses a disposable MySQL GitHub-hosted runner. It covers FK ownership rejection, invalid transition histories, technician authorization, quote approval before start, first-start immutability, draft bills, counterfeit asset paths, cashier authorization, overpayments and payment retries. It does **not** test the existing website's session/auth endpoints or real files.
 
-## Schema-change procedure
+## Next steps before any PHP migration
 
-1. Change this folder's schema and seed first, not `database/schema.sql` or the existing migration runner.
-2. Run source checks and disposable MySQL tests. Preserve existing `repairtrack` and its backups.
-3. Port one PHP module at a time to this schema with its own tests. Never assume the legacy app already works on the new database.
-4. Verify Sogod prototype behavior end-to-end before considering academic release.
-
-The SQL intentionally doesn't implement Web Notepad file monitoring, external REST APIs, authorization, role-specific workflows, cash settlement limits or state-machine triggers. Those are application responsibilities in later phases.
+1. Verify CI against the exact commit and adjust SQL if needed (without altering the legacy schema).
+2. Preserve `main`, the old database and the original `database/schema.sql`.
+3. Implement safe ticket issuance with generated portal credentials, legitimate role scopes, and consistent first status event.
+4. Port one selected PHP path at a time, with browser regression and privacy tests, instead of swapping the entire database connection.
+5. Validate visual parity with the previously presented Sogod prototype and obtain local acceptance before classroom release.

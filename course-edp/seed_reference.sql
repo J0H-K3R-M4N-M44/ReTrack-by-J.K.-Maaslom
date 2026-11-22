@@ -22,6 +22,7 @@ INSERT INTO defect_types (defect_code, label, sort_order) VALUES
 
 -- Codes deliberately match the established PHP terminology.
 INSERT INTO repair_statuses (status_code, label, sort_order, is_terminal) VALUES
+('DRAFT','Draft',0,FALSE),
 ('RECEIVED','Received',1,FALSE),
 ('DIAGNOSING','Diagnosing',2,FALSE),
 ('AWAITING_CUSTOMER_APPROVAL','Awaiting Customer Approval',3,FALSE),
@@ -35,6 +36,7 @@ INSERT INTO repair_statuses (status_code, label, sort_order, is_terminal) VALUES
 -- These are possible category transitions; PHP checks who may trigger them
 -- and whether the quote, diagnosis, payment and custody prerequisites hold.
 INSERT INTO allowed_status_transitions (from_status, to_status) VALUES
+('DRAFT','RECEIVED'),
 ('RECEIVED','DIAGNOSING'),('RECEIVED','CANCELLED'),
 ('DIAGNOSING','AWAITING_CUSTOMER_APPROVAL'),
 ('DIAGNOSING','AWAITING_PARTS'),
@@ -49,14 +51,19 @@ INSERT INTO allowed_status_transitions (from_status, to_status) VALUES
 ('IN_PROGRESS','AWAITING_PARTS'),
 ('TESTING','IN_PROGRESS'),
 ('TESTING','READY_FOR_PICKUP'),
-('READY_FOR_PICKUP','IN_PROGRESS'),
 ('READY_FOR_PICKUP','COMPLETED');
 
 -- This is a fictional demo record, NOT a verified or live Sogod business.
 INSERT INTO branches (branch_code, branch_name, address, phone) VALUES
 ('SOGOD-DEMO', 'Sogod Classroom Repair Desk', 'Sogod, Southern Leyte, Philippines', NULL);
 
-INSERT INTO storage_locations (branch_id, location_code, location_name) VALUES
-(1, 'COUNTER', 'Front Counter'),
-(1, 'BENCH', 'Technician Workbench'),
-(1, 'SHELF', 'Pickup Shelf');
+-- Look up the branch by its stable code, never assume AUTO_INCREMENT = 1.
+INSERT INTO storage_locations (branch_id, location_code, location_name)
+SELECT b.branch_id, l.location_code, l.location_name
+FROM branches AS b
+CROSS JOIN (
+  SELECT 'COUNTER' AS location_code, 'Front Counter' AS location_name
+  UNION ALL SELECT 'BENCH', 'Technician Workbench'
+  UNION ALL SELECT 'SHELF', 'Pickup Shelf'
+) AS l
+WHERE b.branch_code = 'SOGOD-DEMO';
