@@ -19,7 +19,16 @@ if (!is_array($c) || ($c["host"] ?? null) !== "127.0.0.1" ||
 }
 echo "Isolated test configuration matched.\n";
 '
+set +e
 "$PHP" tools/local_acceptance_preflight.php
+preflight_status=$?
+set -e
+if [ "$preflight_status" -ne 0 ] && [ "$preflight_status" -ne 3 ]; then
+  echo "BLOCK: Preflight failed." >&2; exit 2
+fi
+if [ "$preflight_status" -eq 3 ]; then
+  echo "WARN: Local HTTP boundary still requires browser verification."
+fi
 echo "Starting local preview at http://127.0.0.1:8742/"
 echo "Press Ctrl+C to stop. Never forward or publish this port."
 exec "$PHP" -S 127.0.0.1:8742 -t . tools/preview_router.php
