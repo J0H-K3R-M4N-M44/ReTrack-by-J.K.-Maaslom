@@ -60,3 +60,7 @@ try {
         if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Recurse -Force }
     }
 }
+
+# Negative dry-run subprocesses deliberately exit nonzero. Clear the last
+# expected denial only after all assertions and cleanup have succeeded.
+exit 0
