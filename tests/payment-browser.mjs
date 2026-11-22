@@ -66,6 +66,9 @@ try {
   await manager.goto(base + '/admin/inventory.php?branch=' + fixture.branch);
   await manager.getByRole('heading', { name: 'Branch inventory' }).waitFor();
   await checkWidth(manager);
+  await manager.setViewportSize({ width: 360, height: 900 });
+  await checkWidth(manager);
+  await manager.setViewportSize({ width: 1440, height: 900 });
   const battery = manager.locator('article.dashboard-card').filter({ hasText: 'Quarantine test battery' });
   await battery.locator('summary').filter({ hasText: 'Quarantine damaged stock' }).click();
   const quarantine = battery.locator('form').filter({ has: manager.locator('button[value=quarantine]') });
