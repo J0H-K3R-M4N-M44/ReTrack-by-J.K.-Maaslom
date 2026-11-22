@@ -1,12 +1,14 @@
 name: Payment and pickup
 on:
   push:
-    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, main]
+    branches: [Workspace-Design, Repair-Board-Preview, Intake-Customer-Search, PHP-Bill-Corrections-Integration, main]
     paths:
       - '.github/workflows/payment-pickup.yml'
       - 'tests/payment-pickup.php'
       - 'app/**'
       - 'database/schema.sql'
+      - 'database/bill_corrections.sql'
+      - 'tools/migration_support.php'
       - 'admin/**'
       - 'views/**'
       - 'css/**'
