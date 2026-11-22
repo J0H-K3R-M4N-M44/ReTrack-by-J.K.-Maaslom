@@ -199,7 +199,10 @@ function stockDesk(PDO $pdo, int $actorId, int $branchId, string $search, int $r
         COALESCE((SELECT SUM(r.quantity) FROM stock_reservations r
           WHERE r.branch_id=i.branch_id AND r.part_id=i.part_id),0) AS reserved,
         COALESCE((SELECT SUM(q.quantity) FROM stock_quarantines q
-          WHERE q.branch_id=i.branch_id AND q.part_id=i.part_id),0) AS quarantined,
+          LEFT JOIN stock_quarantine_dispositions disposition
+            ON disposition.quarantine_id=q.quarantine_id
+          WHERE q.branch_id=i.branch_id AND q.part_id=i.part_id
+            AND disposition.disposition_id IS NULL),0) AS quarantined,
         COALESCE((SELECT MAX(m.inventory_transaction_id) FROM inventory_transactions m
           WHERE m.branch_id=i.branch_id AND m.part_id=i.part_id),0) AS movement_id
         " . $where . " ORDER BY p.part_name,p.sku LIMIT 10 OFFSET $offset", $params)->fetchAll();
