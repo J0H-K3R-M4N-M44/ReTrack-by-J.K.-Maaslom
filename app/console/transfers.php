@@ -274,8 +274,10 @@ function acceptTransferredRepair(
             }
         }
 
-        $pdo->prepare('UPDATE ticket_devices SET assigned_technician_id = NULL
-            WHERE ticket_id = ? AND assigned_technician_id IS NOT NULL')->execute([$ticketId]);
+        // Whole-ticket acceptance must keep the additive device repair-branch field
+        // aligned with ticket responsibility. Custody and stock history are unchanged.
+        $pdo->prepare('UPDATE ticket_devices SET assigned_technician_id = NULL,
+            repair_branch_id = ? WHERE ticket_id = ?')->execute([$destination, $ticketId]);
         $update = $pdo->prepare('UPDATE repair_tickets SET accountable_branch_id = ?
             WHERE ticket_id = ? AND accountable_branch_id = ?');
         $update->execute([$destination, $ticketId, $expectedOrigin]);
