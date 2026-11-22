@@ -377,6 +377,69 @@ try {
   await financeAdmin.getByRole('status').getByText('Independent PHP valuation decision recorded',{exact:false}).waitFor();
   await financeAdmin.getByText('Latest approved exposure:',{exact:false}).first().waitFor();
   await financeAdmin.getByText('PHP 0.00',{exact:false}).first().waitFor();
+  // Full monthly shelf stocktaking is audit-only, not a stock count adjustment.
+  // A manager physically counts all source-branch SKUs and a different ADMIN
+  // must sign a zero-variance reconciliation.
+  await manager.goto(base+'/admin/stocktaking.php?branch='+fixture.branch);
+  await manager.setViewportSize({width:360,height:900});
+  await manager.getByRole('heading',{name:'Monthly branch stocktaking'}).waitFor();
+  await checkWidth(manager);
+  await manager.locator('textarea[name=reason]').first().fill(
+    'Monthly warehouse review of every usable shelf and inactive SKU.');
+  await manager.locator('input[name=confirm]').first().check();
+  await manager.locator('button[value=open]').click();
+  await manager.getByRole('status').getByText('Monthly stocktake opened',{exact:false}).waitFor();
+  await manager.setViewportSize({width:1440,height:900});
+  let physicallyCounted=0;
+  for (let index=0; index<20; index++) {
+    const uncounted=manager.locator('article.dashboard-card').filter({
+      has:manager.locator('summary').filter({hasText:'Record physical SKU count'})
+    }).first();
+    if (await uncounted.count()===0) break;
+    await uncounted.locator('summary').filter({hasText:'Record physical SKU count'}).click();
+    const countForm=uncounted.locator('form').filter({
+      has:manager.locator('button[value=count]')
+    });
+    const recordedShelf=await countForm.locator('[name=expected_on_hand]').inputValue();
+    await countForm.locator('[name=counted_quantity]').fill(recordedShelf);
+    await countForm.locator('[name=reason]').fill(
+      'Physically verified usable units against the current shelf and reservation log.');
+    await countForm.locator('[name=confirm]').check();
+    await countForm.locator('button[value=count]').click();
+    await manager.getByRole('status').getByText('Physical shelf count recorded',{exact:false}).waitFor();
+    physicallyCounted++;
+  }
+  assert(physicallyCounted>=2,'Monthly stocktake did not count source-branch SKUs.');
+  await manager.locator('summary').filter({
+    hasText:'Submit all physical counts for independent review'
+  }).click();
+  const submitStocktake=manager.locator('form').filter({
+    has:manager.locator('button[value=submit]')
+  });
+  await submitStocktake.locator('[name=reason]').fill(
+    'Every physical shelf counted and reconciled against the current warehouse ledger.');
+  await submitStocktake.locator('[name=confirm]').check();
+  await submitStocktake.locator('button[value=submit]').click();
+  await manager.getByRole('status').getByText('Stocktake submitted',{exact:false}).waitFor();
+  await financeAdmin.goto(base+'/admin/stocktaking.php?branch='+fixture.branch);
+  const signoffSection=financeAdmin.locator('section.dashboard-card').filter({
+    has:financeAdmin.locator('summary').filter({
+      hasText:'Independent sign-off or return for recount'
+    })
+  }).first();
+  await signoffSection.locator('summary').filter({
+    hasText:'Independent sign-off or return for recount'
+  }).click();
+  const finalSignoff=signoffSection.locator('form').filter({
+    has:financeAdmin.locator('button[value=decide]')
+  });
+  await finalSignoff.locator('[name=decision]').selectOption('signoff');
+  await finalSignoff.locator('[name=reason]').fill(
+    'Independently inspected counts, current reservations and lack of any outstanding variances.');
+  await finalSignoff.locator('[name=confirm]').check();
+  await finalSignoff.locator('button[value=decide]').click();
+  await financeAdmin.getByRole('status').getByText('Independent stocktake decision recorded',{exact:false}).waitFor();
+  await financeAdmin.getByText('SIGNED_OFF',{exact:false}).first().waitFor();
   await financeAdmin.context().close();
   await reviewer.context().close();
   await admin.context().close();
