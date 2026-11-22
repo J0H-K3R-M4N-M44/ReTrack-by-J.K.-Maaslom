@@ -61,9 +61,19 @@ if ((!$isPage && !$static) ||
     return true;
 }
 
-$resolved = realpath($root . str_replace('/', DIRECTORY_SEPARATOR, $uri));
+// Normalize Windows and Unix separators before testing the realpath boundary.
+// Use a relative path, not a leading / or \\, when joining to the document root.
+$relative = ltrim($uri, '/');
+$resolved = realpath($root . DIRECTORY_SEPARATOR .
+    str_replace('/', DIRECTORY_SEPARATOR, $relative));
+
+$rootPrefix = strtolower(rtrim(str_replace('\\\\', '/', $root), '/')) . '/';
+$resolvedPath = $resolved === false ? '' :
+    strtolower(str_replace('\\\\', '/', $resolved));
+
 if ($resolved === false || !is_file($resolved) ||
-    !str_starts_with(strtolower($resolved), strtolower($root . DIRECTORY_SEPARATOR))) {
+    !str_starts_with($resolvedPath, $rootPrefix)) {
+    error_log('RepairTrack preview: permitted path not found in local project');
     $notFound();
     return true;
 }
