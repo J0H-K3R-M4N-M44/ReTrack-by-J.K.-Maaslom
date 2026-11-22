@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../app/auth.php';
 require_once __DIR__ . '/../app/intake/repository.php';
-require_once __DIR__ . '/../app/inventory/losses.php';
+require_once __DIR__ . '/../app/inventory/recoveries.php';
 startAppSession();
 $user = requireRoles(['ADMIN','MANAGER']);
 header('Cache-Control: no-store, private');
@@ -55,6 +55,20 @@ try {
                 requestText($_POST,'reason'),requestText($_POST,'confirm')==='yes');
             $_SESSION['parts_transfer_notice'] =
                 'Independent loss decision recorded. Review the shipment and stock ledger.';
+        } elseif ($action==='report-recovery') {
+            partsRecoveryReport($pdo,(int)$user['user_id'],
+                (int)requestText($_POST,'loss_case_id'),
+                requestText($_POST,'expected'),
+                requestText($_POST,'quantity'),requestText($_POST,'evidence_reference'),
+                requestText($_POST,'reason'),requestText($_POST,'confirm')==='yes');
+            $_SESSION['parts_transfer_notice'] =
+                'Recovered parts held pending independent inspection and release. No stock was added.';
+        } elseif ($action==='decide-recovery') {
+            partsRecoveryDecide($pdo,(int)$user['user_id'],
+                (int)requestText($_POST,'recovery_id'),requestText($_POST,'decision'),
+                requestText($_POST,'reason'),requestText($_POST,'confirm')==='yes');
+            $_SESSION['parts_transfer_notice'] =
+                'Independent recovery decision saved. Only approved quantities enter usable stock.';
         } else {
             throw new DomainException('Choose a valid parts transfer action.');
         }
@@ -155,6 +169,14 @@ $canReportLoss=$isRecipient && $item['item_status']==='EXCEPTION' &&
 $canDecideLoss=$isOrigin && $lossStatus==='PENDING' &&
     (int)$item['reported_by_user_id']!==(int)$user['user_id'] &&
     (int)$item['initiated_by_user_id']!==(int)$user['user_id'];
+$recoveryStatus=(string)($item['recovery_status'] ?? '');
+$canReportRecovery=$isRecipient && $lossStatus==='APPROVED' &&
+    $item['item_status']==='LOSS_CLOSED' && $recoveryStatus!=='PENDING' &&
+    (int)$item['initiated_by_user_id']!==(int)$user['user_id'];
+$canDecideRecovery=$isOrigin && $recoveryStatus==='PENDING' &&
+    (int)$item['initiated_by_user_id']!==(int)$user['user_id'] &&
+    (int)$item['reported_by_user_id']!==(int)$user['user_id'] &&
+    (int)$item['recovery_reported_by']!==(int)$user['user_id'];
 ?>
 <article class="dashboard-card">
 <h3><?= h($item['transfer_code']) ?> · <?= h($item['part_name']) ?></h3>
@@ -169,13 +191,27 @@ $canDecideLoss=$isOrigin && $lossStatus==='PENDING' &&
 <p>Investigation reference: <?= h($item['evidence_reference']) ?></p>
 <p>Investigation: <?= h($item['report_reason']) ?></p>
 <?php if ($item['review_reason']): ?><p>Review: <?= h($item['review_reason']) ?></p><?php endif; ?>
+<?php if ($lossStatus==='APPROVED'): ?>
+<p>Approved loss originally <?= h((string)$item['loss_quantity']) ?> ·
+  Independently recovered <?= h((string)$item['recovered_approved_quantity']) ?> ·
+  Still missing <?= h($item['outstanding']) ?></p>
+<?php endif; ?>
+<?php endif; ?>
+<?php if ($item['recovery_id']): ?>
+<p><strong>Recovery #<?= (int)$item['recovery_id'] ?> · <?= h($recoveryStatus) ?></strong>
+ · Quantity <?= h((string)$item['recovery_quantity']) ?></p>
+<p>Recovery inspection: <?= h($item['recovery_evidence_reference']) ?> ·
+<?= h($item['recovery_report_reason']) ?></p>
+<?php if ($item['recovery_review_reason']): ?>
+<p>Independent recovery decision: <?= h($item['recovery_review_reason']) ?></p>
+<?php endif; ?>
 <?php endif; ?>
 <?php if ($lossStatus==='PENDING'): ?>
 <p>Physical receiving is suspended while independent loss review is pending. The original
 dispatch and receipt quantities remain unchanged.</p>
 <?php elseif ($item['item_status']==='LOSS_CLOSED'): ?>
 <p>Approved operational loss. Any unreceived quantity was not added to either branch.
-Unexpected late recovery requires a separate reviewed recovery process.</p>
+Any physical recovery must be held and independently approved before usable stock is credited.</p>
 <?php endif; ?>
 <?php if ($canReceive): ?>
 <details><summary>Confirm receipt or report shortage</summary>
@@ -249,6 +285,60 @@ I independently verified the shipment shortage and understand this is not a fina
 </form></details>
 <?php elseif ($isOrigin && $lossStatus==='PENDING'): ?>
 <p>Awaiting another source-branch manager's independent decision.</p>
+<?php endif; ?>
+<?php if ($canReportRecovery): ?>
+<details><summary>Report parts recovered after approved loss</summary>
+<p>Physically found stock must be isolated, identified and inspected; it stays
+unavailable until an independent manager approves release. The original loss
+and dispatch records remain unchanged. Report only the quantity found now.</p>
+<form method="post">
+<input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+<input type="hidden" name="branch" value="<?= $branch ?>">
+<input type="hidden" name="q" value="<?= h($q) ?>">
+<input type="hidden" name="loss_case_id" value="<?= (int)$item['loss_case_id'] ?>">
+<input type="hidden" name="expected" value="<?= h((string)$item['received_quantity']) ?>">
+<label>Physically recovered quantity
+<input name="quantity" type="number" min="0.001" step="0.001" required
+max="<?= h($item['outstanding']) ?>" value="<?= h($item['outstanding']) ?>"></label>
+<label>Private inspection reference
+<input name="evidence_reference" required minlength="8" maxlength="160"
+placeholder="SIGNED-RECOVERY-CASE-012"></label>
+<label>Recovered condition and holding location
+<textarea name="reason" required minlength="20" maxlength="500" rows="3"
+placeholder="Where the missing parts were found, who inspected them and where they are held."></textarea></label>
+<label><input type="checkbox" name="confirm" value="yes" required>
+I counted and isolated these recovered parts outside usable stock pending independent approval.</label>
+<button name="action" value="report-recovery">Hold and report recovered parts</button>
+</form>
+</details>
+<?php endif; ?>
+<?php if ($canDecideRecovery): ?>
+<details><summary>Independently review recovered parts</summary>
+<p>Verify the original loss, physically recovered items, quantity and inspection reference.
+Approve only complete, usable items; reject any damaged or unverified stock.
+Approval credits only the inspected amount to the receiving branch.</p>
+<form method="post">
+<input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
+<input type="hidden" name="branch" value="<?= $branch ?>">
+<input type="hidden" name="q" value="<?= h($q) ?>">
+<input type="hidden" name="recovery_id" value="<?= (int)$item['recovery_id'] ?>">
+<label>Decision<select name="decision" required>
+<option value="reject">Reject — do not credit stock</option>
+<option value="approve">Approve inspected recovery — credit receiving shelf</option>
+</select></label>
+<label>Independent physical verification
+<textarea name="reason" required minlength="20" maxlength="500" rows="3"
+placeholder="State inspected count, part condition, evidence reference and acceptance decision."></textarea></label>
+<label><input type="checkbox" name="confirm" value="yes" required>
+I independently verified the usable parts and approve the recorded stock change.</label>
+<button name="action" value="decide-recovery">Record recovery decision</button>
+</form>
+</details>
+<?php elseif ($isOrigin && $recoveryStatus==='PENDING'): ?>
+<p>Awaiting a different source-branch manager's recovered-stock review.</p>
+<?php endif; ?>
+<?php if ($recoveryStatus==='PENDING'): ?>
+<p>Recovered parts are held outside usable stock; approval remains pending.</p>
 <?php endif; ?>
 </article>
 <?php endforeach; ?>
