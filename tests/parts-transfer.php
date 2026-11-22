@@ -98,6 +98,10 @@ expectResult(stockShelfState($pdo,$receivingBranch,$partA)['on_hand']==='1.000',
     'Only physically counted units can become destination stock.');
 expectRefusal(fn()=>partsTransferReceive($pdo,$otherManager['user_id'],$itemA,'0.000',
     'receive','1.000',$receiptNote,true),'Receipt changed');
+// A partial receipt becomes an exception, but the missing-shipment report is a
+// separate piece of evidence; record it once before considering loss closure.
+partsTransferReceive($pdo,$otherManager['user_id'],$itemA,'1.000',
+    'missing','0.000',$missingNote,true);
 expectRefusal(fn()=>partsTransferReceive($pdo,$otherManager['user_id'],$itemA,'1.000',
     'missing','0.000',$missingNote,true),'already reported');
 
@@ -152,8 +156,8 @@ expectResult($totals[$branch.'-'.$partA.'-TRANSFER_OUT']==='-3.000' &&
     'Transfer ledger debits and confirmed receipt credits do not reconcile.');
 expectResult((int)stockRun($pdo,"SELECT COUNT(*) FROM audit_events
     WHERE entity_type='inventory_transfer_item' AND entity_id IN (?,?)",
-    [$itemA,$itemB])->fetchColumn()===5,
-    'Expected partial, late, missing and final arrival audit events.');
+    [$itemA,$itemB])->fetchColumn()===6,
+    'Expected partial, explicit missing, late and final arrival audit events.');
 
 // Branch-scoped listing cannot be used to view another branch's physical stock movements.
 $visible=partsTransferQueue($pdo,$otherManager['user_id'],$receivingBranch,'PT-',1);
