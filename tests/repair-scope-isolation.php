@@ -10,6 +10,11 @@ if (PHP_SAPI !== 'cli' || !isset($pdo, $staff, $ticket, $device, $branch, $manag
 }
 require_once __DIR__ . '/../app/console/scopes.php';
 
+// All simulated ownership differences must disappear before later integrity
+// rounds. Isolation requires no DDL and makes no durable database changes.
+$pdo->beginTransaction();
+try {
+
 $recipientBranch = insertFixture($pdo, 'INSERT INTO branches (branch_code,branch_name) VALUES (?,?)',
     [$run . 'SCOPE', 'Receiving repair branch fixture']);
 $recipientLocation = insertFixture($pdo,
@@ -114,4 +119,10 @@ $pdo->prepare('UPDATE ticket_devices SET assigned_technician_id=NULL WHERE ticke
 expectResult($visibleDevices(consoleProposedRepairScope($receivingTechnician)) === [],
     'Technician without a device assignment retained repair access.');
 
-echo "PASS: two-device isolation, legacy permissions, independent ticket money and revoked-account/branch denials.\n";
+    // Confirm every negative assertion before the rollback in finally.
+    echo "PASS: two-device isolation, legacy permissions, independent ticket money and revoked-account/branch denials.\\n";
+} finally {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+}
