@@ -93,7 +93,7 @@ try {
 
   const noJs = await signedIn(false);
   await noJs.page.goto(base + '/admin/dashboard.php');
-  assert(await noJs.page.getByRole('link', { name: 'Review repairs' }).isVisible());
+  assert(await noJs.page.getByRole('navigation', { name: 'Quick actions' }).getByRole('link', { name: 'Review repairs', exact: true }).isVisible());
   await noOverflow(noJs.page, 'No-JS mobile overview');
 
   // Emulate one query failure on the disposable runner, then restore source.
