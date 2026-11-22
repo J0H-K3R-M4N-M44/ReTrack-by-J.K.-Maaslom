@@ -41,11 +41,19 @@
                     ' · ' .
                     str_replace('_', ' ', $device['custody_state']),
             ) ?></dd></div>
+            <?php if (in_array($user['role'], ['ADMIN', 'MANAGER'], true)): ?>
+            <div><dt>Repair branch (read-only)</dt><dd><?= h($ownership['repair_branch']) ?></dd></div>
+            <div><dt>Ticket / billing branch (read-only)</dt><dd><?= h($ownership['ticket_branch']) ?></dd></div>
+            <?php endif; ?>
             <?php if ($user['role'] !== 'VIEWER'): ?>
             <div><dt>Reported problem</dt><dd><?= h($device['reported_symptoms']) ?></dd></div>
             <div><dt>Condition at intake</dt><dd><?= h($device['condition_notes']) ?></dd></div>
             <?php endif; ?>
         </dl>
+        <?php if (in_array($user['role'], ['ADMIN', 'MANAGER'], true) &&
+            $ownership['review_required']): ?>
+            <p class="field-error" role="status"><?= h($ownership['message']) ?></p>
+        <?php endif; ?>
     </section>
     <?php if (quoteCanPrepare($user) || quoteCanRecord($user)): ?>
     <section class="dashboard-card next-action"><div class="section-heading"><h2>Estimate and approval</h2><span class="workspace-status"><?= h(
