@@ -78,6 +78,9 @@ def keyboard_form_order(page, first_label, second_label, submit_name, name):
     check(focus_style['outlineStyle'] != 'none'
           and focus_style['outlineWidth'] != '0px',
           f'{name}: primary control has a visible keyboard focus outline')
+    height = submit.evaluate('(el) => el.getBoundingClientRect().height')
+    check(height >= 44,
+          f'{name}: primary button has at least 44 CSS px touch height (actual={height})')
 
 
 def narrow_viewport_proxy(page, name):
@@ -123,7 +126,8 @@ with sync_playwright() as playwright:
             user = credentials[role]
             page.get_by_label('Email', exact=True).fill(user['email'])
             page.get_by_label('Password', exact=True).fill(user['password'])
-            page.locator('form button[type="submit"]').first.click()
+            # Exercise the actual keyboard submit path; do not replace with a mouse click.
+            page.get_by_role('button', name=submit_name).press('Enter')
             page.get_by_role('heading', name=after_heading).wait_for(timeout=12000)
             screenshot_viewports(page, role+'-home')
             # These screenshots use the SAME authenticated staff sessions as
@@ -224,7 +228,7 @@ with sync_playwright() as playwright:
         if journey:
             page.get_by_label('Tracking code').fill(journey['portal_code'])
             page.get_by_label('Portal PIN').fill(journey['portal_pin'])
-            page.get_by_role('button', name='View repair progress').click()
+            page.get_by_role('button', name='View repair progress').press('Enter')
             page.get_by_role('heading', name='Repair progress', exact=True).wait_for(timeout=12000)
             rendered = page.locator('main').inner_text()
             check(journey['ticket_code'] in rendered and rendered.count('Collected by customer') == 2,
