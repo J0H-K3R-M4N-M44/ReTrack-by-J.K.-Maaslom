@@ -117,6 +117,7 @@ jobs:
             echo "Unsafe fixture: accepted a run without explicit disposable confirmation" >&2
             exit 1
           fi
+          echo "PASS: unconfirmed fixture preflight refused"
           export REPAIRTRACK_EDP_CONFIRM_FRESH=I_CONFIRM_NEW_DISPOSABLE_REPAIRTRACK_EDP
           php course-edp/tests/full-journey-fixture.php preflight
           python3 course-edp/tests/full-journey-http.py
@@ -126,6 +127,7 @@ jobs:
             echo "Unsafe fixture: accepted a database with existing records" >&2
             exit 1
           fi
+          echo "PASS: populated fixture preflight refused"
           python3 course-edp/tests/web-smoke.py
           EDP_BROWSER_OUTPUT="$RUNNER_TEMP/edp-browser-screenshots" python3 course-edp/tests/browser-hci.py
       - name: Attach desktop/tablet/mobile browser evidence
