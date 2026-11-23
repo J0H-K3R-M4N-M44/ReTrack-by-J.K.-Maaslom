@@ -104,12 +104,16 @@ jobs:
           php -d upload_max_filesize=6M -d post_max_size=7M \
             -S 127.0.0.1:8743 -t course-edp/public > "$RUNNER_TEMP/edp-preview.log" 2>&1 &
           server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          # Sensitive ONLY to the synthetic test: fictional staff login and portal credentials.
+          # Keep outside public/ and the screenshot artifact; delete even if a step fails.
+          export EDP_BROWSER_JOURNEY_MANIFEST="$RUNNER_TEMP/edp-browser-journey.json"
+          trap 'rm -f "$EDP_BROWSER_JOURNEY_MANIFEST"; kill "$server_pid" 2>/dev/null || true' EXIT
           for attempt in 1 2 3 4 5 6 7 8; do
             if curl -sSf -o /dev/null 'http://127.0.0.1:8743/?page=login'; then break; fi
             sleep 1
           done
           python3 course-edp/tests/full-journey-http.py
+          test -f "$EDP_BROWSER_JOURNEY_MANIFEST"
           python3 course-edp/tests/web-smoke.py
           EDP_BROWSER_OUTPUT="$RUNNER_TEMP/edp-browser-screenshots" python3 course-edp/tests/browser-hci.py
       - name: Attach desktop/tablet/mobile browser evidence
