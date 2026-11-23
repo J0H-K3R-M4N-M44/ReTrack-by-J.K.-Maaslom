@@ -8,15 +8,41 @@ declare(strict_types=1);
  */
 if (PHP_SAPI !== 'cli' || getenv('REPAIRTRACK_EDP_TEST_DB') !== 'repairtrack_edp'
     || getenv('REPAIRTRACK_EDP_DB') !== 'repairtrack_edp'
-    || (getenv('REPAIRTRACK_EDP_HOST') ?: '127.0.0.1') !== '127.0.0.1') {
-    fwrite(STDERR, "Use a disposable local repairtrack_edp test database only.\n");
+    || (getenv('REPAIRTRACK_EDP_HOST') ?: '127.0.0.1') !== '127.0.0.1'
+    || getenv('REPAIRTRACK_EDP_CONFIRM_FRESH') !== 'I_CONFIRM_NEW_DISPOSABLE_REPAIRTRACK_EDP') {
+    fwrite(STDERR, "Refusing nonlocal or unconfirmed disposable journey database.\n");
     exit(2);
 }
 require_once __DIR__ . '/../app/bootstrap.php';
 $pdo = edpPreviewDb();
 $command = $argv[1] ?? '';
 
+/** No fixture creation in a database with existing tickets, staff, or evidence. */
+function edpJourneyRequireFresh(PDO $pdo): void
+{
+    foreach (['users','user_branch_assignments','customers','customer_devices',
+        'repair_tickets','ticket_devices','ticket_status_events','repair_quotes',
+        'repair_bills','repair_bill_items','repair_bill_payments','media_assets',
+        'notes','audit_events'] as $table) {
+        // Fixed hard-coded allowlist; table identifiers never derive from inputs.
+        if ((int)$pdo->query('SELECT COUNT(*) FROM ' . $table)->fetchColumn() !== 0) {
+            throw new RuntimeException('Refusing a database containing existing operational records.');
+        }
+    }
+    $branches = $pdo->query('SELECT branch_code FROM branches')->fetchAll(PDO::FETCH_COLUMN);
+    if ($branches !== ['SOGOD-DEMO']) {
+        throw new RuntimeException('Fresh fictional branch catalog required.');
+    }
+}
+
+if ($command === 'preflight') {
+    edpJourneyRequireFresh($pdo);
+    echo json_encode(['disposable_preflight' => true], JSON_THROW_ON_ERROR);
+    exit;
+}
+
 if ($command === 'create') {
+    edpJourneyRequireFresh($pdo);
     $branch = (int)$pdo->query("SELECT branch_id FROM branches WHERE branch_code='SOGOD-DEMO' AND is_active=1")
         ->fetchColumn();
     if ($branch < 1) throw new RuntimeException('Fictional seed branch is missing');
@@ -101,4 +127,4 @@ if ($command === 'inspect') {
     exit;
 }
 
-throw new DomainException('Use create or inspect with a fictional internal Ticket Code.');
+throw new DomainException('Use preflight, create, or inspect with a fictional internal Ticket Code.');
