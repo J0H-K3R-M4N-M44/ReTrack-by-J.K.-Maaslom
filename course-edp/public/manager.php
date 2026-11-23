@@ -156,6 +156,7 @@ $csrf=edpManagerCsrf();$h='mgrH';
 </nav>
 <section class="panel" aria-label="Repair worklist">
 <?php if (!$queue['rows']): ?><p class="muted">No repairs in this view.</p><?php else: ?>
+<p class="mobile-table-hint">Swipe horizontally within the table to see status, technician, quotation and actions.</p>
 <div class="table-scroll"><table><thead><tr><th>Ticket / device</th><th>Status</th><th>Technician</th><th>Quotation</th><th>Action</th></tr></thead><tbody>
 <?php foreach ($queue['rows'] as $row): ?><tr><td><strong><?= $h($row['ticket_code']) ?></strong><small><?= $h($row['item_code']) ?></small></td>
 <td><?= $h(str_replace('_',' ',$row['status_code'])) ?></td><td><?= $h($row['technician_name']??'Unassigned') ?></td><td><?= $h($row['quote_status']??'No draft') ?></td>

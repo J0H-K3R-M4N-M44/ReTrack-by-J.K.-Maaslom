@@ -100,10 +100,12 @@ with sync_playwright() as playwright:
                     window.showSaveFilePicker = async () => handle;
                 }''')
                 page.locator('#note-open').click()
+                page.wait_for_function("document.querySelector('#note-editor').value === 'Opened from real file event'", timeout=7000)
                 check(page.locator('#note-editor').input_value() == 'Opened from real file event',
                       'Notepad open click imports UTF-8 text via browser File API')
                 page.locator('#note-editor').fill('Edited classroom note')
                 page.locator('#note-save').click()
+                page.wait_for_function("window.__savedNotepadContent === 'Edited classroom note'", timeout=7000)
                 check(page.evaluate('window.__savedNotepadContent') == 'Edited classroom note',
                       'Notepad save click invokes file writer with revised text')
                 year = page.locator('#holiday-year').input_value()

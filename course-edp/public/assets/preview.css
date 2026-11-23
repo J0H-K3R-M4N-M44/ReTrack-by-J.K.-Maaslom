@@ -60,3 +60,6 @@ footer{text-align:center;color:var(--muted);font-size:.78rem;padding:0 12px 25px
 .panel{border-radius:14px}
 }
 
+
+/* Keep draft navigation recognizable and touch-friendly at narrow widths. */
+.quicknav{display:flex;flex-wrap:wrap;align-items:center;gap:12px}.quicknav a{display:inline-flex;align-items:center;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;text-decoration:none}.quicknav a:hover{border-color:var(--accent)}
