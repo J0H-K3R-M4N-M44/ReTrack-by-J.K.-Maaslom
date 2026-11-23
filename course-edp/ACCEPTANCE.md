@@ -6,7 +6,7 @@
 
 The automatic test `tests/full-journey-http.py` talks to the real localhost PHP endpoints, in five **separate cookie jars**, through the following sequence:
 
-1. A fictional **intake officer** signs in, saves a two-device draft, retries the same request key, signs the classroom intake attestation, and issues the ticket. No repair ticket is preloaded.
+1. A fictional **intake officer** signs in, saves a two-device draft, retries the same request key, signs the classroom intake attestation, and issues the ticket using a randomly generated test-only phone. No repair ticket is preloaded.
 2. A **manager** at the responsible branch views and assigns each device. A manager from a separate branch cannot read those devices.
 3. The assigned **technician** begins diagnosis, saves a private technical diagnosis and a draft quotation for each device. Repair cannot begin at this point.
 4. The manager **sends** the technician's real draft quotations. The **customer** signs in using the receipt portal code and four-digit phone suffix, sees two pending quotes, and cannot see private diagnosis. A manager records two **staff-attested offline** decisions.

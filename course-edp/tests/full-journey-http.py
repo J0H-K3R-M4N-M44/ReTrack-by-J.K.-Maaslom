@@ -11,6 +11,7 @@ import http.cookiejar
 import json
 import os
 import re
+import secrets
 import subprocess
 import urllib.error
 import urllib.parse
@@ -87,6 +88,9 @@ def account_login(name, path, accounts, heading):
 accounts = helper('create')
 branch = str(accounts['branch_id'])
 staff = accounts['staff']
+# Never reuse a contact from another synthetic suite; the application rightly
+# rejects a second new customer with the same branch contact number.
+phone = '09' + ''.join(str(secrets.randbelow(10)) for _ in range(9))
 
 # 1. An intake agent creates a two-device ticket through real POST handlers.
 intake = account_login('intake','/',staff,'Academic workspace')
@@ -113,7 +117,7 @@ signature = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADU
 status, receipt_url, receipt = multipart(intake,f'/?page=draft&id={draft_id}', {
     'action':'issue','csrf_token':csrf(draft_page),'draft_id':draft_id,
     'customer_mode':'new','full_name':'Journey Fictional Customer',
-    'phone':'09123456789','email':'journey@example.test','signed_terms':'yes',
+    'phone':phone,'email':'journey@example.test','signed_terms':'yes',
 },'journey.png',signature)
 code = re.search(r'RT-[0-9A-F]{12}',receipt)
 portal = re.search(r'<dd>([0-9A-F]{5})</dd>',receipt)
@@ -182,7 +186,7 @@ status, _, public_login = fetch(customer,'/track.php')
 ok(status==200 and 'Track your repaired device' in public_login,'customer cannot browse private repair before login')
 status, _, public_page = form(customer,'/track.php',{
     'action':'login','csrf_token':csrf(public_login),
-    'portal_code':portal_code,'portal_pin':'6789'})
+    'portal_code':portal_code,'portal_pin':phone[-4:]})
 ok(status==200 and public_page.count('Awaiting customer decision')==2,
    'customer sees two pending published quotations')
 ok('PRIVATE_JOURNEY_DIAGNOSIS_ABC' not in public_page and 'journey@example.test' not in public_page,
@@ -248,7 +252,7 @@ for amount in ['120.00','480.00']:
     if amount=='120.00':
         status, _, unpaid_pickup = form(cash,f'/cashier.php?page=ticket&id={ticket_id}',{
             'action':'pickup','csrf_token':csrf(receipt),'ticket_id':ticket_id,
-            'confirmed_phone':'09123456789','attested':'yes'})
+            'confirmed_phone':phone,'attested':'yes'})
         ok(status==422 and 'unpaid balance' in unpaid_pickup,
            'counter pickup cannot occur with a partial payment')
         status, second_url, second_receipt = form(cash,f'/cashier.php?page=ticket&id={ticket_id}',payment)
@@ -258,7 +262,7 @@ for amount in ['120.00','480.00']:
 
 status, _, picked_up = form(cash,f'/cashier.php?page=ticket&id={ticket_id}',{
     'action':'pickup','csrf_token':csrf(bill_page),'ticket_id':ticket_id,
-    'confirmed_phone':'09123456789','attested':'yes'})
+    'confirmed_phone':phone,'attested':'yes'})
 ok(status==200 and 'Counter pickup confirmed' in picked_up,
    'fully paid and ready repair is handed over through cashier form')
 
