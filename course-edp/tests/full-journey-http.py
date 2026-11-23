@@ -316,4 +316,21 @@ if handoff:
     with os.fdopen(descriptor, 'w', encoding='utf-8') as handle:
         json.dump(snapshot, handle)
     print('PASS: private fictional journey handoff prepared for real-browser inspection')
+# An authorized manager can inspect completed quotations without reopening a
+# closed ticket. Neither the archived UI nor the domain service offers a write.
+status, _, archive = fetch(manager,'/manager.php?page=device&id='+device_ids[0])
+ok(status == 200 and code in archive and 'APPROVED' in archive
+   and 'Read-only repair history' in archive,
+   'branch manager may read an archived approved repair quotation')
+ok('name="action" value="assign"' not in archive
+   and 'name="action" value="send_quote"' not in archive
+   and 'name="action" value="decision"' not in archive,
+   'archived manager page hides assignment and quotation mutation controls')
+status, _, denied = form(manager,'/manager.php?page=device&id='+device_ids[0],{
+    'action':'assign','csrf_token':csrf(archive),'device_id':device_ids[0],
+    'technician_id':str(staff['technician']['id'])})
+ok(status == 422, 'manager cannot reassign a closed repair by a direct POST')
+status, _, forbidden_archive = fetch(outsider,'/manager.php?page=device&id='+device_ids[0])
+ok(status == 404 and code not in forbidden_archive,
+   'other-branch manager cannot inspect archived repair details')
 print('PASS: full cross-role journey, using ONLY real HTTP repair actions, is consistent.')
