@@ -213,7 +213,7 @@ $h='edpTechEscape';
 <label>Parts (₱)<input name="parts" type="number" min="0" step="0.01" value="<?= $h($detail['quote']['quote_status']??null)==='DRAFT'?$h($detail['quote']['parts_amount']):'0.00' ?>" required></label></div>
 <label>Other (₱)<input name="other" type="number" min="0" step="0.01" value="<?= $h($detail['quote']['quote_status']??null)==='DRAFT'?$h($detail['quote']['other_amount']):'0.00' ?>" required></label>
 <button class="primary" type="submit">Save quotation draft</button></form>
-<?php endif; ?><p class="hint">Technicians cannot approve or send quotations. Manager/customer approval will be connected in the next milestone.</p></section>
+<?php endif; ?><p class="hint">Technicians prepare draft estimates. Managers publish quotations and currently record customer decisions through staff-attested offline confirmation. This is not independently verified customer approval.</p></section>
 <section class="panel"><h2>Recorded timeline</h2>
 <?php if (!$detail['events']): ?><p class="hint">No events yet.</p><?php else: ?><ol class="timeline">
 <?php foreach ($detail['events'] as $event): ?><li><div><strong><?= $h($event['to_status']) ?></strong><time><?= $h(edpTechLocalTime($event['created_at'])) ?></time></div>
