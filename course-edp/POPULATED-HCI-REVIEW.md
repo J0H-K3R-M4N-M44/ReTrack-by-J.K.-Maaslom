@@ -37,7 +37,7 @@ After the passing workflow, the actual captured PNGs were inspected for the popu
 - Two completed devices with seven events each produce a **~3,462-pixel** full-page capture at 375 px; an optional collapsible timeline or clear progress summary should be user-tested before changing historical visibility.
 - Cashier data tables and long receipt identifiers are dense at 375 px. Their content is accessible, but touch/reading comfort needs actual phone verification.
 - The archived manager detail is reachable by authorized direct link, not a discoverable history queue.
-- Actual *pending* quote decision screen, ready-before-pickup cash desk and payment-in-progress states were exercised in HTTP tests, **not** separately captured as populated browser screenshots in this checkpoint.
+- At this original checkpoint, pending quote and payment-in-progress states were HTTP-tested but not screenshotted. **The Phase 4 intermediate-state extension below now covers both in real Chromium.**
 - No 200% browser zoom, keyboard-only traversal, physical device, screen reader, screen magnifier or independent user task study has been completed.
 - The Windows `FileSystemWatcher` was built in CI, **not** manually demonstrated; live external REST connectivity has not been shown.
 
@@ -47,4 +47,22 @@ After the passing workflow, the actual captured PNGs were inspected for the popu
 **CONDITIONAL:** visual layout for tested screenshots only; broader accessibility and phone usability remain pending.  
 **HOLD:** public deployment, customer-authorized billing, legacy 23-table migration, COD, courier, refunds and real-data use.
 
-Follow-up: user-test a collapsible history/summary treatment without discarding audit events, add manager archive discovery if within course scope, capture pending/partial-payment states, then perform manual accessibility checks. Retain the 23-table schema and branch isolation.
+Follow-up: user-test a collapsible history/summary treatment without discarding audit events, add manager archive discovery if within course scope, and perform manual accessibility checks. Pending/partial-payment browser coverage is addressed in the extension below. Retain the 23-table schema and branch isolation.
+
+
+## Phase 4 extension — pending quotation and partially paid repair
+
+**Implementation commit:** 3c5dda490b4270419b06d9d47280e95e4bc25721  
+**Passing exact-SHA CI:** [run #45159895368](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45159895368), both schema-integrity and windows-notepad-build successful.  
+**Updated screenshot evidence:** [57-PNG artifact #14810083448](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45159895368/artifacts/14810083448) (14-day retention).
+
+The **existing** two-device completed ticket, authentic role logins, MySQL constraints, concurrency tests and original browser screenshots remain in place. The full-journey-http.py test now creates two **additional single-device fictional tickets through real application forms**, using its already authenticated intake/manager/technician/cashier sessions. Its read-only SQL inspector confirms the resulting states. It never directly inserts fake statuses, approvals, invoices or payments.
+
+- **Pending quotation ticket:** intake creates a single device; manager assigns; technician diagnoses and drafts a ₱300 quotation; manager publishes it. No approval or invoice follows. The inspector confirms AWAITING_CUSTOMER_APPROVAL, latest quotation AWAITING_CUSTOMER, a send timestamp and no bill. A second-branch manager is denied. Chromium captures the manager's active offline-decision form and the authenticated customer's **pending ₱300 estimate** at 375, 768 and 1366 px. Customer-facing content does not reveal synthetic internal diagnosis, private contact data or receipts.
+- **Partial-payment ticket:** separate intake, assignment, technician quotation, manager **staff-attested offline** approval and technician progress through IN_PROGRESS, TESTING and READY_FOR_PICKUP, then a genuine ₱300 bill and ₱120 counter-cash payment. The balance is **₱180**. The cashier sees one receipt, the outstanding amount, a blocked pickup notice and no pickup button. A direct pickup form POST with the correct recorded phone and staff attestation is rejected with HTTP 422. Read-only SQL confirms the open ticket, device at the branch, issued bill and one payment. Chromium captures the populated payment desk at all three widths.
+
+Chromium also asserts no page-wide horizontal overflow or missing labels on required controls at these viewport widths. The extension adds **9 PNGs**, for **57** evidence images in total.
+
+**Evidence limitations:** headless browser assertions and screenshots with fictional records do not replace independent visual review of every image; staff-recorded approval is not customer-authenticated consent. Actual phones, screen readers, 200% zoom, physical file monitoring, live third-party REST and secure hosted deployment remain outside this gate.
+
+**Decision:** **PASS** for two intermediate-state automated cases at the exact tested source commit; **CONDITIONAL** for human HCI accessibility and business consent; **HOLD** for production deployment, original-site merge and real customer data.
