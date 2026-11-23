@@ -66,3 +66,26 @@ Chromium also asserts no page-wide horizontal overflow or missing labels on requ
 **Evidence limitations:** headless browser assertions and screenshots with fictional records do not replace independent visual review of every image; staff-recorded approval is not customer-authenticated consent. Actual phones, screen readers, 200% zoom, physical file monitoring, live third-party REST and secure hosted deployment remain outside this gate.
 
 **Decision:** **PASS** for two intermediate-state automated cases at the exact tested source commit; **CONDITIONAL** for human HCI accessibility and business consent; **HOLD** for production deployment, original-site merge and real customer data.
+
+
+## Phase 4 follow-up — safe fixture and keyboard recovery
+
+**Implementation checkpoint:** \`098abf740187a272b86916f52dc84c4e3d73ac35\`  
+**Exact-source CI:** [run #45161776895](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45161776895), both jobs passed.  
+**60-PNG screenshot set:** [artifact #14812570303](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45161776895/artifacts/14812570303), expires December 7, 2026.
+
+### Safer disposable fixture
+
+The CLI fixture now refuses use without the explicit \`REPAIRTRACK_EDP_CONFIRM_FRESH=I_CONFIRM_NEW_DISPOSABLE_REPAIRTRACK_EDP\` opt-in, local loopback DB host and exact \`repairtrack_edp\` environment values. Its \`preflight\` and \`create\` paths independently require empty operational tables and only the fictional \`SOGOD-DEMO\` branch, without changing the 23-table application schema. Python also refuses to start without the opt-in and asks the PHP preflight to inspect the actual DB before issuing any HTTP requests. CI explicitly tests refusal **without confirmation** and refusal **after the fictional journey populates the database**. This is a defense against accidental reuse, not a substitute for operator review of database credentials or a guarantee about all possible localhost configurations.
+
+### Authenticated keyboard and error recovery
+
+- **Manager pending quotation:** Chromium follows native Tab order from decision selector to confirmation channel, reference field, staff-attestation checkbox and decision submit. An Enter press with missing required fields cannot submit; the quote stays pending. The form can then be made client-valid **without executing a customer-decision POST**. No customer consent was simulated by this keyboard test.
+- **Partially paid cashier:** Chromium enters a validly formatted overpayment of **₱180.01** against **₱180.00** remaining and submits with Enter. The actual PHP server returns **HTTP 422**. An alert explains the overpayment, the single previously recorded receipt and the remaining balance remain unchanged, and pickup stays blocked. The user can edit the value to **₱180.00** and Tab back to the 44-pixel payment button, without recording another payment.
+- The prior completed, pending and partial-cash screenshots remain tested at 375, 768 and 1366 CSS pixels. The recovery-error screenshot adds **3 images**, taking the artifact from 57 to **60 PNGs**.
+
+### Remaining gate
+
+These are automated synthetic tests, not a human-submitted manager decision or a real financial transaction. A physically operated phone, full keyboard workflows, 200% zoom, screen reader, native Windows file watcher and live/offline REST acceptance have **not** been demonstrated. Use [MANUAL-PHASE4-ACCEPTANCE.md](MANUAL-PHASE4-ACCEPTANCE.md) for dated observed evidence.
+
+**Decision:** **PASS** for exact-source automated Phase 4 extensions; **OPEN** for manual HCI/EDP sign-off; **HOLD** public deployment, customer consent certification and legacy merge.
