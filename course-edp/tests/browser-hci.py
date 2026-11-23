@@ -104,12 +104,12 @@ with sync_playwright() as playwright:
                                          args=['--no-sandbox'])
     try:
         roles = [
-            ('intake', 'index.php?page=login', 'Create a repair draft'),
-            ('manager', 'manager.php?page=login', 'Manager queue'),
-            ('technician', 'technician.php?page=login', 'My repair queue'),
-            ('cashier', 'cashier.php?page=login', 'Cashier desk'),
+            ('intake', 'index.php?page=login', 'Create a repair draft', 'Sign in'),
+            ('manager', 'manager.php?page=login', 'Manager queue', 'Sign in'),
+            ('technician', 'technician.php?page=login', 'My repair queue', 'Open my workspace'),
+            ('cashier', 'cashier.php?page=login', 'Cashier desk', 'Sign in'),
         ]
-        for role, url, after_heading in roles:
+        for role, url, after_heading, submit_name in roles:
             context = browser.new_context(viewport={'width': 1366, 'height': 900},
                 timezone_id='Asia/Manila', accept_downloads=True)
             page = context.new_page()
@@ -119,7 +119,7 @@ with sync_playwright() as playwright:
             screenshot_viewports(page, role+'-login')
             narrow_viewport_proxy(page, role+'-login')
             page.set_viewport_size({'width': 1366, 'height': 900})
-            keyboard_form_order(page, 'Email', 'Password', 'Sign in', role+' login')
+            keyboard_form_order(page, 'Email', 'Password', submit_name, role+' login')
             user = credentials[role]
             page.get_by_label('Email', exact=True).fill(user['email'])
             page.get_by_label('Password', exact=True).fill(user['password'])
