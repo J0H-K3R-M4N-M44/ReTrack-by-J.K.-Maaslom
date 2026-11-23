@@ -72,3 +72,28 @@ The simplified schema is not a drop-in replacement for the original database. Th
 The current pickup service assumes the bill-item sum equals the bill total (no separate tax/discount in this small academic exercise), and handles **counter pickup only**. Do not use it for COD or device transfers without a dedicated collection/custody workflow.
 
 The seeded Sogod business is fictional; images remain in private storage with records in `media_assets`.
+
+
+## Phase 3, slice B — standalone authenticated web intake
+
+This branch now provides an **isolated local preview** under `course-edp/public/`, not a replacement for the legacy website. It uses `course-edp/app/preview.php` to load the **academic** database only, establish a separate staff session, check live account state and assigned branch, enforce CSRF, and limit repeated login attempts. The browser form supports up to three devices per draft, a new customer or branch-scoped returning customer, a server-generated private signed-image path, and a one-time receipt. `course-edp/tests/web-smoke.py` exercises the actual HTTP forms, uploads and logout.
+
+**Local preview requirements:** PHP 8.1+ with `pdo_mysql`, `mbstring`, `fileinfo`, sessions and file uploads; MySQL 8.0.16+ with the **disposable academic schema already installed**; a restricted database account granted only to `repairtrack_edp`; and a **private directory outside the web document root**. Configure environment variables (never commit real credentials):
+
+```sh
+export REPAIRTRACK_EDP_DB=repairtrack_edp
+export REPAIRTRACK_EDP_HOST=127.0.0.1
+export REPAIRTRACK_EDP_USER=your_restricted_academic_user
+export REPAIRTRACK_EDP_PASSWORD='local-only-secret'
+export REPAIRTRACK_EDP_PRIVATE_ROOT='/absolute/path/outside/webroot/edp-private'
+php -S 127.0.0.1:8743 -t course-edp/public
+# Open http://127.0.0.1:8743/ (localhost ONLY)
+```
+
+Do **not** run `php -S` from the repository root: that would expose `course-edp/schema.sql`, tests and application source as web files. For testing, generate an isolated fictional intake staff account using `course-edp/tests/web-fixture.php` **only** on a disposable test database with `REPAIRTRACK_EDP_TEST_DB=repairtrack_edp`. It is a test fixture, not production account provisioning; avoid running it on databases that contain any real customer data. The preview intentionally does not provide real signup or password resets.
+
+The preview includes: private-session staff login and role/branch checks; CSRF on all form POSTs; protected sign-out; server-validated device categories; device-first draft creation; a branch-restricted lookup for returning customers; new customer registration within the issuance transaction; actual PNG/JPEG/WebP validation and protected upload staging; transactionally recorded issued devices, initial status events, and signature metadata; and a receipt which is removed from the session after first display. It never reveals the PIN, and it does not allow serving stored customer images from this preview.
+
+**Known limitations:** This is classroom intake workflow only, not a complete browser system. There is no customer portal, repair board, status UI, finance UI, file-download endpoint, generic account management, async JavaScript event demonstrations, public maps, Notepad integration, or external REST API yet. Image upload consent checkbox records a staff confirmation, not cryptographic proof of the customer's signature. Staff login throttling uses a local protected-file counter suitable only for a single-instance localhost demonstration. Sessions require HTTPS and a correctly configured web server before any nonlocal use. The browser form displays three device rows, although the domain service accepts up to 25. Customer email and phone numbers in tests must be fictional. The use of `COUNTER_CASH` remains the only enabled academic payment service; COD has not been implemented.
+
+**Verification:** The existing `.github/workflows/edp-schema.yml` now also serves `course-edp/public/` on localhost and runs `tests/web-smoke.py` after the disposable MySQL domain tests. The HTTP test verifies login/CSRF/role denial, a two-device draft, invalid image rejection, issue confirmation, duplicate issue rejection, receipt non-replay and logout. No deployed site or original database is accessed.

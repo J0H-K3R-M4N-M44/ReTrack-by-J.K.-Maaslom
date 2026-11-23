@@ -28,6 +28,10 @@ jobs:
           php -l course-edp/app/actions.php
           php -l course-edp/app/catalogs.php
           php -l course-edp/app/intake.php
+          php -l course-edp/app/preview.php
+          php -l course-edp/public/index.php
+          php -l course-edp/tests/web-fixture.php
+          python3 -m py_compile course-edp/tests/web-smoke.py
           php -l course-edp/tests/intake-flow.php
           php -l course-edp/tests/static-schema-check.php
           php -l course-edp/tests/db-integrity.php
@@ -53,3 +57,24 @@ jobs:
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM repair_tickets' | grep -Fxq 0
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM ticket_devices' | grep -Fxq 0
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM media_assets' | grep -Fxq 0
+
+      - name: Test authenticated academic intake web flow on localhost
+        env:
+          REPAIRTRACK_EDP_DB: repairtrack_edp
+          REPAIRTRACK_EDP_HOST: 127.0.0.1
+          REPAIRTRACK_EDP_USER: root
+          REPAIRTRACK_EDP_PASSWORD: root
+          REPAIRTRACK_EDP_PRIVATE_ROOT: ${{ runner.temp }}/edp-intake-private
+          EDP_TEST_URL: http://127.0.0.1:8743
+        run: |
+          set -euo pipefail
+          mkdir -p "$REPAIRTRACK_EDP_PRIVATE_ROOT"
+          chmod 700 "$REPAIRTRACK_EDP_PRIVATE_ROOT"
+          php -S 127.0.0.1:8743 -t course-edp/public > "$RUNNER_TEMP/edp-preview.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if curl -sSf -o /dev/null 'http://127.0.0.1:8743/?page=login'; then break; fi
+            sleep 1
+          done
+          python3 course-edp/tests/web-smoke.py
