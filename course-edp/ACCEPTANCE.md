@@ -48,3 +48,7 @@ The GitHub Actions academic workflow runs this journey **and** the existing data
 ## Gate conditions
 
 **Accept for continued isolated academic development** only if the commit's CI passes both the full journey and the existing role-specific tests. **HOLD deployment/main merge** until browser acceptance, security, migration compatibility, and customer-approval evidence are addressed.
+
+## Phase 4 extension
+
+The independent HCI/EDP gate is documented in `EDP-LAB-ACCEPTANCE.md`. The original cross-role test described above is unchanged, and the new browser/EDP exercises are **separate** from repair transaction acceptance. Windows Forms `FileSystemWatcher` execution and live external API availability remain manual validation tasks.

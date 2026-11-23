@@ -14,7 +14,7 @@ permissions:
 jobs:
   schema-integrity:
     runs-on: ubuntu-24.04
-    timeout-minutes: 7
+    timeout-minutes: 12
     env:
       MYSQL_PWD: root
       REPAIRTRACK_EDP_TEST_DB: repairtrack_edp
@@ -29,6 +29,13 @@ jobs:
           php -l course-edp/app/catalogs.php
           php -l course-edp/app/intake.php
           php -l course-edp/app/bootstrap.php
+          php -l course-edp/app/holiday-api.php
+          php -l course-edp/public/holiday-api.php
+          php -l course-edp/public/lab.php
+          php -l course-edp/tests/edp-lab.php
+          node --check course-edp/public/assets/lab.js
+          python3 -m py_compile course-edp/tests/browser-hci.py
+          php course-edp/tests/edp-lab.php
           php -l course-edp/app/technician.php
           php -l course-edp/app/manager.php
           php -l course-edp/app/cashier.php
@@ -75,6 +82,13 @@ jobs:
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM ticket_devices' | grep -Fxq 0
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM media_assets' | grep -Fxq 0
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install real-browser acceptance driver
+        run: |
+          python3 -m pip install --disable-pip-version-check playwright==1.56.0
+          command -v google-chrome || command -v chromium
       - name: Test authenticated academic intake web flow on localhost
         env:
           REPAIRTRACK_EDP_DB: repairtrack_edp
@@ -97,3 +111,23 @@ jobs:
           done
           python3 course-edp/tests/full-journey-http.py
           python3 course-edp/tests/web-smoke.py
+          EDP_BROWSER_OUTPUT="$RUNNER_TEMP/edp-browser-screenshots" python3 course-edp/tests/browser-hci.py
+      - name: Attach desktop/tablet/mobile browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: edp-real-chromium-visual-acceptance
+          path: ${{ runner.temp }}/edp-browser-screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  windows-notepad-build:
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Compile exact WinForms FileSystemWatcher companion
+        run: dotnet build course-edp/labs/NotepadCompanion/RepairTrackNotepad.csproj --configuration Release --nologo

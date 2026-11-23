@@ -136,6 +136,7 @@ $h='edpTechEscape';
 <header class="topbar">
   <a class="brand" href="technician.php">Repair<span>Track</span></a>
   <span class="top-sub">Technician Workspace <small>Academic demo</small></span>
+  <?php if ($staff): ?><a href="lab.php" class="lab-shortcut">EDP Lab Tools</a><?php endif; ?>
   <?php if ($staff): ?>
   <div class="account"><span><?= $h($staff['full_name']) ?></span>
   <form method="post" action="technician.php"><input type="hidden" name="action" value="logout"><input type="hidden" name="csrf_token" value="<?= $h($csrf) ?>"><button class="quiet" type="submit">Sign out</button></form></div>

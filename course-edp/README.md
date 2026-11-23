@@ -172,3 +172,9 @@ create the two-device ticket, quotations, payments, and completion timeline. The
 asserts complete customer-visible and database state without silently supplying
 approved quotes or repairing statuses through direct SQL. This is a stronger integration
 gate, **not** visual browser acceptance or public deployment readiness.
+
+## Phase 4 — HCI and EDP classroom lab checkpoint
+
+The **Technician Workspace** now links to `public/lab.php` after sign-in. This local-only EDP lab includes a browser Notepad Open/Save demo, permissioned folder monitor, and asynchronous Philippine national holiday reference from Nager.Date REST/JSON. The browser monitor does **not** implement the .NET `FileSystemWatcher` class: exact Windows Forms `OpenFileDialog`, `SaveFileDialog`, and `FileSystemWatcher` source is provided separately in `labs/NotepadCompanion/`, with explicit Windows validation pending. The holiday data is informational, not a record of store hours or appointment commitments.
+
+The browser test `tests/browser-hci.py` uses **real Chromium** on the disposable CI MySQL site at mobile/tablet/desktop widths and captures screenshots; it checks a limited set of overflow, label, staff sign-in, and EDP lab interactions. Synthetic API responses verify JavaScript rendering; live API availability and C# Windows execution remain manual checks. The earlier cross-role HTTP and finance/database tests remain in the same workflow. See `EDP-LAB-ACCEPTANCE.md` for detailed manual gates and limitations.
