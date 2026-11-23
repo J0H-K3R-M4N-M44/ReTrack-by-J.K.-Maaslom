@@ -20,8 +20,13 @@ import urllib.request
 import uuid
 
 BASE = os.environ.get('EDP_TEST_URL')
-if BASE != 'http://127.0.0.1:8743' or os.environ.get('REPAIRTRACK_EDP_TEST_DB') != 'repairtrack_edp':
-    raise SystemExit('Refusing non-disposable or nonlocal cross-role HTTP target')
+if (BASE != 'http://127.0.0.1:8743'
+        or os.environ.get('REPAIRTRACK_EDP_TEST_DB') != 'repairtrack_edp'
+        or os.environ.get('REPAIRTRACK_EDP_DB') != 'repairtrack_edp'
+        or os.environ.get('REPAIRTRACK_EDP_HOST', '127.0.0.1') != '127.0.0.1'
+        or os.environ.get('REPAIRTRACK_EDP_CONFIRM_FRESH') !=
+           'I_CONFIRM_NEW_DISPOSABLE_REPAIRTRACK_EDP'):
+    raise SystemExit('Refusing unconfirmed or nonlocal fictional cross-role database')
 
 FIXTURE = ['php', 'course-edp/tests/full-journey-fixture.php']
 
@@ -86,6 +91,10 @@ def account_login(name, path, accounts, heading):
     ok(status == 200 and heading not in page, name+' successfully signs in')
     return client
 
+# The PHP preflight validates that no operational staff/tickets/evidence exist.
+# Its create action repeats this guard to close accidental invocations of the helper.
+if helper('preflight') != {'disposable_preflight': True}:
+    raise SystemExit('Disposable database preflight was not accepted')
 accounts = helper('create')
 branch = str(accounts['branch_id'])
 staff = accounts['staff']
