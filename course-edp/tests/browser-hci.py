@@ -156,8 +156,8 @@ with sync_playwright() as playwright:
                     screenshot_viewports(page, 'pending-manager-quotation')
                     # Keyboard-only form traversal and invalid-submit recovery
                     # must NOT turn the deliberately pending quote into an approval.
-                    decision = page.get_by_label("Customer's decision", exact=True)
-                    channel = page.get_by_label('How was decision confirmed?', exact=True)
+                    decision = page.get_by_label("Customer's decision")
+                    channel = page.get_by_label('How was decision confirmed?')
                     reference = page.get_by_label('Confirmation reference', exact=True)
                     attest = page.get_by_label(
                         'I personally confirmed this response and will retain its supporting record.')
