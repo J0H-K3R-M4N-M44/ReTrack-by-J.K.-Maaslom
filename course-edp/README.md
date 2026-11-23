@@ -3,11 +3,15 @@
 This folder contains a **standalone 23-table academic schema**. It is **not an upgrade to the existing RepairTrack database or application**. The PHP site under `app/`, `admin/`, and `views/` still expects the historical schema: **never point it to `repairtrack_edp` until migration and end-to-end tests are complete**.
 
 
-## Current branch status (updated through Technician Workspace slice D)
+## Current branch status — verified Phase 4 checkpoint (2026-11-23)
 
-The current academic preview now has a local-only **staff intake route** (`public/index.php`), a separate **customer tracking route** (`public/track.php`), and a separate **Technician Workspace** (`public/technician.php`). The latter works with **assigned fictional repairs**; the manager assignment, quotation sending/customer approval, and cashier interfaces are **not** implemented yet. The 23-table academic database, intake web journey, customer timeline, and technician web journey are covered by disposable MySQL and localhost HTTP CI. The original legacy website remains an independent application and is **not** migrated. No public deployment is authorized.
+**Canonical current-state and requirements map:** [CURRENT-STATE.md](CURRENT-STATE.md). The implementation checkpoint is `bd89daa910c53e3bcc024501d210c2fbb51174f3`, with successful disposable MySQL/PHP/Chromium and Windows .NET-build jobs in [GitHub Actions #45131879049](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45131879049). These results apply to that exact commit; check CI again after later changes.
 
-Older section notes below describe what was missing at their respective milestone, and should not be read as the latest system-wide feature inventory.
+The **isolated localhost-only academic app** includes staff intake (`public/index.php`), customer tracking (`public/track.php`), Technician Workspace (`public/technician.php`), manager assignment and quote-publication desk (`public/manager.php`), cashier billing/counter-cash/pickup desk (`public/cashier.php`) and the technician EDP lab (`public/lab.php`). Its 23-table schema, domain services, role-specific HTTP tests and complete fictional cross-role ticket journey are automated. Chromium runs limited viewport/label/empty-workspace checks. The native WinForms Notepad companion **builds**; a real Windows file watcher demonstration is still required. The external holiday REST integration has parser and mocked-browser verification, not a confirmed live-network acceptance run.
+
+**Remaining limits:** quote decisions and pickup are staff-attested, not independent customer consent/identity proof; no COD/courier, refund/void workflow, full admin analytics, chat/requests, authorized media browsing, migrated original application, production security or real-device accessibility acceptance. The legacy website and database remain independent; **no deployment or main-branch merge is authorized**.
+
+The milestone notes below are historical and may describe features that were missing *then*. Use CURRENT-STATE.md and the dedicated acceptance documents for the current inventory.
 
 ## What's included
 
@@ -19,7 +23,7 @@ Older section notes below describe what was missing at their respective mileston
 - Quotes maintain versioned totals, sent/expiry dates and decision evidence. The small `repair_bill_items` table preserves per-device line amounts; it is not an inventory system. Draft bills can have no bill number. At most one bill may be ISSUED for a ticket at a time. The isolated cash action locks the ticket and current bill in a documented order, uses **locking reads** for existing payments even if the caller has an older transaction snapshot, handles retry keys, and refuses overpayment. A two-connection test exercises this behavior. The pickup action checks full settlement and readiness of every device, records per-device custody and completion events, and closes the ticket atomically.
 - `COUNTER_CASH` is supported by the illustrative payment action. **COD is reserved as a catalog option, not enabled in the UI or service** until proof-of-collection workflow is specified and tested; no electronic payments.
 - Image bytes are in **private file storage**. `media_assets` has an authorized customer reference and optional consistent ticket/device references, plus constrained opaque relative path, MIME, size and checksum. PHP must authorize access to each individual asset and verify its actual file content. Cross-customer ownership is rejected by FKs.
-- `notes` records text and ticket/device ownership. The course's separate Notepad *open/save/file monitor* integration is still outstanding and cannot be satisfied merely by the notes table.
+- `notes` records text and ticket/device ownership. The separate Notepad lab is now implemented in the browser and as a compiled Windows Forms companion; the native file-watcher event demonstration still requires a real Windows run. The database notes table is not a substitute for that demonstration.
 
 ## Phase 3, slice A — isolated catalogs and intake issuance
 
@@ -41,9 +45,9 @@ New files (not public endpoints):
 - The preview refuses non-loopback web requests. It revalidates staff accounts and active branch membership on protected requests. Its local CI server sets `upload_max_filesize=6M` and `post_max_size=7M` to test the app's 5 MiB limit; actual installations must check their PHP and web-server limits.
 - Expanded HTTP checks cover idempotent create POSTs, draft resume/edit/abandon, wrong-phone confirmation, duplicate contacts, oversized and empty uploads, cross-branch draft requests and disabled staff sessions. These tests remain synthetic and are *not* substitute for a real Chrome mobile/accessibility review.
 
-## What is deliberately NOT complete
+## What is deliberately NOT complete (current Phase 4 boundaries)
 
-**Still missing across the current academic implementation:** a unified legacy migration, complete admin and cashier UI, manager quotation approval, COD collection or courier delivery, password reset UX, external REST integration, full browser-driven EDP exercises, and human acceptance testing. The Sogod prototype's workflow remains the reference. No claim of full PHP compatibility should be made based on these database tests.
+**Still missing or unverified:** unified legacy migration; comprehensive administrator/staff-management and analytics UI; independently customer-verified quotation approval; COD collection, courier delivery, refunds/bill corrections; password reset UX; customer chat/requests; guarded customer media retrieval; live external REST demonstration; actual Windows FileSystemWatcher execution; populated-workflow HCI/assistive-technology acceptance; and production security. Manager, cashier, REST/JSON, browser EDP lab and cross-role HTTP functionality **do exist**, with the narrower evidence described in [CURRENT-STATE.md](CURRENT-STATE.md). The Sogod prototype remains a workflow reference. No claim of legacy PHP compatibility follows from academic-only tests.
 
 ## Verification (disposable MySQL only)
 
