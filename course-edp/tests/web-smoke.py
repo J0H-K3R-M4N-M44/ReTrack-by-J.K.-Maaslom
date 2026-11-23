@@ -309,4 +309,114 @@ status, _, response = form(cashier, '?page=login', {
     'password':fixture['cashier_password']})
 check(status == 401 and 'Invalid staff credentials' in response,
       'cashier account cannot authenticate to intake-only academic preview')
+# Technician Workspace: a separate issued fictional ticket keeps the earlier tracking
+# regression independent of technician interaction tests.
+tech_fixture = json.loads(subprocess.run(
+    ['php', 'course-edp/tests/web-fixture.php', 'tech-create'], check=True,
+    capture_output=True, text=True, env=os.environ.copy()).stdout)
+tech_id = str(tech_fixture['device_id'])
+unauth_tech = browser()
+status, _, signin = fetch(unauth_tech, '/technician.php')
+check(status == 200 and 'Technician sign in' in signin and 'My repair queue' not in signin,
+      'technician workspace is private without an authenticated technician session')
+status, _, bad = form(unauth_tech, '/technician.php?page=login', {
+    'action':'login', 'csrf_token':'invalid', 'email':tech_fixture['tech_email'],
+    'password':tech_fixture['tech_password']})
+check(status == 403 and 'My repair queue' not in bad,
+      'technician sign-in rejects invalid CSRF')
+status, _, forbidden = form(unauth_tech, '/technician.php?page=login', {
+    'action':'login','csrf_token':token(signin),'email':fixture['cashier_email'],
+    'password':fixture['cashier_password']})
+check(status == 401 and 'Invalid technician credentials' in forbidden,
+      'cashier cannot authenticate as a technician')
+tech = browser()
+status, _, tech_login = fetch(tech, '/technician.php?page=login')
+status, dest, tech_queue = form(tech, '/technician.php?page=login', {
+    'action':'login','csrf_token':token(tech_login),'email':tech_fixture['tech_email'],
+    'password':tech_fixture['tech_password']})
+check(status == 200 and 'My repair queue' in tech_queue and tech_fixture['ticket_code'] in tech_queue,
+      'assigned technician sees their own repair queue')
+status, _, detail = fetch(tech, '/technician.php?page=device&id='+tech_id)
+check(status == 200 and 'Repair progress' in detail and 'Not started' in detail,
+      'technician can inspect assigned device before first repair start')
+status, _, wrong_csrf = form(tech, '/technician.php?page=device&id='+tech_id, {
+    'action':'status','device_id':tech_id,'csrf_token':'invalid','next_status':'DIAGNOSING'})
+check(status == 403 and 'status' in wrong_csrf.lower(),
+      'technician status POST is CSRF-protected')
+status, _, wrong_stage = form(tech, '/technician.php?page=device&id='+tech_id, {
+    'action':'status','device_id':tech_id,'csrf_token':token(detail),'next_status':'IN_PROGRESS'})
+check(status == 422 and 'not available' in wrong_stage,
+      'technician cannot skip directly to in-repair state')
+status, _, diagnosis = form(tech, '/technician.php?page=device&id='+tech_id, {
+    'action':'status','device_id':tech_id,'csrf_token':token(detail),'next_status':'DIAGNOSING',
+    'public_summary':'Technician is assessing the repair.'})
+check(status == 200 and 'Diagnosing' in diagnosis,
+      'technician can legally record a diagnosing transition')
+status, _, short_diagnosis = form(tech, '/technician.php?page=device&id='+tech_id, {
+    'action':'diagnosis','device_id':tech_id,'csrf_token':token(diagnosis),'diagnosis':'small'})
+check(status == 422 and '10' in short_diagnosis,
+      'private diagnosis rejects insufficient information')
+status, _, fixed = form(tech, '/technician.php?page=device&id='+tech_id, {
+    'action':'diagnosis','device_id':tech_id,'csrf_token':token(diagnosis),
+    'diagnosis':'INTERNAL_ONLY_DIAGNOSIS: cooling fan obstructed by dust.'})
+check(status == 200 and 'Private diagnosis saved' in fixed,
+      'technician can save a private diagnosis')
+status, _, invalid_quote = form(tech, '/technician.php?page=device&id='+tech_id, {
+    'action':'quote','device_id':tech_id,'csrf_token':token(fixed),
+    'labor':'0.00','parts':'0.00','other':'0.00'})
+check(status == 422 and 'positive' in invalid_quote,
+      'zero-total technician quotation is rejected')
+status, _, quoted = form(tech, '/technician.php?page=device&id='+tech_id, {
+    'action':'quote','device_id':tech_id,'csrf_token':token(fixed),
+    'labor':'600.00','parts':'250.00','other':'0.00'})
+check(status == 200 and 'Quotation draft saved' in quoted and '850.00' in quoted,
+      'technician can draft an 850-peso quote without publishing it')
+status, _, prematurely_started = form(tech, '/technician.php?page=device&id='+tech_id, {
+    'action':'status','device_id':tech_id,'csrf_token':token(quoted),'next_status':'IN_PROGRESS'})
+check(status == 422 and 'not available' in prematurely_started,
+      'in-repair transition remains unavailable before quote approval')
+# A separate test-only CLI fixture represents the future manager/customer approval flow.
+subprocess.run(['php','course-edp/tests/web-fixture.php','tech-approve',tech_id,
+                tech_fixture['portal_code']], check=True, capture_output=True,
+               env=os.environ.copy())
+status, _, approved = fetch(tech, '/technician.php?page=device&id='+tech_id)
+check(status == 200 and 'Approved' in approved and 'In Repair' in approved,
+      'approved quote enables the legal in-repair status option')
+status, _, started = form(tech, '/technician.php?page=device&id='+tech_id, {
+    'action':'status','device_id':tech_id,'csrf_token':token(approved),
+    'next_status':'IN_PROGRESS','public_summary':'Customer-safe repair start update.'})
+check(status == 200 and 'Repair status and customer timeline updated' in started and
+      'Not started' not in started and 'Repair started' in started,
+      'repair start timestamp is visible after authorized technician transition')
+# Verify privacy through the REAL customer route, rather than merely re-reading SQL.
+tech_customer = browser()
+status, _, customer_login = fetch(tech_customer, '/track.php')
+status, _, customer_view = form(tech_customer, '/track.php', {
+    'action':'login','csrf_token':token(customer_login),
+    'portal_code':tech_fixture['portal_code'],'portal_pin':'6789'})
+check(status == 200 and 'Customer-safe repair start update.' in customer_view and
+      'INTERNAL_ONLY_DIAGNOSIS' not in customer_view and '₱850.00' in customer_view,
+      'customer timeline updates without exposing technician diagnosis')
+other_tech = browser()
+status, _, other_signin = fetch(other_tech, '/technician.php?page=login')
+status, _, other_queue = form(other_tech, '/technician.php?page=login', {
+    'action':'login','csrf_token':token(other_signin),'email':tech_fixture['other_email'],
+    'password':tech_fixture['other_password']})
+check(status == 200 and tech_fixture['ticket_code'] not in other_queue,
+      'a second technician does not see the assigned repair in their queue')
+status, _, denied = fetch(other_tech, '/technician.php?page=device&id='+tech_id)
+check(status == 404 and 'INTERNAL_ONLY_DIAGNOSIS' not in denied,
+      'cross-technician repair detail access is refused without leaking diagnosis')
+status, _, no_change = form(other_tech, '/technician.php?page=device&id='+tech_id, {
+    'action':'status','device_id':tech_id,'csrf_token':token(other_queue),'next_status':'TESTING'})
+check(status == 404, 'unassigned technician cannot change another repair')
+status, _, history = fetch(tech, '/technician.php?view=history')
+check(status == 200 and 'Repair history' in history,
+      'technician history view is accessible and scoped')
+subprocess.run(['php','course-edp/tests/web-fixture.php','tech-revoke',tech_fixture['tech_email']],
+               check=True,capture_output=True,env=os.environ.copy())
+status, _, revoked = fetch(tech, '/technician.php')
+check(status == 200 and 'Technician sign in' in revoked and 'My repair queue' not in revoked,
+      'disabling technician account invalidates its session immediately')
+
 print('All isolated academic web smoke checks passed.')

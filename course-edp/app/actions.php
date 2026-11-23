@@ -94,6 +94,18 @@ function edpChangeRepairStatus(PDO $pdo, int $actorId, int $ticketDeviceId, stri
         if (!$query->fetchColumn()) {
             throw new DomainException('This repair status transition is not allowed.');
         }
+        // A technician cannot describe a quotation as awaiting customer approval
+        // until a manager-approved sending workflow has actually sent it.
+        if ($next === 'AWAITING_CUSTOMER_APPROVAL') {
+            $query = $pdo->prepare('SELECT quote_status,sent_at FROM repair_quotes
+                WHERE ticket_device_id=? ORDER BY version_no DESC LIMIT 1 FOR UPDATE');
+            $query->execute([$ticketDeviceId]);
+            $approval = $query->fetch(PDO::FETCH_ASSOC);
+            if (!$approval || $approval['quote_status'] !== 'AWAITING_CUSTOMER' ||
+                $approval['sent_at'] === null) {
+                throw new DomainException('A sent quotation is required before customer approval can be awaited.');
+            }
+        }
         if ($next === 'IN_PROGRESS' || $next === 'READY_FOR_PICKUP') {
             $query = $pdo->prepare('SELECT quote_status FROM repair_quotes
                 WHERE ticket_device_id = ? ORDER BY version_no DESC LIMIT 1 FOR UPDATE');

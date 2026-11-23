@@ -35,6 +35,74 @@ if (($argv[1] ?? '') === 'portal-revoke') {
     exit;
 }
 
+/** Technicians are provisioned only by the disposable CLI fixture, never by a web endpoint. */
+if (($argv[1] ?? '') === 'tech-create') {
+    $branch=(int)$pdo->query("SELECT branch_id FROM branches WHERE branch_code='SOGOD-DEMO'")->fetchColumn();
+    if (!$branch) throw new RuntimeException('Fictional branch missing');
+    $suffix=bin2hex(random_bytes(6));
+    $techPassword=bin2hex(random_bytes(12));$otherPassword=bin2hex(random_bytes(12));
+    $q=$pdo->prepare('INSERT INTO users(full_name,email,password_hash,role_code) VALUES (?,?,?,?)');
+    $q->execute(['Fixture Supervisor',"techmanager-$suffix@example.test",
+        password_hash(bin2hex(random_bytes(12)),PASSWORD_DEFAULT),'MANAGER']);
+    $manager=(int)$pdo->lastInsertId();
+    $q->execute(['Assigned Fixture Technician',"fixturetech-$suffix@example.test",
+        password_hash($techPassword,PASSWORD_DEFAULT),'TECHNICIAN']);
+    $tech=(int)$pdo->lastInsertId();
+    $q->execute(['Other Fixture Technician',"otherfixturetech-$suffix@example.test",
+        password_hash($otherPassword,PASSWORD_DEFAULT),'TECHNICIAN']);
+    $other=(int)$pdo->lastInsertId();
+    $assign=$pdo->prepare('INSERT INTO user_branch_assignments(user_id,branch_id) VALUES(?,?)');
+    foreach ([$manager,$tech,$other] as $id) $assign->execute([$id,$branch]);
+    $pdo->prepare("INSERT INTO customers(full_name,phone) VALUES('Fictional Technician Customer','09123456789')")->execute();
+    $customer=(int)$pdo->lastInsertId();
+    $pdo->prepare("INSERT INTO customer_devices(customer_id,device_type_code) VALUES(?,'LAPTOP')")->execute([$customer]);
+    $customerDevice=(int)$pdo->lastInsertId();
+    $portal=strtoupper(substr(bin2hex(random_bytes(3)),0,5));
+    $ticketCode='RT-TECH-'.strtoupper($suffix);
+    $pdo->prepare("INSERT INTO repair_tickets(customer_id,branch_id,ticket_code,portal_code,portal_pin_hash,
+        ticket_state,issued_at,created_by_user_id,terms_version,terms_signed_at,terms_signature_path)
+        VALUES (?,?,?,?,?,'OPEN',UTC_TIMESTAMP(),?,'CLASSROOM-1',UTC_TIMESTAMP(),'signed/fixture-technician.png')")
+        ->execute([$customer,$branch,$ticketCode,$portal,password_hash('6789',PASSWORD_DEFAULT),$manager]);
+    $ticket=(int)$pdo->lastInsertId();
+    $q=$pdo->prepare("SELECT location_id FROM storage_locations WHERE branch_id=? AND location_code='COUNTER'");
+    $q->execute([$branch]);$location=(int)$q->fetchColumn();
+    $pdo->prepare("INSERT INTO ticket_devices(ticket_id,customer_id,branch_id,customer_device_id,
+        sequence_no,item_code,device_type_code,status_code,custody_state,location_id,reported_symptoms)
+        VALUES (?,?,?,?,1,?,'LAPTOP','RECEIVED','AT_LOCATION',?,'Laptop overheats')")
+        ->execute([$ticket,$customer,$branch,$customerDevice,$ticketCode.'-01',$location]);
+    $device=(int)$pdo->lastInsertId();
+    edpAssignTechnician($pdo,$manager,$device,$tech);
+    echo json_encode(['tech_email'=>"fixturetech-$suffix@example.test",'tech_password'=>$techPassword,
+        'other_email'=>"otherfixturetech-$suffix@example.test",'other_password'=>$otherPassword,
+        'device_id'=>$device,'portal_code'=>$portal,'ticket_code'=>$ticketCode],JSON_THROW_ON_ERROR);
+    exit;
+}
+if (($argv[1] ?? '') === 'tech-approve') {
+    $deviceId=(int)($argv[2]??0);$portal=strtoupper((string)($argv[3]??''));
+    if ($deviceId<1 || !preg_match('/^[A-F0-9]{5}$/D',$portal)) throw new RuntimeException('Invalid fixture identifiers');
+    $q=$pdo->prepare("UPDATE repair_quotes q
+        JOIN ticket_devices d ON d.ticket_device_id=q.ticket_device_id
+        JOIN repair_tickets t ON t.ticket_id=d.ticket_id
+        JOIN users u ON u.user_id=t.created_by_user_id
+        SET q.quote_status='APPROVED',q.sent_at=UTC_TIMESTAMP(),
+            q.decision_recorded_by=u.user_id,q.decision_at=UTC_TIMESTAMP()
+        WHERE d.ticket_device_id=? AND t.portal_code=? AND q.quote_status='DRAFT'
+          AND u.email LIKE 'techmanager-%@example.test'");
+    $q->execute([$deviceId,$portal]);
+    if ($q->rowCount()!==1) throw new RuntimeException('Expected synthetic draft quote not found');
+    echo "Synthetic manager/customer approval recorded for CI only\n";
+    exit;
+}
+if (($argv[1] ?? '') === 'tech-revoke') {
+    $email=(string)($argv[2]??'');
+    if (!preg_match('/^fixturetech-[a-f0-9]{12}@example[.]test$/D',$email))
+        throw new RuntimeException('Only fictional technician fixture accounts can be revoked');
+    $q=$pdo->prepare("UPDATE users SET is_active=0 WHERE email=? AND role_code='TECHNICIAN'");
+    $q->execute([$email]);
+    if ($q->rowCount()!==1) throw new RuntimeException('Fictional technician was not found');
+    echo "Synthetic technician disabled\n";exit;
+}
+
 // Add a realistic but strictly fictional repair update for customer-portal HTTP checks.
 if (($argv[1] ?? '') === 'portal-progress') {
     $code = strtoupper((string)($argv[2] ?? ''));

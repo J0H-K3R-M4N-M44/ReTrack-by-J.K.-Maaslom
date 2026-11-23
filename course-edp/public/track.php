@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /** Public customer read-only tracker. The staff preview has a DIFFERENT session cookie. */
-require_once __DIR__ . '/../app/preview.php';
+require_once __DIR__ . '/../app/bootstrap.php';
 require_once __DIR__ . '/../app/tracking.php';
 edpPreviewHeaders();
 

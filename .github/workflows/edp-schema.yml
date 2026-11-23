@@ -28,6 +28,10 @@ jobs:
           php -l course-edp/app/actions.php
           php -l course-edp/app/catalogs.php
           php -l course-edp/app/intake.php
+          php -l course-edp/app/bootstrap.php
+          php -l course-edp/app/technician.php
+          php -l course-edp/public/technician.php
+          php -l course-edp/tests/technician-flow.php
           php -l course-edp/app/preview.php
           php -l course-edp/public/index.php
           php -l course-edp/app/tracking.php
@@ -52,6 +56,7 @@ jobs:
           set -euo pipefail
           php course-edp/tests/db-integrity.php
           php course-edp/tests/intake-flow.php
+          php course-edp/tests/technician-flow.php
           php course-edp/tests/db-concurrency.php
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM customers' | grep -Fxq 0
           mysql -N -h 127.0.0.1 -u root repairtrack_edp -e 'SELECT COUNT(*) FROM repair_bill_payments' | grep -Fxq 0
