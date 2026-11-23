@@ -2,8 +2,9 @@
 
 **Snapshot:** 2026-11-23 (Asia/Manila)  
 **Branch:** `EDP-Course-MVP`  
-**Source baseline:** `bd89daa910c53e3bcc024501d210c2fbb51174f3`  
-**Automated evidence:** [GitHub Actions #45131879049](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45131879049) — completed successfully for that SHA, both `schema-integrity` and `windows-notepad-build`.
+**Reviewed implementation SHA:** `8bcc33496390494207b0ca3e310e091c51634116`  
+**Automated evidence:** [GitHub Actions #45138179914](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45138179914) — completed successfully for that SHA, both `schema-integrity` and `windows-notepad-build`.  
+**Populated-workflow review:** [POPULATED-HCI-REVIEW.md](POPULATED-HCI-REVIEW.md) with [48 Chromium screenshots](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45138179914/artifacts/14800452542).
 
 This is a **versioned checkpoint**, not a claim that later commits automatically passed. Verify the latest branch HEAD and its matching CI run before citing it. The independent `course-edp/` app uses **23 MySQL tables** and fictional records. It does **not** replace legacy `app/`, `admin/`, `views/`, `database/schema.sql` or the deployed website. Do not point the legacy PHP site at `repairtrack_edp`.
 
@@ -23,10 +24,10 @@ This is a **versioned checkpoint**, not a claim that later commits automatically
 | Customer tracking and timeline | `public/track.php`, `app/tracking.php` | `web-smoke.py`, `full-journey-http.py` | **Implemented / automated** for read-only projection; no live chat/requests/downloads |
 | Technician queue, diagnosis, quote draft, repair status | `public/technician.php`, `app/technician.php`, `app/actions.php` | `technician-flow.php`, `web-smoke.py`, `full-journey-http.py` | **Implemented / automated** for assigned fictional records, legal transitions, branch and capacity checks |
 | First repair-start DateTime | `app/actions.php` (first authorized `IN_PROGRESS`) | `db-integrity.php`, `technician-flow.php`, `full-journey-http.py` | **Implemented / automated**; UTC storage and Philippine-time UI |
-| Manager assignment and quotation publication | `public/manager.php`, `app/manager.php` | `manager-flow.php`, `web-smoke.py`, `full-journey-http.py` | **Implemented / automated**; offline approval remains staff-attested only |
+| Manager assignment, quotation publication and authorized archived-detail review | `public/manager.php`, `app/manager.php` | `manager-flow.php`, `web-smoke.py`, `full-journey-http.py`, `browser-hci.py` | **Implemented / automated**; closed detail is read-only and branch-scoped; archive discovery is not in manager queue; consent remains staff-attested only |
 | Cashier search, itemized bill, cash payments, receipt, pickup | `public/cashier.php`, `app/cashier.php`, `app/actions.php` | `cashier-flow.php`, `db-concurrency.php`, `full-journey-http.py` | **Implemented / automated** for counter cash and guarded in-person handover; not fiscal-grade; no COD/courier/refunds |
 | Cross-role repair lifecycle | Role-specific pages and domain modules | `ACCEPTANCE.md`, `full-journey-http.py` | **Implemented / automated** via real localhost form submissions; real customer identity/consent not proved |
-| HCI viewport/screenshot acceptance | `tests/browser-hci.py`, first-party CSS | `EDP-LAB-ACCEPTANCE.md`, screenshot artifact in CI | **Partial**; headless Chromium at 375/768/1366 px, sign-in and role-home/empty-state coverage, not populated workflows or assistive technology |
+| HCI viewport/screenshot acceptance | `tests/browser-hci.py`, first-party CSS | `POPULATED-HCI-REVIEW.md`, exact-SHA 48-PNG artifact | **Partial**; headless Chromium at 375/768/1366 px now covers sign-in, home and populated completed ticket, manager quote, technician history, cashier receipts and customer timeline; not actual devices, pending states or assistive technology |
 | Browser Notepad and folder monitor | `public/lab.php`, `public/assets/lab.js` | `tests/browser-hci.py` | **Partial**; synthetic browser file-open/save exercised, real directory permission/event demo pending |
 | Native WinForms file watcher | `labs/NotepadCompanion/` | `windows-notepad-build` CI job | **Manual evidence pending**; compilation passes, actual desktop Open/Save/Created/Renamed/Deleted events not proved |
 | External REST/JSON | `app/holiday-api.php`, `public/holiday-api.php` | `tests/edp-lab.php`, browser mocked JSON | **Partial**; parser/UI tested, live endpoint and disconnected-state demonstrations pending |
@@ -41,7 +42,7 @@ This is a **versioned checkpoint**, not a claim that later commits automatically
 | --- | --- | --- |
 | Technician repair-start DateTime | Domain first-start timestamp, technician UI, cross-role SQL/HTTP verification | Actual production-time acceptance remains pending |
 | Hover analytics with date and numbers | No academic analytics module | **Not integrated** |
-| Aligned columns/row data; refined status board | Mobile Chromium basic overflow/label assertions; manager scroll hint | Populated analytics/status boards and actual-phone HCI not accepted |
+| Aligned columns/row data; refined status board | Chromium overflow/label checks now include six populated completed-workflow screens; fixed 768 px technician detail overflow | Analytics/status board and actual-phone HCI remain unaccepted |
 | Cashier lookup using internal Ticket Code | `public/cashier.php`; exact `RT-` + 12 hex separate from public code; HTTP smoke | Real cashier usability and legal receipt process not accepted |
 | Public 5-hex tracking code + phone-suffix PIN | `public/track.php`; code/PIN verification, throttle, revocation tests | Short credentials and local file throttling unsuitable as sole public defense |
 | Technician assignment and workload limits | Manager assignment action and technician capacity/branch checks | Workload analytics / management still separate |
@@ -62,7 +63,7 @@ This is a **versioned checkpoint**, not a claim that later commits automatically
 
 1. **P0 — Documentation baseline:** keep this checkpoint, `README.md`, `ACCEPTANCE.md` and `EDP-LAB-ACCEPTANCE.md` consistent; do not describe historical slice gaps as current state.
 2. **P1 — Manual Module 3 demonstrations:** on actual Windows, exercise `OpenFileDialog`, `SaveFileDialog` and .NET `FileSystemWatcher` (create, rename, delete); on a supported browser test permissioned `.txt` folder monitoring and unsupported fallback; validate live and offline REST behavior. Attach dated observations/screenshots to assessment notes.
-3. **P1 — Broader HCI gate:** test populated repair details, quotes, receipts and pickup screens at mobile/tablet/desktop, 200% zoom, keyboard, screen reader and touch-target sizes; log and reproduce defects.
+3. **P1 — Broader HCI gate:** completed-workflow Chromium screenshots and viewport assertions now pass. Next capture pending quotation and partial-payment states; test actual phones, 200% zoom, keyboard, screen reader and touch-target sizes. Evaluate the long customer timeline and archived manager-navigation discovery before redesign.
 4. **P1 before public use — Security and consent:** define customer-verifiable quote approval, least-privilege DB connection(s), public throttling/HTTPS and device-collection identity policy; add negative tests.
 5. **P2 — Requirements closure:** explicitly scope admin analytics, customer messages/requests, parts/media, COD and refunds against assignment rubric; implement only approved features with role/privacy tests.
 6. **P3 — Migration decision:** choose a standalone classroom deliverable or a separate, backed-up legacy integration project. No migration to `main` without schema mapping, rollback and end-to-end regression evidence.
