@@ -10,7 +10,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, expect
 
 BASE = os.environ.get('EDP_TEST_URL', 'http://127.0.0.1:8743')
 if BASE != 'http://127.0.0.1:8743':
@@ -100,12 +100,12 @@ with sync_playwright() as playwright:
                     window.showSaveFilePicker = async () => handle;
                 }''')
                 page.locator('#note-open').click()
-                page.wait_for_function("document.querySelector('#note-editor').value === 'Opened from real file event'", timeout=7000)
+                expect(page.locator('#note-editor')).to_have_value('Opened from real file event', timeout=7000)
                 check(page.locator('#note-editor').input_value() == 'Opened from real file event',
                       'Notepad open click imports UTF-8 text via browser File API')
                 page.locator('#note-editor').fill('Edited classroom note')
                 page.locator('#note-save').click()
-                page.wait_for_function("window.__savedNotepadContent === 'Edited classroom note'", timeout=7000)
+                expect(page.locator('#note-feedback')).to_contain_text('Saved exercise.txt', timeout=7000)
                 check(page.evaluate('window.__savedNotepadContent') == 'Edited classroom note',
                       'Notepad save click invokes file writer with revised text')
                 year = page.locator('#holiday-year').input_value()
