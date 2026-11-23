@@ -112,8 +112,20 @@ jobs:
             if curl -sSf -o /dev/null 'http://127.0.0.1:8743/?page=login'; then break; fi
             sleep 1
           done
+          # The fixture must refuse a missing human-readable confirmation token.
+          if env -u REPAIRTRACK_EDP_CONFIRM_FRESH php course-edp/tests/full-journey-fixture.php preflight >/dev/null 2>&1; then
+            echo "Unsafe fixture: accepted a run without explicit disposable confirmation" >&2
+            exit 1
+          fi
+          export REPAIRTRACK_EDP_CONFIRM_FRESH=I_CONFIRM_NEW_DISPOSABLE_REPAIRTRACK_EDP
+          php course-edp/tests/full-journey-fixture.php preflight
           python3 course-edp/tests/full-journey-http.py
           test -f "$EDP_BROWSER_JOURNEY_MANIFEST"
+          # The same preflight must refuse a database populated by the journey.
+          if php course-edp/tests/full-journey-fixture.php preflight >/dev/null 2>&1; then
+            echo "Unsafe fixture: accepted a database with existing records" >&2
+            exit 1
+          fi
           python3 course-edp/tests/web-smoke.py
           EDP_BROWSER_OUTPUT="$RUNNER_TEMP/edp-browser-screenshots" python3 course-edp/tests/browser-hci.py
       - name: Attach desktop/tablet/mobile browser evidence
