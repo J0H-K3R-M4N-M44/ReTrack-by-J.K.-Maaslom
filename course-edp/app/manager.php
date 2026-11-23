@@ -169,7 +169,7 @@ function edpManagerDevice(PDO $pdo, int $actorId, int $deviceId): ?array
         JOIN users actor ON actor.user_id=a.user_id AND actor.is_active=1
             AND actor.role_code IN ('ADMIN','MANAGER')
         LEFT JOIN users u ON u.user_id=d.assigned_technician_id
-        WHERE d.ticket_device_id=? AND t.ticket_state='OPEN' LIMIT 1");
+        WHERE d.ticket_device_id=? LIMIT 1");
     $q->execute([$actorId,$deviceId]);
     $device = $q->fetch(PDO::FETCH_ASSOC);
     if (!$device) return null;
