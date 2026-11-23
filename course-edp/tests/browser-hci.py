@@ -141,6 +141,19 @@ with sync_playwright() as playwright:
                       and 'APPROVED' in page.locator('main').inner_text(),
                       'manager review shows the actual approved fictional quote')
                 screenshot_viewports(page, 'populated-manager-quote')
+                if 'pending_hci' in journey:
+                    pending = journey['pending_hci']
+                    response = page.goto(BASE+'/manager.php?page=device&id='+pending['device_id'],
+                                         wait_until='networkidle')
+                    manager_text = page.locator('main').inner_text()
+                    check(response is not None and response.status == 200
+                          and pending['ticket_code'] in manager_text
+                          and 'AWAITING_CUSTOMER' in manager_text
+                          and page.get_by_role('heading',
+                                               name='Record offline customer decision').count() == 1
+                          and page.get_by_label("Customer's decision").count() == 1,
+                          'manager pending quotation displays the actual decision form')
+                    screenshot_viewports(page, 'pending-manager-quotation')
             if journey and role == 'technician':
                 response = page.goto(BASE+'/technician.php?page=device&id='+journey['device_ids'][0],
                                      wait_until='networkidle')
@@ -168,6 +181,21 @@ with sync_playwright() as playwright:
                       and journey['ticket_code'] in page.locator('main').inner_text(),
                       'cashier receipt displays fictional ticket payment')
                 screenshot_viewports(page, 'populated-cashier-receipt')
+                if 'partial_hci' in journey:
+                    partial = journey['partial_hci']
+                    response = page.goto(BASE+'/cashier.php?page=ticket&id='+partial['ticket_id'],
+                                         wait_until='networkidle')
+                    bill_text = page.locator('main').inner_text()
+                    check(response is not None and response.status == 200
+                          and partial['ticket_code'] in bill_text
+                          and '180.00' in bill_text
+                          and 'Pickup is blocked until' in bill_text,
+                          'cashier sees the real unsettled 180-peso balance and pickup block')
+                    check(page.locator('a[href*="page=receipt"]').count() == 1
+                          and page.get_by_role('button', name='Record received cash').count() == 1
+                          and page.get_by_role('button', name='Complete counter pickup').count() == 0,
+                          'partial-payment desk shows one receipt and no usable pickup action')
+                    screenshot_viewports(page, 'partial-cashier-payment')
             if role == 'technician':
                 page.set_viewport_size({'width': 1366, 'height': 900})
                 page.get_by_role('link', name='EDP Lab Tools').click()
@@ -241,6 +269,34 @@ with sync_playwright() as playwright:
         else:
             print('NOTE: populated pages not checked without a private journey manifest')
         context.close()
+
+        # Fresh customer context inspects the truly pending quote, never an HTML mock.
+        if journey and 'pending_hci' in journey:
+            pending = journey['pending_hci']
+            pending_context = browser.new_context(viewport={'width': 375, 'height': 812},
+                                                  timezone_id='Asia/Manila')
+            try:
+                pending_page = pending_context.new_page()
+                response = pending_page.goto(BASE+'/track.php', wait_until='networkidle')
+                check(response is not None and response.status == 200,
+                      'pending customer opens real tracking sign-in page')
+                pending_page.get_by_label('Tracking code').fill(pending['portal_code'])
+                pending_page.get_by_label('Portal PIN').fill(pending['portal_pin'])
+                pending_page.get_by_role('button', name='View repair progress').press('Enter')
+                pending_page.get_by_role('heading', name='Repair progress',
+                                         exact=True).wait_for(timeout=12000)
+                customer_text = pending_page.locator('main').inner_text()
+                check(pending['ticket_code'] in customer_text
+                      and 'Awaiting customer decision' in customer_text
+                      and '300.00' in customer_text,
+                      'customer sees a real pending, published 300-peso quote')
+                check('PRIVATE_INTERMEDIATE_HCI' not in customer_text
+                      and 'journey@example.test' not in customer_text
+                      and 'Cash receipt #' not in customer_text,
+                      'pending customer view excludes diagnosis, contact and payment records')
+                screenshot_viewports(pending_page, 'pending-customer-quotation')
+            finally:
+                pending_context.close()
 
         print('PASS: real Chromium HCI and EDP lab acceptance completed')
     finally:
