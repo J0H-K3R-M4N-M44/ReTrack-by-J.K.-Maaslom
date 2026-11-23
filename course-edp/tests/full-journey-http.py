@@ -10,6 +10,7 @@ import html
 import http.cookiejar
 import json
 import os
+from pathlib import Path
 import re
 import secrets
 import subprocess
@@ -291,4 +292,28 @@ ok(len(end['payments'])==2 and sum(round(float(p['amount'])*100)
 ok(all(d['quote_status']=='APPROVED' and d['quote_sent_at']
        for d in end['devices']),
    'completed repairs retain their customer-visible approved quotations')
+# A dedicated, opt-in handoff lets Chromium inspect POPULATED pages after this
+# genuine HTTP journey. It contains only synthetic credentials and is kept in the
+# runner's private temporary directory, never the webroot or screenshot artifact.
+handoff = os.environ.get('EDP_BROWSER_JOURNEY_MANIFEST')
+if handoff:
+    destination = Path(handoff)
+    if not destination.is_absolute():
+        raise AssertionError('Browser journey handoff must be an absolute temporary path')
+    public_root = Path('course-edp/public').resolve()
+    if destination.resolve().is_relative_to(public_root):
+        raise AssertionError('Never place journey credentials inside the public document root')
+    if destination.parent.resolve() != Path(os.environ['RUNNER_TEMP']).resolve():
+        raise AssertionError('Browser journey handoff must stay in the CI runner temporary directory')
+    snapshot = {
+        'staff': staff,
+        'ticket_code': code, 'ticket_id': ticket_id,
+        'device_ids': device_ids, 'portal_code': portal_code,
+        'portal_pin': phone[-4:],
+    }
+    # Exclusive file creation and 0600 permissions; never echo this manifest.
+    descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, 'w', encoding='utf-8') as handle:
+        json.dump(snapshot, handle)
+    print('PASS: private fictional journey handoff prepared for real-browser inspection')
 print('PASS: full cross-role journey, using ONLY real HTTP repair actions, is consistent.')
