@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One REAL browser-like intake -> manager -> technician -> customer -> cashier journey.
+"""A complete real HTTP repair journey plus two fictional intermediate HCI states.
 
 Runs only against the isolated localhost PHP preview and disposable repairtrack_edp.
 The CLI helper provisions fictional staff and inspects read-only final state; NO test
@@ -292,6 +292,164 @@ ok(len(end['payments'])==2 and sum(round(float(p['amount'])*100)
 ok(all(d['quote_status']=='APPROVED' and d['quote_sent_at']
        for d in end['devices']),
    'completed repairs retain their customer-visible approved quotations')
+
+# 8. Leave two MORE fictional tickets in real intermediate states for Chromium.
+# Reuse existing authenticated staff cookie jars to avoid weakening rate limiting.
+# No helper/SQL action creates a status, quote, bill or payment for these cases.
+def intermediate_ticket(label):
+    test_phone = '09' + ''.join(str(secrets.randbelow(10)) for _ in range(9))
+    status, _, intake_page = fetch(intake, '/?page=intake')
+    request_key = re.search(r'name="draft_request_key" value="([a-f0-9]{64})"', intake_page)
+    ok(status == 200 and request_key is not None,
+       label + ': new fictional intake form supplies a request key')
+    fields = [
+        ('action', 'create_draft'), ('csrf_token', csrf(intake_page)),
+        ('draft_request_key', request_key.group(1)), ('branch_id', branch),
+        ('device_type_code[]', 'LAPTOP'), ('defect_code[]', 'NO_DISPLAY'),
+        ('reported_symptoms[]', 'Synthetic HCI checkpoint only'),
+        ('make[]', 'Fictional'), ('model[]', label + ' Laptop'),
+    ]
+    status, draft_url, draft_page = form(intake, '/?page=intake', fields)
+    draft_match = re.search(r'page=draft(?:&|&amp;)id=(\d+)', draft_url + draft_page)
+    ok(status == 200 and draft_match is not None and 'Issue repair ticket' in draft_page,
+       label + ': device draft created by real intake HTTP')
+    draft_id = draft_match.group(1)
+    status, _, receipt_page = multipart(intake, '/?page=draft&id=' + draft_id, {
+        'action': 'issue', 'csrf_token': csrf(draft_page), 'draft_id': draft_id,
+        'customer_mode': 'new', 'full_name': 'Journey Fictional Customer',
+        'phone': test_phone, 'email': 'journey@example.test', 'signed_terms': 'yes',
+    }, label + '.png', signature)
+    internal_code = re.search(r'RT-[0-9A-F]{12}', receipt_page)
+    portal_match = re.search(r'<dd>([0-9A-F]{5})</dd>', receipt_page)
+    ok(status == 200 and 'Issue successful' in receipt_page
+       and internal_code is not None and portal_match is not None,
+       label + ': private receipt issued by the real application')
+    ticket_code = internal_code.group()
+    record = helper('inspect', ticket_code)
+    ok(record['ticket']['ticket_state'] == 'OPEN' and len(record['devices']) == 1,
+       label + ': read-only SQL inspection finds one real issued device')
+    device_id = str(record['devices'][0]['ticket_device_id'])
+    ticket_route = '/manager.php?page=device&id=' + device_id
+    status, _, manager_page = fetch(manager, ticket_route)
+    status, _, assigned = form(manager, ticket_route, {
+        'action': 'assign', 'csrf_token': csrf(manager_page),
+        'device_id': device_id, 'technician_id': str(staff['technician']['id']),
+    })
+    ok(status == 200 and 'Technician assignment saved' in assigned,
+       label + ': branch manager assigns real device')
+    tech_route = '/technician.php?page=device&id=' + device_id
+    status, _, tech_page = fetch(tech, tech_route)
+    status, _, diagnosing = form(tech, tech_route, {
+        'action': 'status', 'csrf_token': csrf(tech_page),
+        'device_id': device_id, 'next_status': 'DIAGNOSING',
+        'public_summary': 'Classroom technician assessment',
+    })
+    ok(status == 200 and 'Diagnosing' in diagnosing,
+       label + ': technician begins diagnosis')
+    status, _, diagnosed = form(tech, tech_route, {
+        'action': 'diagnosis', 'csrf_token': csrf(diagnosing),
+        'device_id': device_id,
+        'diagnosis': 'PRIVATE_INTERMEDIATE_HCI: synthetic hardware check',
+    })
+    ok(status == 200 and 'Private diagnosis saved' in diagnosed,
+       label + ': technician stores a private assessment')
+    status, _, drafted = form(tech, tech_route, {
+        'action': 'quote', 'csrf_token': csrf(diagnosed),
+        'device_id': device_id, 'labor': '250.00',
+        'parts': '50.00', 'other': '0.00',
+    })
+    ok(status == 200 and 'Quotation draft saved' in drafted and '300.00' in drafted,
+       label + ': technician drafts a 300-peso quote')
+    status, _, ready_to_send = fetch(manager, ticket_route)
+    status, _, published = form(manager, ticket_route, {
+        'action': 'send_quote', 'csrf_token': csrf(ready_to_send),
+        'device_id': device_id,
+    })
+    ok(status == 200 and 'Current quotation sent' in published,
+       label + ': manager publishes the quote for customer review')
+    return {
+        'ticket_code': ticket_code, 'ticket_id': str(record['ticket']['ticket_id']),
+        'device_id': device_id, 'portal_code': portal_match.group(1),
+        'portal_pin': test_phone[-4:], 'phone': test_phone,
+    }
+
+
+pending_hci = intermediate_ticket('Pending-Quote')
+pending_state = helper('inspect', pending_hci['ticket_code'])
+ok(pending_state['devices'][0]['status_code'] == 'AWAITING_CUSTOMER_APPROVAL'
+   and pending_state['devices'][0]['quote_status'] == 'AWAITING_CUSTOMER'
+   and pending_state['devices'][0]['quote_sent_at'] is not None
+   and pending_state['bill'] is None,
+   'intermediate pending-quote ticket remains sent, undecided and unbilled')
+status, _, manager_pending = fetch(manager,
+    '/manager.php?page=device&id=' + pending_hci['device_id'])
+ok(status == 200 and 'Record offline customer decision' in manager_pending,
+   'pending-quote manager form is available for browser review')
+status, _, outsider_pending = fetch(outsider,
+    '/manager.php?page=device&id=' + pending_hci['device_id'])
+ok(status == 404 and pending_hci['ticket_code'] not in outsider_pending,
+   'pending-quote detail remains hidden from another branch')
+
+partial_hci = intermediate_ticket('Partially-Paid')
+partial_route = '/manager.php?page=device&id=' + partial_hci['device_id']
+status, _, manager_partial = fetch(manager, partial_route)
+status, _, approved_partial = form(manager, partial_route, {
+    'action': 'decision', 'csrf_token': csrf(manager_partial),
+    'device_id': partial_hci['device_id'], 'decision': 'APPROVED',
+    'channel': 'IN_PERSON',
+    'reference': 'FICTIONAL-INTERMEDIATE-APPROVAL',
+    'confirmed': 'yes',
+})
+ok(status == 200 and 'Offline customer decision recorded' in approved_partial,
+   'partial-payment quote receives only staff-attested offline approval')
+partial_tech_route = '/technician.php?page=device&id=' + partial_hci['device_id']
+for stage in ['IN_PROGRESS', 'TESTING', 'READY_FOR_PICKUP']:
+    status, _, current_tech = fetch(tech, partial_tech_route)
+    status, _, updated_partial = form(tech, partial_tech_route, {
+        'action': 'status', 'csrf_token': csrf(current_tech),
+        'device_id': partial_hci['device_id'], 'next_status': stage,
+        'public_summary': 'Classroom repair: ' + stage.replace('_', ' ').lower(),
+    })
+    ok(status == 200 and 'Repair progress' in updated_partial,
+       'partial-payment device advances through ' + stage)
+partial_cash_route = '/cashier.php?page=ticket&id=' + partial_hci['ticket_id']
+status, _, eligible_cash = fetch(cash, partial_cash_route)
+status, _, issued_partial = form(cash, partial_cash_route, {
+    'action': 'issue_bill', 'csrf_token': csrf(eligible_cash),
+    'ticket_id': partial_hci['ticket_id'],
+})
+ok(status == 200 and 'Itemized bill issued' in issued_partial
+   and '300.00' in issued_partial, 'partial-payment ticket receives approved 300-peso bill')
+bill_id = re.search(r'name="bill_id" value="(\d+)"', issued_partial)
+ok(bill_id is not None, 'partial-payment form references the issued bill')
+payment_request = uuid.uuid4().hex + uuid.uuid4().hex
+status, _, partial_receipt = form(cash, partial_cash_route, {
+    'action': 'payment', 'csrf_token': csrf(issued_partial),
+    'ticket_id': partial_hci['ticket_id'], 'bill_id': bill_id.group(1),
+    'request_key': payment_request, 'amount': '120.00',
+})
+ok(status == 200 and 'Cash receipt #' in partial_receipt and '120.00' in partial_receipt,
+   'cashier records only the real 120-peso partial payment')
+status, _, partial_cash_view = fetch(cash, partial_cash_route)
+ok(status == 200 and '180.00' in partial_cash_view
+   and 'Pickup is blocked until' in partial_cash_view,
+   'partial-payment ticket displays 180-peso balance and blocked pickup')
+status, _, forbidden_pickup = form(cash, partial_cash_route, {
+    'action': 'pickup', 'csrf_token': csrf(partial_cash_view),
+    'ticket_id': partial_hci['ticket_id'],
+    'confirmed_phone': partial_hci['phone'], 'attested': 'yes',
+})
+ok(status == 422 and 'unpaid balance' in forbidden_pickup,
+   'server rejects direct pickup POST despite staff attestation and correct phone')
+partial_state = helper('inspect', partial_hci['ticket_code'])
+ok(partial_state['ticket']['ticket_state'] == 'OPEN'
+   and partial_state['devices'][0]['status_code'] == 'READY_FOR_PICKUP'
+   and partial_state['devices'][0]['custody_state'] == 'AT_LOCATION'
+   and partial_state['bill']['total_amount'] == '300.00'
+   and len(partial_state['payments']) == 1
+   and partial_state['payments'][0]['amount'] == '120.00',
+   'read-only SQL confirms unsettled bill, open custody and exactly one payment')
+
 # A dedicated, opt-in handoff lets Chromium inspect POPULATED pages after this
 # genuine HTTP journey. It contains only synthetic credentials and is kept in the
 # runner's private temporary directory, never the webroot or screenshot artifact.
@@ -310,6 +468,11 @@ if handoff:
         'ticket_code': code, 'ticket_id': ticket_id,
         'device_ids': device_ids, 'portal_code': portal_code,
         'portal_pin': phone[-4:],
+        # Only synthetic secrets, retained in a 0600 runner-temp file.
+        'pending_hci': {k: pending_hci[k] for k in
+                        ('ticket_code', 'ticket_id', 'device_id', 'portal_code', 'portal_pin')},
+        'partial_hci': {k: partial_hci[k] for k in
+                        ('ticket_code', 'ticket_id', 'device_id')},
     }
     # Exclusive file creation and 0600 permissions; never echo this manifest.
     descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
