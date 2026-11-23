@@ -380,7 +380,7 @@ subprocess.run(['php','course-edp/tests/web-fixture.php','tech-approve',tech_id,
                 tech_fixture['portal_code']], check=True, capture_output=True,
                env=os.environ.copy())
 status, _, approved = fetch(tech, '/technician.php?page=device&id='+tech_id)
-check(status == 200 and 'Approved' in approved and 'In Repair' in approved,
+check(status == 200 and 'APPROVED' in approved and 'In Repair' in approved,
       'approved quote enables the legal in-repair status option')
 status, _, started = form(tech, '/technician.php?page=device&id='+tech_id, {
     'action':'status','device_id':tech_id,'csrf_token':token(approved),
