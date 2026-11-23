@@ -56,6 +56,37 @@ def fits_viewport(page, name, width):
           f'{name} at {width}px labels required input controls')
 
 
+
+def keyboard_form_order(page, first_label, second_label, submit_name, name):
+    """Validate a basic keyboard-only path; no mouse click is used here."""
+    first = page.get_by_label(first_label, exact=True)
+    second = page.get_by_label(second_label, exact=True)
+    submit = page.get_by_role('button', name=submit_name)
+    first.focus()
+    check(first.evaluate('(el) => document.activeElement === el'),
+          f'{name}: first field receives keyboard focus')
+    first.press('Tab')
+    check(second.evaluate('(el) => document.activeElement === el'),
+          f'{name}: Tab advances to the second field')
+    second.press('Tab')
+    check(submit.evaluate('(el) => document.activeElement === el'),
+          f'{name}: Tab reaches the primary submit control')
+    focus_style = submit.evaluate('''(el) => {
+        const css = getComputedStyle(el);
+        return {outlineStyle: css.outlineStyle, outlineWidth: css.outlineWidth};
+    }''')
+    check(focus_style['outlineStyle'] != 'none'
+          and focus_style['outlineWidth'] != '0px',
+          f'{name}: primary control has a visible keyboard focus outline')
+
+
+def narrow_viewport_proxy(page, name):
+    """320 CSS px is a layout stress test, not a certified 200% browser zoom test."""
+    page.set_viewport_size({'width': 320, 'height': 720})
+    page.wait_for_timeout(80)
+    fits_viewport(page, name+' narrow-layout proxy', 320)
+
+
 def screenshot_viewports(page, name):
     for width, height in [(375, 812), (768, 1024), (1366, 900)]:
         page.set_viewport_size({'width': width, 'height': height})
@@ -86,7 +117,9 @@ with sync_playwright() as playwright:
             check(response is not None and response.status == 200 and page.locator('h1').count(),
                   f'{role} sign-in page renders in real Chromium')
             screenshot_viewports(page, role+'-login')
+            narrow_viewport_proxy(page, role+'-login')
             page.set_viewport_size({'width': 1366, 'height': 900})
+            keyboard_form_order(page, 'Email', 'Password', 'Sign in', role+' login')
             user = credentials[role]
             page.get_by_label('Email', exact=True).fill(user['email'])
             page.get_by_label('Password', exact=True).fill(user['password'])
@@ -178,6 +211,10 @@ with sync_playwright() as playwright:
               page.get_by_role('heading',name='Track your repaired device').count()==1,
               'customer tracking login is accessible without a staff session')
         screenshot_viewports(page,'customer-login')
+        narrow_viewport_proxy(page, 'customer-login')
+        page.set_viewport_size({'width': 375, 'height': 812})
+        keyboard_form_order(page, 'Tracking code', 'Portal PIN', 'View repair progress',
+                            'customer tracking login')
         unauthorized = context.request.get(BASE+'/holiday-api.php?year=2026', max_redirects=0)
         check(unauthorized.status==401 and unauthorized.json().get('ok') is False,
               'external API adapter denies unauthenticated requests')
