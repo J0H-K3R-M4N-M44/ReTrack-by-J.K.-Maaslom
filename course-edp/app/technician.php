@@ -262,7 +262,7 @@ function edpTechSaveQuoteDraft(PDO $pdo, int $techId, int $deviceId,
                 WHERE quote_id=?');
             $q->execute([...$values,(int)$existing['quote_id']]);
             $quoteId=(int)$existing['quote_id'];
-        } elseif ($existing && $existing['quote_status'] !== 'DECLINED') {
+        } elseif ($existing && !in_array($existing['quote_status'], ['DECLINED','EXPIRED','SUPERSEDED'], true)) {
             throw new DomainException('The existing quotation is already awaiting a decision or approved.');
         } else {
             $version=$existing ? ((int)$existing['version_no']+1) : 1;

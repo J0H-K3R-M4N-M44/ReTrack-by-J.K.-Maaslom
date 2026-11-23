@@ -41,9 +41,10 @@ if (($argv[1] ?? '') === 'tech-create') {
     if (!$branch) throw new RuntimeException('Fictional branch missing');
     $suffix=bin2hex(random_bytes(6));
     $techPassword=bin2hex(random_bytes(12));$otherPassword=bin2hex(random_bytes(12));
+    $managerPassword=bin2hex(random_bytes(12));$otherManagerPassword=bin2hex(random_bytes(12));
     $q=$pdo->prepare('INSERT INTO users(full_name,email,password_hash,role_code) VALUES (?,?,?,?)');
     $q->execute(['Fixture Supervisor',"techmanager-$suffix@example.test",
-        password_hash(bin2hex(random_bytes(12)),PASSWORD_DEFAULT),'MANAGER']);
+        password_hash($managerPassword,PASSWORD_DEFAULT),'MANAGER']);
     $manager=(int)$pdo->lastInsertId();
     $q->execute(['Assigned Fixture Technician',"fixturetech-$suffix@example.test",
         password_hash($techPassword,PASSWORD_DEFAULT),'TECHNICIAN']);
@@ -51,8 +52,15 @@ if (($argv[1] ?? '') === 'tech-create') {
     $q->execute(['Other Fixture Technician',"otherfixturetech-$suffix@example.test",
         password_hash($otherPassword,PASSWORD_DEFAULT),'TECHNICIAN']);
     $other=(int)$pdo->lastInsertId();
+    $q->execute(['Other Branch Supervisor',"othermanager-$suffix@example.test",
+        password_hash($otherManagerPassword,PASSWORD_DEFAULT),'MANAGER']);
+    $otherManager=(int)$pdo->lastInsertId();
+    $pdo->prepare('INSERT INTO branches(branch_code,branch_name) VALUES (?,?)')
+        ->execute(['MT-'.$suffix,'Other Fictional Manager Branch']);
+    $otherManagerBranch=(int)$pdo->lastInsertId();
     $assign=$pdo->prepare('INSERT INTO user_branch_assignments(user_id,branch_id) VALUES(?,?)');
     foreach ([$manager,$tech,$other] as $id) $assign->execute([$id,$branch]);
+    $assign->execute([$otherManager,$otherManagerBranch]);
     $pdo->prepare("INSERT INTO customers(full_name,phone) VALUES('Fictional Technician Customer','09123456789')")->execute();
     $customer=(int)$pdo->lastInsertId();
     $pdo->prepare("INSERT INTO customer_devices(customer_id,device_type_code) VALUES(?,'LAPTOP')")->execute([$customer]);
@@ -72,26 +80,23 @@ if (($argv[1] ?? '') === 'tech-create') {
         ->execute([$ticket,$customer,$branch,$customerDevice,$ticketCode.'-01',$location]);
     $device=(int)$pdo->lastInsertId();
     edpAssignTechnician($pdo,$manager,$device,$tech);
-    echo json_encode(['tech_email'=>"fixturetech-$suffix@example.test",'tech_password'=>$techPassword,
+    echo json_encode(['manager_email'=>"techmanager-$suffix@example.test",
+        'manager_password'=>$managerPassword,
+        'other_manager_email'=>"othermanager-$suffix@example.test",
+        'other_manager_password'=>$otherManagerPassword,
+        'tech_email'=>"fixturetech-$suffix@example.test",'tech_password'=>$techPassword,
         'other_email'=>"otherfixturetech-$suffix@example.test",'other_password'=>$otherPassword,
         'device_id'=>$device,'portal_code'=>$portal,'ticket_code'=>$ticketCode],JSON_THROW_ON_ERROR);
     exit;
 }
-if (($argv[1] ?? '') === 'tech-approve') {
-    $deviceId=(int)($argv[2]??0);$portal=strtoupper((string)($argv[3]??''));
-    if ($deviceId<1 || !preg_match('/^[A-F0-9]{5}$/D',$portal)) throw new RuntimeException('Invalid fixture identifiers');
-    $q=$pdo->prepare("UPDATE repair_quotes q
-        JOIN ticket_devices d ON d.ticket_device_id=q.ticket_device_id
-        JOIN repair_tickets t ON t.ticket_id=d.ticket_id
-        JOIN users u ON u.user_id=t.created_by_user_id
-        SET q.quote_status='APPROVED',q.sent_at=UTC_TIMESTAMP(),
-            q.decision_recorded_by=u.user_id,q.decision_at=UTC_TIMESTAMP()
-        WHERE d.ticket_device_id=? AND t.portal_code=? AND q.quote_status='DRAFT'
-          AND u.email LIKE 'techmanager-%@example.test'");
-    $q->execute([$deviceId,$portal]);
-    if ($q->rowCount()!==1) throw new RuntimeException('Expected synthetic draft quote not found');
-    echo "Synthetic manager/customer approval recorded for CI only\n";
-    exit;
+if (($argv[1] ?? '') === 'manager-revoke') {
+    $email=(string)($argv[2]??'');
+    if (!preg_match('/^techmanager-[a-f0-9]{12}@example[.]test$/D',$email))
+        throw new RuntimeException('Only fictional manager fixture accounts can be disabled');
+    $q=$pdo->prepare("UPDATE users SET is_active=0 WHERE email=? AND role_code='MANAGER'");
+    $q->execute([$email]);
+    if ($q->rowCount()!==1) throw new RuntimeException('Synthetic manager was not found');
+    echo "Synthetic manager disabled\n";exit;
 }
 if (($argv[1] ?? '') === 'tech-revoke') {
     $email=(string)($argv[2]??'');

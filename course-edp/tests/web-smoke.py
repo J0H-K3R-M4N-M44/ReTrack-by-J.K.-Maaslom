@@ -375,10 +375,67 @@ status, _, prematurely_started = form(tech, '/technician.php?page=device&id='+te
     'action':'status','device_id':tech_id,'csrf_token':token(quoted),'next_status':'IN_PROGRESS'})
 check(status == 422 and 'not available' in prematurely_started,
       'in-repair transition remains unavailable before quote approval')
-# A separate test-only CLI fixture represents the future manager/customer approval flow.
-subprocess.run(['php','course-edp/tests/web-fixture.php','tech-approve',tech_id,
-                tech_fixture['portal_code']], check=True, capture_output=True,
-               env=os.environ.copy())
+# Actual manager browser flow replaces the old direct-SQL approval test fixture.
+manager_anon = browser()
+status, _, manager_signin = fetch(manager_anon, '/manager.php')
+check(status == 200 and 'Manager sign in' in manager_signin,
+      'manager console requires its own authenticated session')
+status, _, invalid_manager_csrf = form(manager_anon,'/manager.php?page=login',{
+    'action':'login','csrf_token':'invalid','email':tech_fixture['manager_email'],
+    'password':tech_fixture['manager_password']})
+check(status == 403,'manager login checks CSRF')
+manager = browser()
+status, _, login_manager = fetch(manager,'/manager.php?page=login')
+status, _, manager_queue = form(manager,'/manager.php?page=login',{
+    'action':'login','csrf_token':token(login_manager),'email':tech_fixture['manager_email'],
+    'password':tech_fixture['manager_password']})
+check(status == 200 and 'Manager queue' in manager_queue,
+      'manager signs into independent branch-scoped console')
+status, _, manager_detail = fetch(manager,'/manager.php?page=device&id='+tech_id)
+check(status == 200 and 'Quotation review' in manager_detail and '850.00' in manager_detail,
+      'manager can review the technician quotation without customer private details')
+status, _, premature_decision = form(manager,'/manager.php?page=device&id='+tech_id,{
+    'action':'decision','csrf_token':token(manager_detail),'device_id':tech_id,
+    'decision':'APPROVED','channel':'IN_PERSON','reference':'Receipt ABC-101',
+    'confirmed':'yes'})
+check(status == 422 and 'not awaiting' in premature_decision.lower(),
+      'manager cannot record approval for an unsent quote')
+status, _, sent = form(manager,'/manager.php?page=device&id='+tech_id,{
+    'action':'send_quote','csrf_token':token(manager_detail),'device_id':tech_id})
+check(status == 200 and 'Current quotation sent' in sent and 'AWAITING_CUSTOMER' in sent,
+      'manager publishes draft and records pending customer decision')
+status, _, duplicate_send = form(manager,'/manager.php?page=device&id='+tech_id,{
+    'action':'send_quote','csrf_token':token(sent),'device_id':tech_id})
+check(status == 422 and 'required' in duplicate_send.lower(),
+      'manager cannot send same quotation twice')
+status, _, no_attestation = form(manager,'/manager.php?page=device&id='+tech_id,{
+    'action':'decision','csrf_token':token(sent),'device_id':tech_id,
+    'decision':'APPROVED','channel':'IN_PERSON','reference':'Receipt ABC-101'})
+check(status == 422 and 'confirmed customer' in no_attestation,
+      'manager offline approval requires explicit confirmation attestation')
+status, _, recorded = form(manager,'/manager.php?page=device&id='+tech_id,{
+    'action':'decision','csrf_token':token(sent),'device_id':tech_id,
+    'decision':'APPROVED','channel':'IN_PERSON','reference':'Receipt ABC-101',
+    'confirmed':'yes'})
+check(status == 200 and 'Offline customer decision recorded' in recorded and
+      'APPROVED' in recorded,
+      'manager records offline approval with source and reference')
+other_manager = browser()
+status, _, other_login = fetch(other_manager,'/manager.php?page=login')
+status, _, other_queue = form(other_manager,'/manager.php?page=login',{
+    'action':'login','csrf_token':token(other_login),
+    'email':tech_fixture['other_manager_email'],
+    'password':tech_fixture['other_manager_password']})
+check(status == 200 and 'Manager queue' in other_queue and
+      tech_fixture['ticket_code'] not in other_queue,
+      'manager cannot read another branch worklist')
+status, _, forbidden_manager_device = fetch(other_manager,'/manager.php?page=device&id='+tech_id)
+check(status == 404 and '850.00' not in forbidden_manager_device,
+      'manager cannot view another branch quotation')
+status, _, forbidden_manager_action = form(other_manager,'/manager.php?page=device&id='+tech_id,{
+    'action':'assign','csrf_token':token(other_queue),'device_id':tech_id,
+    'technician_id':str(tech_fixture['device_id'])})
+check(status == 404, 'manager cross-branch assignment POST is denied')
 status, _, approved = fetch(tech, '/technician.php?page=device&id='+tech_id)
 check(status == 200 and 'APPROVED' in approved and 'In Repair' in approved,
       'approved quote enables the legal in-repair status option')
@@ -418,5 +475,11 @@ subprocess.run(['php','course-edp/tests/web-fixture.php','tech-revoke',tech_fixt
 status, _, revoked = fetch(tech, '/technician.php')
 check(status == 200 and 'Technician sign in' in revoked and 'My repair queue' not in revoked,
       'disabling technician account invalidates its session immediately')
+
+subprocess.run(['php','course-edp/tests/web-fixture.php','manager-revoke',
+                tech_fixture['manager_email']],check=True,capture_output=True,env=os.environ.copy())
+status, _, manager_revoked = fetch(manager,'/manager.php')
+check(status == 200 and 'Manager sign in' in manager_revoked and 'Manager queue' not in manager_revoked,
+      'disabled manager loses current privileged session')
 
 print('All isolated academic web smoke checks passed.')

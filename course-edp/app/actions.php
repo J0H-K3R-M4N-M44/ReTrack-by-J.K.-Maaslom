@@ -9,19 +9,21 @@ declare(strict_types=1);
 
 function edpInTransaction(PDO $pdo, callable $work): mixed
 {
+    static $savepointSequence = 0;
     $ownsTransaction = !$pdo->inTransaction();
+    $savepoint = $ownsTransaction ? null : 'edp_course_action_' . (++$savepointSequence);
     if ($ownsTransaction) {
         $pdo->beginTransaction();
     } else {
-        // Lets disposable tests roll back all fixtures after exercising real actions.
-        $pdo->exec('SAVEPOINT edp_course_action');
+        // Unique for nested services; do not overwrite an outer action's savepoint.
+        $pdo->exec('SAVEPOINT ' . $savepoint);
     }
     try {
         $result = $work();
         if ($ownsTransaction) {
             $pdo->commit();
         } else {
-            $pdo->exec('RELEASE SAVEPOINT edp_course_action');
+            $pdo->exec('RELEASE SAVEPOINT ' . $savepoint);
         }
         return $result;
     } catch (Throwable $error) {
@@ -29,8 +31,8 @@ function edpInTransaction(PDO $pdo, callable $work): mixed
             if ($ownsTransaction) {
                 $pdo->rollBack();
             } else {
-                $pdo->exec('ROLLBACK TO SAVEPOINT edp_course_action');
-                $pdo->exec('RELEASE SAVEPOINT edp_course_action');
+                $pdo->exec('ROLLBACK TO SAVEPOINT ' . $savepoint);
+                $pdo->exec('RELEASE SAVEPOINT ' . $savepoint);
             }
         }
         throw $error;
