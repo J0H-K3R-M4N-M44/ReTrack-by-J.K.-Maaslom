@@ -2,9 +2,9 @@
 
 **Snapshot:** 2026-11-23 (Asia/Manila)  
 **Branch:** `EDP-Course-MVP`  
-**Reviewed implementation SHA:** `8bcc33496390494207b0ca3e310e091c51634116`  
-**Automated evidence:** [GitHub Actions #45138179914](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45138179914) — completed successfully for that SHA, both `schema-integrity` and `windows-notepad-build`.  
-**Populated-workflow review:** [POPULATED-HCI-REVIEW.md](POPULATED-HCI-REVIEW.md) with [48 Chromium screenshots](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45138179914/artifacts/14800452542).
+**Reviewed implementation SHA:** `3c5dda490b4270419b06d9d47280e95e4bc25721`  
+**Automated evidence:** [GitHub Actions #45159895368](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45159895368) — both `schema-integrity` and `windows-notepad-build` passed for that source SHA.  
+**Populated/intermediate-workflow review:** [POPULATED-HCI-REVIEW.md](POPULATED-HCI-REVIEW.md) with [57 Chromium screenshots](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45159895368/artifacts/14810083448), including a pending quotation and a partially paid ticket.
 
 This is a **versioned checkpoint**, not a claim that later commits automatically passed. Verify the latest branch HEAD and its matching CI run before citing it. The independent `course-edp/` app uses **23 MySQL tables** and fictional records. It does **not** replace legacy `app/`, `admin/`, `views/`, `database/schema.sql` or the deployed website. Do not point the legacy PHP site at `repairtrack_edp`.
 
@@ -27,7 +27,7 @@ This is a **versioned checkpoint**, not a claim that later commits automatically
 | Manager assignment, quotation publication and authorized archived-detail review | `public/manager.php`, `app/manager.php` | `manager-flow.php`, `web-smoke.py`, `full-journey-http.py`, `browser-hci.py` | **Implemented / automated**; closed detail is read-only and branch-scoped; archive discovery is not in manager queue; consent remains staff-attested only |
 | Cashier search, itemized bill, cash payments, receipt, pickup | `public/cashier.php`, `app/cashier.php`, `app/actions.php` | `cashier-flow.php`, `db-concurrency.php`, `full-journey-http.py` | **Implemented / automated** for counter cash and guarded in-person handover; not fiscal-grade; no COD/courier/refunds |
 | Cross-role repair lifecycle | Role-specific pages and domain modules | `ACCEPTANCE.md`, `full-journey-http.py` | **Implemented / automated** via real localhost form submissions; real customer identity/consent not proved |
-| HCI viewport/screenshot acceptance | `tests/browser-hci.py`, first-party CSS | `POPULATED-HCI-REVIEW.md`, exact-SHA 48-PNG artifact | **Partial**; headless Chromium at 375/768/1366 px now covers sign-in, home and populated completed ticket, manager quote, technician history, cashier receipts and customer timeline; not actual devices, pending states or assistive technology |
+| HCI viewport/screenshot acceptance | `tests/browser-hci.py`, first-party CSS | `POPULATED-HCI-REVIEW.md`, exact-SHA 57-PNG artifact | **Partial**; headless Chromium at 375/768/1366 px covers sign-in, completed and pending quotations, customer tracking, technician history, cashier receipts and partial payment/pickup denial; login keyboard submission and 320px narrow-login checks passed. Actual devices, full keyboard workflows and assistive technology remain unverified |
 | Browser Notepad and folder monitor | `public/lab.php`, `public/assets/lab.js` | `tests/browser-hci.py` | **Partial**; synthetic browser file-open/save exercised, real directory permission/event demo pending |
 | Native WinForms file watcher | `labs/NotepadCompanion/` | `windows-notepad-build` CI job | **Manual evidence pending**; compilation passes, actual desktop Open/Save/Created/Renamed/Deleted events not proved |
 | External REST/JSON | `app/holiday-api.php`, `public/holiday-api.php` | `tests/edp-lab.php`, browser mocked JSON | **Partial**; parser/UI tested, live endpoint and disconnected-state demonstrations pending |
@@ -42,13 +42,13 @@ This is a **versioned checkpoint**, not a claim that later commits automatically
 | --- | --- | --- |
 | Technician repair-start DateTime | Domain first-start timestamp, technician UI, cross-role SQL/HTTP verification | Actual production-time acceptance remains pending |
 | Hover analytics with date and numbers | No academic analytics module | **Not integrated** |
-| Aligned columns/row data; refined status board | Chromium overflow/label checks now include six populated completed-workflow screens; fixed 768 px technician detail overflow | Analytics/status board and actual-phone HCI remain unaccepted |
+| Aligned columns/row data; refined status board | Chromium overflow/label checks include completed plus pending/partially-paid workflow states; fixed 768 px technician detail overflow | Analytics/status board and actual-phone HCI remain unaccepted |
 | Cashier lookup using internal Ticket Code | `public/cashier.php`; exact `RT-` + 12 hex separate from public code; HTTP smoke | Real cashier usability and legal receipt process not accepted |
 | Public 5-hex tracking code + phone-suffix PIN | `public/track.php`; code/PIN verification, throttle, revocation tests | Short credentials and local file throttling unsuitable as sole public defense |
 | Technician assignment and workload limits | Manager assignment action and technician capacity/branch checks | Workload analytics / management still separate |
 | Customer consultation and request handling | No academic end-to-end feature | **Not integrated** |
 | Media, device images and branch-location tracking | Protected intake signature metadata and coarse branch/custody tracking | No authorized customer image/video viewer, detailed geographic routing or media-management acceptance |
-| Desktop/mobile responsive behavior | Chromium 375, 768, 1366 screenshots and limited label/overflow checks | Manual 200% zoom, keyboard, screen reader, actual device, and populated-flow checks pending |
+| Desktop/mobile responsive behavior | Chromium 375, 768, 1366 screenshots, 320px login stress test and login keyboard/44px button checks | Manual 200% zoom, full-workflow keyboard, screen reader and actual-device checks pending |
 
 ## Risks that block public deployment
 
@@ -63,7 +63,7 @@ This is a **versioned checkpoint**, not a claim that later commits automatically
 
 1. **P0 — Documentation baseline:** keep this checkpoint, `README.md`, `ACCEPTANCE.md` and `EDP-LAB-ACCEPTANCE.md` consistent; do not describe historical slice gaps as current state.
 2. **P1 — Manual Module 3 demonstrations:** on actual Windows, exercise `OpenFileDialog`, `SaveFileDialog` and .NET `FileSystemWatcher` (create, rename, delete); on a supported browser test permissioned `.txt` folder monitoring and unsupported fallback; validate live and offline REST behavior. Attach dated observations/screenshots to assessment notes.
-3. **P1 — Broader HCI gate:** completed-workflow Chromium screenshots and viewport assertions now pass. Next capture pending quotation and partial-payment states; test actual phones, 200% zoom, keyboard, screen reader and touch-target sizes. Evaluate the long customer timeline and archived manager-navigation discovery before redesign.
+3. **P1 — Broader HCI gate:** completed, pending-quotation, partial-payment and pickup-denial acceptance cases now pass in fictional localhost HTTP/Chromium tests. Next perform real-phone, actual 200% browser zoom, keyboard beyond login, screen-reader and touch-target checks. Evaluate the long customer timeline and archived manager-navigation discovery before redesign.
 4. **P1 before public use — Security and consent:** define customer-verifiable quote approval, least-privilege DB connection(s), public throttling/HTTPS and device-collection identity policy; add negative tests.
 5. **P2 — Requirements closure:** explicitly scope admin analytics, customer messages/requests, parts/media, COD and refunds against assignment rubric; implement only approved features with role/privacy tests.
 6. **P3 — Migration decision:** choose a standalone classroom deliverable or a separate, backed-up legacy integration project. No migration to `main` without schema mapping, rollback and end-to-end regression evidence.
