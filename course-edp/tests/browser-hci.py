@@ -154,6 +154,39 @@ with sync_playwright() as playwright:
                           and page.get_by_label("Customer's decision").count() == 1,
                           'manager pending quotation displays the actual decision form')
                     screenshot_viewports(page, 'pending-manager-quotation')
+                    # Keyboard-only form traversal and invalid-submit recovery
+                    # must NOT turn the deliberately pending quote into an approval.
+                    decision = page.get_by_label("Customer's decision", exact=True)
+                    channel = page.get_by_label('How was decision confirmed?', exact=True)
+                    reference = page.get_by_label('Confirmation reference', exact=True)
+                    attest = page.get_by_label(
+                        'I personally confirmed this response and will retain its supporting record.')
+                    submit = page.get_by_role('button', name='Record customer decision')
+                    decision.focus()
+                    decision.press('Tab')
+                    check(channel.evaluate('(el) => document.activeElement === el'),
+                          'pending quote: keyboard Tab advances from decision to confirmation channel')
+                    channel.press('Tab')
+                    check(reference.evaluate('(el) => document.activeElement === el'),
+                          'pending quote: Tab reaches the confirmation reference')
+                    reference.press('Tab')
+                    check(attest.evaluate('(el) => document.activeElement === el'),
+                          'pending quote: Tab reaches the staff attestation checkbox')
+                    attest.press('Tab')
+                    check(submit.evaluate('(el) => document.activeElement === el'),
+                          'pending quote: Tab reaches the decision submit control')
+                    submit.press('Enter')
+                    check(decision.evaluate('(el) => el.validity.valueMissing')
+                          and page.get_by_role('heading',
+                                               name='Record offline customer decision').count() == 1
+                          and 'AWAITING_CUSTOMER' in page.locator('main').inner_text(),
+                          'pending quote: native required-field validation blocks empty keyboard submit')
+                    decision.select_option('APPROVED')
+                    channel.select_option('IN_PERSON')
+                    reference.fill('FICTIONAL-KEYBOARD-ONLY-REF')
+                    attest.check()
+                    check(submit.evaluate('(el) => el.form.checkValidity()'),
+                          'pending quote: valid form can be completed without submitting approval')
             if journey and role == 'technician':
                 response = page.goto(BASE+'/technician.php?page=device&id='+journey['device_ids'][0],
                                      wait_until='networkidle')
@@ -196,6 +229,35 @@ with sync_playwright() as playwright:
                           and page.get_by_role('button', name='Complete counter pickup').count() == 0,
                           'partial-payment desk shows one receipt and no usable pickup action')
                     screenshot_viewports(page, 'partial-cashier-payment')
+                    # Test keyboard error recovery against the actual server-side
+                    # payment guard, without adding another payment or closing the ticket.
+                    amount = page.get_by_label('Counter cash received (₱)', exact=True)
+                    amount.fill('180.01')
+                    with page.expect_response(lambda response:
+                            'cashier.php?page=ticket' in response.url and
+                            response.request.method == 'POST', timeout=12000) as rejected:
+                        amount.press('Enter')
+                    check(rejected.value.status == 422,
+                          'partial payment: Enter submits an overpayment that the server rejects')
+                    page.get_by_role('alert').wait_for(timeout=12000)
+                    check('The payment exceeds the remaining balance.' in
+                          page.get_by_role('alert').inner_text()
+                          and '180.00' in page.locator('main').inner_text()
+                          and page.locator('a[href*="page=receipt"]').count() == 1
+                          and page.get_by_role('button',
+                                               name='Complete counter pickup').count() == 0,
+                          'partial payment: error is announced; balance and pickup guard survive')
+                    screenshot_viewports(page, 'partial-cashier-overpayment-error')
+                    amount = page.get_by_label('Counter cash received (₱)', exact=True)
+                    amount.fill('180.00')
+                    check(amount.evaluate('(el) => el.checkValidity()'),
+                          'partial payment: cashier can correct the field after a server error')
+                    amount.press('Tab')
+                    payment_submit = page.get_by_role('button', name='Record received cash')
+                    check(payment_submit.evaluate('(el) => document.activeElement === el'),
+                          'partial payment: keyboard Tab reaches the corrected payment submit')
+                    check(payment_submit.evaluate('(el) => el.getBoundingClientRect().height') >= 44,
+                          'partial payment: payment submit meets 44px touch height')
             if role == 'technician':
                 page.set_viewport_size({'width': 1366, 'height': 900})
                 page.get_by_role('link', name='EDP Lab Tools').click()
