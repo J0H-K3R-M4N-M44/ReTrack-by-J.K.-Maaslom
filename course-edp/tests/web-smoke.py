@@ -142,6 +142,75 @@ check(status == 200 and 'Issue successful' in receipt and 'page=receipt' in dest
 check(re.search(r'RT-[A-F0-9]{12}', receipt) and
       re.search(r'<dd>[A-F0-9]{5}</dd>', receipt) and '6789' not in receipt,
       'internal Ticket Code and short customer code shown without PIN')
+
+# Public portal: separate customer session, verified code + phone-suffix PIN.
+code_match = re.search(r'<dd>([A-F0-9]{5})</dd>', receipt)
+check(code_match is not None, 'issued receipt supplies five-hex customer tracking code')
+portal_code = code_match.group(1)
+subprocess.run(['php', 'course-edp/tests/web-fixture.php', 'portal-progress', portal_code],
+               check=True, capture_output=True, env=os.environ.copy())
+customer_portal = browser()
+status, _, tracking_login = fetch(customer_portal, '/track.php')
+check(status == 200 and 'Track your repaired device' in tracking_login and
+      'PRIVATE_DIAGNOSIS_NEVER_SHOW' not in tracking_login,
+      'public customer login available without a staff session')
+check(status == 200 and portal_code not in tracking_login and 'Fictional Classroom Customer' not in tracking_login,
+      'anonymous tracking page reveals no ticket or customer details')
+status, _, rejected_csrf = form(customer_portal, '/track.php', {
+    'action':'login','csrf_token':'bad','portal_code':portal_code,'portal_pin':'6789'})
+check(status == 403 and 'Repair progress' not in rejected_csrf,
+      'public tracking POST requires valid CSRF')
+status, _, rejected_pin = form(customer_portal, '/track.php', {
+    'action':'login','csrf_token':token(tracking_login),'portal_code':portal_code,'portal_pin':'0000'})
+check(status == 401 and 'Invalid tracking code or PIN' in rejected_pin and
+      'Repair progress' not in rejected_pin and portal_code not in rejected_pin,
+      'wrong portal PIN returns generic error without ticket disclosure')
+status, _, rejected_code = form(customer_portal, '/track.php', {
+    'action':'login','csrf_token':token(rejected_pin),'portal_code':'GGGGG','portal_pin':'6789'})
+check(status == 401 and 'Invalid tracking code or PIN' in rejected_code,
+      'malformed or unknown tracking code is rejected generically')
+status, dest_portal, tracking = form(customer_portal, '/track.php', {
+    'action':'login','csrf_token':token(rejected_code),'portal_code':portal_code.lower(), 'portal_pin':'6789'})
+check(status == 200 and 'track.php' in dest_portal and 'Repair progress' in tracking,
+      'valid five-hex code and phone-suffix PIN authenticate the customer')
+check(tracking.count('<h3>Repair timeline</h3>') == 2 and 'In Repair' in tracking and
+      'The approved repair has started.' in tracking and 'Repair started' in tracking,
+      'two-device customer timeline shows approved repair progress and start time')
+check('₱850.00' in tracking and 'Approved' in tracking and
+      '987654.32' not in tracking,
+      'only sent quotations are customer-visible, not an unsent quote draft')
+check('PRIVATE_DIAGNOSIS_NEVER_SHOW' not in tracking and 'HIDDEN_INTERNAL_ONLY' not in tracking and
+      '09123456789' not in tracking and 'signed/' not in tracking,
+      'staff-only notes, customer contact and private asset paths do not leak')
+status, _, signed_out = form(customer_portal, '/track.php', {
+    'action':'logout','csrf_token':token(tracking)})
+check(status == 200 and 'Track your repaired device' in signed_out and 'Repair progress' not in signed_out,
+      'customer logout clears the separate customer portal session')
+status, _, after_logout = fetch(customer_portal, '/track.php')
+check('Repair progress' not in after_logout, 'logged-out customer can no longer access repair details')
+# Throttle uses a separate nonexistent/malformed code so the genuine customer's code is untouched.
+rate_limited = False
+for attempt in range(10):
+    st, _, page = form(customer_portal, '/track.php', {
+        'action':'login','csrf_token':token(after_logout),'portal_code':'GGGGG','portal_pin':'0000'})
+    if st == 429:
+        rate_limited = True
+        break
+check(rate_limited, 'repeated public PIN attempts trigger server-side attempt limits')
+
+status, _, fresh_portal = fetch(customer_portal, '/track.php')
+status, _, reauthenticated = form(customer_portal, '/track.php', {
+    'action':'login','csrf_token':token(fresh_portal), 'portal_code':portal_code, 'portal_pin':'6789'})
+check(status == 200 and 'Repair progress' in reauthenticated,
+      'customer can sign in again after logging out, independently from another code limit')
+subprocess.run(['php','course-edp/tests/web-fixture.php','portal-revoke',portal_code],
+               check=True, capture_output=True, env=os.environ.copy())
+status, _, invalidated = fetch(customer_portal,'/track.php')
+check(status == 200 and 'Track your repaired device' in invalidated and
+      'Repair progress' not in invalidated,
+      'changing the stored portal credential invalidates an existing customer session')
+
+
 status, _, second = multipart(anonymous, '?page=draft&id='+id_, fields, 'signed.png', png)
 check(status == 404 and 'Issue successful' not in second,
       'issued draft cannot be reissued')

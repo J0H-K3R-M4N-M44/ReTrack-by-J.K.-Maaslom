@@ -30,6 +30,8 @@ jobs:
           php -l course-edp/app/intake.php
           php -l course-edp/app/preview.php
           php -l course-edp/public/index.php
+          php -l course-edp/app/tracking.php
+          php -l course-edp/public/track.php
           php -l course-edp/tests/web-fixture.php
           python3 -m py_compile course-edp/tests/web-smoke.py
           php -l course-edp/tests/intake-flow.php

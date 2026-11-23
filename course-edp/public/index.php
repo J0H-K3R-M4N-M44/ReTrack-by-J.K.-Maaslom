@@ -265,7 +265,7 @@ $h = 'edpPreviewEscape';
 <input type="hidden" name="action" value="login"><input type="hidden" name="csrf_token" value="<?= $h($csrf) ?>">
 <label>Email<input type="email" name="email" autocomplete="username" maxlength="190" required></label>
 <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
-<button class="primary" type="submit">Sign in</button></form></section>
+<button class="primary" type="submit">Sign in</button></form><p><a href="track.php">Customer? Track your repaired device</a></p></section>
 <?php elseif ($page === 'drafts' && $staff): ?>
 <section class="panel"><p class="eyebrow">Saved work</p><h1>My Drafts</h1>
 <p>Resume an unissued ticket to correct its devices, select a customer and issue it. Abandoned drafts are not repair cancellations.</p>
