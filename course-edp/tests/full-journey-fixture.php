@@ -24,7 +24,7 @@ if ($command === 'create') {
     $pdo->beginTransaction();
     try {
         $pdo->prepare('INSERT INTO branches (branch_code,branch_name) VALUES (?,?)')
-            ->execute(['JOURNEY-'.$suffix,'Fictional Other Journey Branch']);
+            ->execute(['J-'.$suffix,'Fictional Other Journey Branch']);
         $otherBranch = (int)$pdo->lastInsertId();
         $add = $pdo->prepare('INSERT INTO users(full_name,email,password_hash,role_code) VALUES (?,?,?,?)');
         $membership = $pdo->prepare('INSERT INTO user_branch_assignments(user_id,branch_id) VALUES (?,?)');

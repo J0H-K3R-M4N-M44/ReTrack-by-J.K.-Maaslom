@@ -24,9 +24,13 @@ if BASE != 'http://127.0.0.1:8743' or os.environ.get('REPAIRTRACK_EDP_TEST_DB') 
 FIXTURE = ['php', 'course-edp/tests/full-journey-fixture.php']
 
 def helper(*arguments):
-    return json.loads(subprocess.run(
-        FIXTURE + list(arguments), check=True, capture_output=True, text=True,
-        env=os.environ.copy(), timeout=15).stdout)
+    result = subprocess.run(FIXTURE + list(arguments), capture_output=True, text=True,
+                            env=os.environ.copy(), timeout=15)
+    if result.returncode != 0:
+        # Do not print fixture passwords. SQL exceptions here involve only fictional rows.
+        reason = result.stderr.strip().splitlines()[-1][:250] if result.stderr.strip() else 'no stderr'
+        raise RuntimeError('Disposable fixture '+str(arguments[0])+': '+reason)
+    return json.loads(result.stdout)
 
 def browser():
     return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
