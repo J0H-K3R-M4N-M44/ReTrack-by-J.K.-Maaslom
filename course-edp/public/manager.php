@@ -170,13 +170,16 @@ $csrf=edpManagerCsrf();$h='mgrH';
 <section class="hero"><div><p class="eyebrow"><?= $h($device['ticket_code']) ?> · <?= $h($device['branch_name']) ?></p>
 <h1>Repair supervision</h1><p><?= $h($device['reported_symptoms']) ?></p></div><span class="count"><?= $h(str_replace('_',' ',$device['status_code'])) ?></span></section>
 <div class="layout">
-<section class="panel"><h2>Assign technician</h2><p class="muted">Active repair capacity: five devices per technician. Reassignment uses the same locked service as the technician console.</p>
+<section class="panel"><h2>Assign technician</h2>
 <p>Current: <strong><?= $h($device['technician_name']??'Unassigned') ?></strong></p>
+<?php if ($device['ticket_state']==='OPEN' && !in_array($device['status_code'],['COMPLETED','CANCELLED'],true)): ?>
+<p class="muted">Active repair capacity: five devices per technician. Reassignment uses the same locked service as the technician console.</p>
 <form class="stack" method="post" action="manager.php?page=device&amp;id=<?= (int)$device['ticket_device_id'] ?>">
 <input type="hidden" name="action" value="assign"><input type="hidden" name="device_id" value="<?= (int)$device['ticket_device_id'] ?>"><input type="hidden" name="csrf_token" value="<?= $h($csrf) ?>">
 <label>Available branch technician<select name="technician_id" required><option value="">Choose technician</option>
 <?php foreach ($technicians as $tech): ?><option value="<?= (int)$tech['user_id'] ?>" <?= (int)$device['assigned_technician_id']===(int)$tech['user_id']?'selected':'' ?>><?= $h($tech['full_name']) ?> (<?= (int)$tech['active_count'] ?> active)</option><?php endforeach; ?></select></label>
-<button class="primary" type="submit" <?= $technicians?'':'disabled' ?>>Save assignment</button></form></section>
+<button class="primary" type="submit" <?= $technicians?'':'disabled' ?>>Save assignment</button></form>
+<?php else: ?><p class="muted">Read-only repair history. Closed or finished repairs cannot be reassigned or have their quotations changed.</p><?php endif; ?></section>
 <section class="panel"><h2>Technician assessment</h2><p class="eyebrow">Internal diagnosis</p><p><?= $device['diagnosis']?$h($device['diagnosis']):'Awaiting technician diagnosis.' ?></p>
 <p class="muted">Diagnosis stays staff-only. Quotation prices appear to customers only after sending.</p></section>
 <section class="panel"><h2>Quotation review</h2>
@@ -186,11 +189,11 @@ $csrf=edpManagerCsrf();$h='mgrH';
 <div class="quote-summary"><span>Version <?= (int)$quote['version_no'] ?> · <?= $h($quote['quote_status']) ?></span><strong>₱<?= $h($quote['total_amount']) ?></strong></div>
 <dl><dt>Labor</dt><dd>₱<?= $h($quote['labor_amount']) ?></dd><dt>Parts</dt><dd>₱<?= $h($quote['parts_amount']) ?></dd><dt>Other</dt><dd>₱<?= $h($quote['other_amount']) ?></dd></dl>
 <?php if ($quote['sent_at']): ?><p class="muted">Sent: <?= $h($quote['sent_at']) ?> UTC · Expires: <?= $h($quote['expires_at']) ?> UTC</p><?php endif; ?>
-<?php if ($quote['quote_status']==='DRAFT' && $device['status_code']==='DIAGNOSING'): ?>
+<?php if ($device['ticket_state']==='OPEN' && $quote['quote_status']==='DRAFT' && $device['status_code']==='DIAGNOSING'): ?>
 <form method="post" action="manager.php?page=device&amp;id=<?= (int)$device['ticket_device_id'] ?>" class="stack">
 <input type="hidden" name="action" value="send_quote"><input type="hidden" name="device_id" value="<?= (int)$device['ticket_device_id'] ?>"><input type="hidden" name="csrf_token" value="<?= $h($csrf) ?>">
 <button class="primary" type="submit">Send quotation for customer review</button></form>
-<?php elseif ($quote['quote_status']==='AWAITING_CUSTOMER' && $device['status_code']==='AWAITING_CUSTOMER_APPROVAL'): ?>
+<?php elseif ($device['ticket_state']==='OPEN' && $quote['quote_status']==='AWAITING_CUSTOMER' && $device['status_code']==='AWAITING_CUSTOMER_APPROVAL'): ?>
 <div class="subsection"><h3>Record offline customer decision</h3>
 <p class="muted">This form logs staff attestation of a customer decision. It does <strong>not</strong> independently prove customer authorization.</p>
 <form method="post" action="manager.php?page=device&amp;id=<?= (int)$device['ticket_device_id'] ?>" class="stack">
