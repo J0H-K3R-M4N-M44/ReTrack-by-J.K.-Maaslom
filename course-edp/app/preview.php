@@ -6,6 +6,13 @@ require_once __DIR__ . '/intake.php';
 
 function edpPreviewHeaders(): void
 {
+    // Academic preview is intentionally local-only, even if a server is misbound.
+    $remote = $_SERVER['REMOTE_ADDR'] ?? '';
+    if (!in_array($remote, ['127.0.0.1', '::1'], true)) {
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=utf-8');
+        exit('Local academic preview only.');
+    }
     header('Cache-Control: no-store, private');
     header('X-Content-Type-Options: nosniff');
     header('Referrer-Policy: same-origin');
@@ -113,6 +120,13 @@ function edpPreviewCurrentStaff(PDO $pdo): ?array
         unset($_SESSION['edp_staff_id'], $_SESSION['edp_staff_fingerprint']);
         return null;
     }
+    $branches = $pdo->prepare('SELECT 1 FROM user_branch_assignments a JOIN branches b
+        ON b.branch_id=a.branch_id AND b.is_active=1 WHERE a.user_id=? LIMIT 1');
+    $branches->execute([$id]);
+    if (!$branches->fetchColumn()) {
+        unset($_SESSION['edp_staff_id'], $_SESSION['edp_staff_fingerprint']);
+        return null;
+    }
     unset($user['password_hash']);
     return $user;
 }
@@ -186,20 +200,37 @@ function edpPreviewBranches(PDO $pdo, int $userId): array
     return $stmt->fetchAll();
 }
 
+/** Draft list is scoped to the author; manager/admin can access team drafts by URL. */
+function edpPreviewDrafts(PDO $pdo, int $userId): array
+{
+    $q = $pdo->prepare("SELECT t.ticket_id,t.intake_at,b.branch_name,COUNT(d.ticket_device_id) AS device_count
+        FROM repair_tickets t JOIN branches b ON b.branch_id=t.branch_id AND b.is_active=1
+        JOIN user_branch_assignments a ON a.branch_id=t.branch_id AND a.user_id=?
+        LEFT JOIN ticket_devices d ON d.ticket_id=t.ticket_id
+        WHERE t.created_by_user_id=? AND t.ticket_state='DRAFT'
+        GROUP BY t.ticket_id,t.intake_at,b.branch_name ORDER BY t.intake_at DESC,t.ticket_id DESC LIMIT 50");
+    $q->execute([$userId,$userId]);
+    return $q->fetchAll(PDO::FETCH_ASSOC);
+}
+
 function edpPreviewDraft(PDO $pdo, int $staffId, int $draftId): ?array
 {
-    $stmt = $pdo->prepare("SELECT t.ticket_id,t.branch_id,t.ticket_state,b.branch_name
+    $stmt = $pdo->prepare("SELECT t.ticket_id,t.branch_id,t.ticket_state,t.created_by_user_id,b.branch_name
         FROM repair_tickets t
         JOIN branches b ON b.branch_id=t.branch_id AND b.is_active=1
         JOIN user_branch_assignments a ON a.branch_id=t.branch_id AND a.user_id=?
-        WHERE t.ticket_id=? AND t.ticket_state='DRAFT'");
-    $stmt->execute([$staffId,$draftId]);
-    $ticket = $stmt->fetch();
+        JOIN users u ON u.user_id=a.user_id AND u.is_active=1
+        WHERE t.ticket_id=? AND t.ticket_state='DRAFT'
+        AND (t.created_by_user_id=? OR u.role_code IN ('ADMIN','MANAGER'))");
+    $stmt->execute([$staffId,$draftId,$staffId]);
+    $ticket = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$ticket) return null;
-    $stmt = $pdo->prepare('SELECT sequence_no,device_type_code,make_snapshot,model_snapshot,reported_symptoms
-        FROM ticket_devices WHERE ticket_id=? ORDER BY sequence_no');
+    $stmt = $pdo->prepare('SELECT d.ticket_device_id,d.sequence_no,d.device_type_code,d.make_snapshot,
+        d.model_snapshot,d.reported_symptoms,COALESCE(f.defect_code,\'\') AS defect_code
+        FROM ticket_devices d LEFT JOIN ticket_defects f ON f.ticket_device_id=d.ticket_device_id
+        WHERE d.ticket_id=? ORDER BY d.sequence_no');
     $stmt->execute([$draftId]);
-    $ticket['devices'] = $stmt->fetchAll();
+    $ticket['devices'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
     return $ticket;
 }
 
@@ -212,20 +243,50 @@ function edpPreviewCustomerMatches(PDO $pdo, int $branchId, string $needle): arr
     $stmt = $pdo->prepare("SELECT c.customer_id,c.full_name,RIGHT(c.phone,4) AS phone_suffix
         FROM customers c WHERE (c.full_name LIKE ? ESCAPE '!' OR c.phone LIKE ? ESCAPE '!')
         AND EXISTS (SELECT 1 FROM repair_tickets t WHERE t.customer_id=c.customer_id
-            AND t.branch_id=? AND t.ticket_state <> 'DRAFT')
+            AND t.branch_id=? AND t.ticket_state NOT IN ('DRAFT','ABANDONED'))
         ORDER BY c.full_name LIMIT 20");
     $stmt->execute(['%'.$needle.'%','%'.$needle.'%',$branchId]);
     return $stmt->fetchAll();
 }
 
 /** Reject browser-selected customer IDs outside the staff member's ticket branch. */
-function edpPreviewVerifyExistingCustomer(PDO $pdo, int $customerId, int $branchId): void
+function edpPreviewVerifyExistingCustomer(PDO $pdo, int $customerId, int $branchId, string $confirmedPhone): void
 {
-    $stmt = $pdo->prepare("SELECT 1 FROM customers c WHERE c.customer_id=?
+    $stmt = $pdo->prepare("SELECT c.phone FROM customers c WHERE c.customer_id=?
         AND EXISTS (SELECT 1 FROM repair_tickets t WHERE t.customer_id=c.customer_id
-            AND t.branch_id=? AND t.ticket_state <> 'DRAFT')");
+            AND t.branch_id=? AND t.ticket_state NOT IN ('DRAFT','ABANDONED'))");
     $stmt->execute([$customerId,$branchId]);
-    if (!$stmt->fetchColumn()) throw new DomainException('Choose an existing customer from this branch.');
+    $registeredPhone = $stmt->fetchColumn();
+    if (!is_string($registeredPhone) || !preg_match('/^[0-9]{4,15}$/D', $confirmedPhone) ||
+        !hash_equals($registeredPhone, $confirmedPhone)) {
+        throw new DomainException('Confirm the full recorded phone number for this returning customer.');
+    }
+}
+
+/** Prompt staff to reuse a record with this number instead of creating duplicates. */
+function edpPreviewRejectDuplicateCustomer(PDO $pdo, int $branchId, string $phone): void
+{
+    $q = $pdo->prepare("SELECT 1 FROM customers c WHERE c.phone=? AND
+        EXISTS (SELECT 1 FROM repair_tickets t WHERE t.customer_id=c.customer_id
+            AND t.branch_id=? AND t.ticket_state NOT IN ('DRAFT','ABANDONED')) LIMIT 1");
+    $q->execute([$phone,$branchId]);
+    if ($q->fetchColumn()) throw new DomainException('This phone has a branch record. Search for the returning customer.');
+}
+
+
+/** Convert a PHP ini upload size (e.g. 6M) to bytes, not decimal megabytes. */
+function edpPreviewIniBytes(string $value): int
+{
+    $value = trim($value);
+    if (!preg_match('/^([0-9]+)\s*([KMG]?)$/iD',$value,$m)) return 0;
+    $multiple = match (strtoupper($m[2])) { 'G'=>1073741824,'M'=>1048576,'K'=>1024,default=>1 };
+    return (int)$m[1]*$multiple;
+}
+
+function edpPreviewUploadCapacity(): int
+{
+    return min(edpPreviewIniBytes((string)ini_get('upload_max_filesize')),
+        edpPreviewIniBytes((string)ini_get('post_max_size')));
 }
 
 /** Upload only a verified image to a server-generated private identifier. */

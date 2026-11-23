@@ -12,56 +12,164 @@ require_once __DIR__ . '/catalogs.php';
  * @param array<int,array{device_type_code:string,reported_symptoms:string,
  *     make?:string,model?:string,serial?:string,condition_notes?:string,accessories?:string}> $devices
  */
-function edpCreateIntakeDraft(PDO $pdo, int $actorId, int $branchId, array $devices): int
+function edpIntakePrepareDevices(array $devices): array
 {
     if (!$devices || count($devices) > 25 || !array_is_list($devices)) {
         throw new DomainException('Provide between 1 and 25 intake devices.');
     }
     $prepared = [];
     foreach ($devices as $device) {
-        if (!is_array($device)) {
-            throw new DomainException('Invalid intake device.');
-        }
+        if (!is_array($device)) throw new DomainException('Invalid intake device.');
         $type = trim((string)($device['device_type_code'] ?? ''));
         $symptoms = trim((string)($device['reported_symptoms'] ?? ''));
-        if ($type === '' || strlen($type) > 30 || $symptoms === '' || strlen($symptoms) > 2000) {
-            throw new DomainException('Select a device type and describe the reported problem.');
-        }
         $make = trim((string)($device['make'] ?? ''));
         $model = trim((string)($device['model'] ?? ''));
         $serial = trim((string)($device['serial'] ?? ''));
         $condition = trim((string)($device['condition_notes'] ?? ''));
         $accessories = trim((string)($device['accessories'] ?? ''));
-        if (strlen($make) > 100 || strlen($model) > 160 || strlen($serial) > 190 ||
-            strlen($condition) > 2000 || strlen($accessories) > 255) {
-            throw new DomainException('An intake field is too long.');
+        $defect = trim((string)($device['defect_code'] ?? ''));
+        if ($type === '' || strlen($type) > 30 || $symptoms === '' || strlen($symptoms) > 2000 ||
+            strlen($make) > 100 || strlen($model) > 160 || strlen($serial) > 190 ||
+            strlen($condition) > 2000 || strlen($accessories) > 255 || strlen($defect) > 32) {
+            throw new DomainException('A device type, reported problem or intake field is invalid.');
         }
-        $prepared[] = [$type,$symptoms,$make,$model,$serial,$condition,$accessories];
+        $prepared[] = [$type,$symptoms,$make,$model,$serial,$condition,$accessories,$defect];
     }
+    return $prepared;
+}
 
-    return edpInTransaction($pdo, function () use ($pdo,$actorId,$branchId,$prepared): int {
+/** Check catalogs in the same transaction that writes the device and defect. */
+function edpIntakeCheckCatalogs(PDO $pdo, array $prepared): void
+{
+    $types = $pdo->query('SELECT device_type_code FROM device_types WHERE is_active=1')
+        ->fetchAll(PDO::FETCH_COLUMN);
+    $defects = $pdo->query('SELECT defect_code FROM defect_types WHERE is_active=1')
+        ->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($prepared as $device) {
+        if (!in_array($device[0], $types, true) ||
+            ($device[7] !== '' && !in_array($device[7], $defects, true))) {
+            throw new DomainException('Choose active device and defect categories.');
+        }
+    }
+}
+
+/**
+ * Save a device-first draft. A unique browser request key makes retries return
+ * the original draft rather than generating a second ticket.
+ */
+function edpCreateIntakeDraft(PDO $pdo, int $actorId, int $branchId, array $devices,
+    ?string $requestKey = null): int
+{
+    $prepared = edpIntakePrepareDevices($devices);
+    if ($requestKey !== null && !preg_match('/^[0-9a-f]{64}$/D', $requestKey)) {
+        throw new DomainException('Invalid draft request key.');
+    }
+    return edpInTransaction($pdo, function () use ($pdo,$actorId,$branchId,$prepared,$requestKey): int {
         edpActiveBranchStaff($pdo,$actorId,$branchId,['ADMIN','MANAGER','INTAKE_AGENT']);
-        $types = $pdo->query('SELECT device_type_code FROM device_types WHERE is_active=1')
-            ->fetchAll(PDO::FETCH_COLUMN);
-        foreach ($prepared as $record) {
-            if (!in_array($record[0],$types,true)) {
-                throw new DomainException('Choose an active device type.');
+        edpIntakeCheckCatalogs($pdo,$prepared);
+        $find = $pdo->prepare('SELECT ticket_id, branch_id, created_by_user_id
+            FROM repair_tickets WHERE create_request_key=? FOR UPDATE');
+        if ($requestKey !== null) {
+            $find->execute([$requestKey]);
+            $existing = $find->fetch(PDO::FETCH_ASSOC);
+            if ($existing) {
+                if ((int)$existing['branch_id'] !== $branchId ||
+                    (int)$existing['created_by_user_id'] !== $actorId) {
+                    throw new DomainException('This draft request belongs to a different session.');
+                }
+                return (int)$existing['ticket_id'];
             }
         }
         $stmt = $pdo->prepare("INSERT INTO repair_tickets
-            (branch_id,created_by_user_id,ticket_state) VALUES (?,?,'DRAFT')");
-        $stmt->execute([$branchId,$actorId]);
+            (branch_id,created_by_user_id,create_request_key,ticket_state) VALUES (?,?,?,'DRAFT')");
+        try {
+            $stmt->execute([$branchId,$actorId,$requestKey]);
+        } catch (PDOException $error) {
+            // A concurrent replay may win the unique key; recover only *that* key.
+            if ($requestKey === null || (int)($error->errorInfo[1] ?? 0) !== 1062) throw $error;
+            $find->execute([$requestKey]);
+            $existing = $find->fetch(PDO::FETCH_ASSOC);
+            if (!$existing || (int)$existing['branch_id'] !== $branchId ||
+                (int)$existing['created_by_user_id'] !== $actorId) throw $error;
+            return (int)$existing['ticket_id'];
+        }
         $ticketId = (int)$pdo->lastInsertId();
-        $stmt = $pdo->prepare("INSERT INTO ticket_devices
+        $add = $pdo->prepare("INSERT INTO ticket_devices
             (ticket_id,branch_id,sequence_no,device_type_code,make_snapshot,model_snapshot,
              serial_snapshot,status_code,reported_symptoms,condition_notes,accessories)
             VALUES (?,?,?,?,?,?,?,'DRAFT',?,?,?)");
-        foreach ($prepared as $index => $record) {
-            [$type,$symptoms,$make,$model,$serial,$condition,$accessories] = $record;
-            $stmt->execute([$ticketId,$branchId,$index+1,$type,$make ?: null,$model ?: null,
+        $defect = $pdo->prepare('INSERT INTO ticket_defects (ticket_device_id,defect_code) VALUES (?,?)');
+        foreach ($prepared as $index => $device) {
+            [$type,$symptoms,$make,$model,$serial,$condition,$accessories,$defectCode] = $device;
+            $add->execute([$ticketId,$branchId,$index+1,$type,$make ?: null,$model ?: null,
                 $serial ?: null,$symptoms,$condition ?: null,$accessories ?: null]);
+            if ($defectCode !== '') $defect->execute([(int)$pdo->lastInsertId(),$defectCode]);
         }
         return $ticketId;
+    });
+}
+
+/** Draft owner or branch manager may amend every saved device before issue. */
+function edpEditIntakeDraft(PDO $pdo, int $actorId, int $ticketId, array $devices): void
+{
+    $prepared = edpIntakePrepareDevices($devices);
+    edpInTransaction($pdo, function () use ($pdo,$actorId,$ticketId,$prepared): void {
+        $q = $pdo->prepare('SELECT branch_id,created_by_user_id,ticket_state
+            FROM repair_tickets WHERE ticket_id=? FOR UPDATE');
+        $q->execute([$ticketId]);
+        $ticket = $q->fetch(PDO::FETCH_ASSOC);
+        if (!$ticket || $ticket['ticket_state'] !== 'DRAFT') {
+            throw new DomainException('This draft cannot be edited.');
+        }
+        $role = edpActiveBranchStaff($pdo,$actorId,(int)$ticket['branch_id'],
+            ['ADMIN','MANAGER','INTAKE_AGENT']);
+        if ((int)$ticket['created_by_user_id'] !== $actorId &&
+            !in_array($role,['ADMIN','MANAGER'],true)) {
+            throw new DomainException('Only the draft author or branch manager can edit it.');
+        }
+        edpIntakeCheckCatalogs($pdo,$prepared);
+        $q = $pdo->prepare('SELECT ticket_device_id FROM ticket_devices
+            WHERE ticket_id=? ORDER BY sequence_no FOR UPDATE');
+        $q->execute([$ticketId]);
+        $ids = $q->fetchAll(PDO::FETCH_COLUMN);
+        if (count($ids) !== count($prepared)) {
+            throw new DomainException('Edit each existing device; adding or removing requires a new draft.');
+        }
+        $update = $pdo->prepare("UPDATE ticket_devices SET device_type_code=?,
+            reported_symptoms=?,make_snapshot=?,model_snapshot=?
+            WHERE ticket_device_id=? AND status_code='DRAFT'");
+        $remove = $pdo->prepare('DELETE FROM ticket_defects WHERE ticket_device_id=?');
+        $addDefect = $pdo->prepare('INSERT INTO ticket_defects (ticket_device_id,defect_code) VALUES (?,?)');
+        foreach ($ids as $index=>$id) {
+            [$type,$symptoms,$make,$model,$serial,$condition,$accessories,$defectCode] = $prepared[$index];
+            $update->execute([$type,$symptoms,$make?:null,$model?:null,$id]);
+            $remove->execute([$id]);
+            if ($defectCode !== '') $addDefect->execute([$id,$defectCode]);
+        }
+        $pdo->prepare("INSERT INTO audit_events (actor_user_id,entity_type,entity_id,action_code)
+            VALUES (?,'repair_ticket',?,'INTAKE_DRAFT_EDITED')")->execute([$actorId,$ticketId]);
+    });
+}
+
+/** An abandoned draft is not an issued or cancelled repair; its history remains. */
+function edpAbandonIntakeDraft(PDO $pdo, int $actorId, int $ticketId): void
+{
+    edpInTransaction($pdo, function () use ($pdo,$actorId,$ticketId): void {
+        $q = $pdo->prepare('SELECT branch_id,created_by_user_id,ticket_state
+            FROM repair_tickets WHERE ticket_id=? FOR UPDATE');
+        $q->execute([$ticketId]);
+        $ticket = $q->fetch(PDO::FETCH_ASSOC);
+        if (!$ticket || $ticket['ticket_state'] !== 'DRAFT') throw new DomainException('Draft is no longer available.');
+        $role = edpActiveBranchStaff($pdo,$actorId,(int)$ticket['branch_id'],
+            ['ADMIN','MANAGER','INTAKE_AGENT']);
+        if ((int)$ticket['created_by_user_id'] !== $actorId &&
+            !in_array($role,['ADMIN','MANAGER'],true)) {
+            throw new DomainException('Only the draft author or branch manager can abandon it.');
+        }
+        $pdo->prepare("UPDATE repair_tickets SET ticket_state='ABANDONED' WHERE ticket_id=?")
+            ->execute([$ticketId]);
+        $pdo->prepare("INSERT INTO audit_events (actor_user_id,entity_type,entity_id,action_code)
+            VALUES (?,'repair_ticket',?,'INTAKE_DRAFT_ABANDONED')")->execute([$actorId,$ticketId]);
     });
 }
 
@@ -103,13 +211,14 @@ function edpVerifiedSignature(string $privateRoot, string $relativePath): array
  * Returns only the public tracking code and internal receipt identifiers—never a PIN.
  */
 function edpIssueIntakeDraft(PDO $pdo, int $actorId, int $ticketId, int $customerId,
-    string $privateRoot, string $signaturePath, string $termsVersion = 'CLASSROOM-1'): array
+    string $privateRoot, string $signaturePath, string $termsVersion = 'CLASSROOM-1',
+    ?string $confirmedPhone = null): array
 {
     $signature = edpVerifiedSignature($privateRoot,$signaturePath);
     if ($termsVersion === '' || strlen($termsVersion) > 40) {
         throw new DomainException('Invalid intake terms version.');
     }
-    return edpInTransaction($pdo, function () use ($pdo,$actorId,$ticketId,$customerId,$signature,$termsVersion): array {
+    return edpInTransaction($pdo, function () use ($pdo,$actorId,$ticketId,$customerId,$signature,$termsVersion,$confirmedPhone): array {
         $stmt = $pdo->prepare('SELECT ticket_id,customer_id,branch_id,ticket_state
             FROM repair_tickets WHERE ticket_id=? FOR UPDATE');
         $stmt->execute([$ticketId]);
@@ -127,6 +236,9 @@ function edpIssueIntakeDraft(PDO $pdo, int $actorId, int $ticketId, int $custome
         $customer = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$customer || !preg_match('/^[0-9]{4,15}$/D',(string)$customer['phone'])) {
             throw new DomainException('A valid recorded customer phone is required.');
+        }
+        if ($confirmedPhone !== null && !hash_equals((string)$customer['phone'], $confirmedPhone)) {
+            throw new DomainException('Customer contact changed. Confirm their recorded phone again.');
         }
         $stmt = $pdo->prepare('SELECT ticket_device_id,customer_id,customer_device_id,
             sequence_no,status_code,device_type_code,make_snapshot,model_snapshot,serial_snapshot,

@@ -15,6 +15,7 @@ $draft = null;
 $branches = [];
 $catalogs = [];
 $customers = [];
+$drafts = [];
 
 function edpPreviewRedirect(string $location): never
 {
@@ -34,10 +35,48 @@ function edpPreviewPositiveId(mixed $id): int
     return (int)$id;
 }
 
+/** Read a small repeated device form without accepting arbitrary nested values. */
+function edpPreviewPostedDevices(array $post): array
+{
+    $fields = ['device_type_code','reported_symptoms','make','model','defect_code'];
+    $types = $post['device_type_code'] ?? null;
+    if (!is_array($types) || count($types) > 25 || !array_is_list($types)) {
+        throw new DomainException('Invalid device entry form.');
+    }
+    $rows = [];
+    foreach ($fields as $field) {
+        if ($field === 'defect_code' && !isset($post[$field])) continue;
+        if (!isset($post[$field]) || !is_array($post[$field]) ||
+            count($post[$field]) !== count($types) || !array_is_list($post[$field])) {
+            throw new DomainException('Invalid repeated device fields.');
+        }
+    }
+    foreach ($types as $i=>$type) {
+        $device = [];
+        foreach ($fields as $field) {
+            $value = $post[$field][$i] ?? '';
+            if (!is_string($value)) throw new DomainException('Invalid device data.');
+            $device[$field] = trim($value);
+        }
+        if (implode('', $device) === '') continue;
+        if ($device['defect_code'] === '') {
+            throw new DomainException('Choose a defect category (or Other) for each device.');
+        }
+        $rows[] = $device;
+    }
+    return $rows;
+}
+
 try {
     $pdo = edpPreviewDb();
     $staff = edpPreviewCurrentStaff($pdo);
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+        $postedBytes = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+        $postLimit = edpPreviewIniBytes((string)ini_get('post_max_size'));
+        if ($postLimit > 0 && $postedBytes > $postLimit) {
+            http_response_code(413);
+            throw new DomainException('This submission exceeds the server upload limit. Choose a smaller image.');
+        }
         if (!edpPreviewCsrfValid($_POST['csrf_token'] ?? null)) {
             http_response_code(403);
             throw new DomainException('Your form expired. Reload and try again.');
@@ -70,30 +109,27 @@ try {
         }
         if ($action === 'create_draft') {
             $branchId = edpPreviewPositiveId($_POST['branch_id'] ?? null);
-            $types = $_POST['device_type_code'] ?? null;
-            $symptoms = $_POST['reported_symptoms'] ?? null;
-            $makes = $_POST['make'] ?? null;
-            $models = $_POST['model'] ?? null;
-            if (!is_array($types) || !is_array($symptoms) || !is_array($makes) || !is_array($models) ||
-                count($types) !== count($symptoms) || count($types) !== count($makes) ||
-                count($types) !== count($models) || count($types) > 3 || !array_is_list($types)) {
-                throw new DomainException('Invalid device entry form.');
+            $key = $_POST['draft_request_key'] ?? null;
+            if (!is_string($key) || !preg_match('/^[0-9a-f]{64}$/D', $key)) {
+                throw new DomainException('Reload the draft form and retry.');
             }
-            $devices = [];
-            foreach ($types as $i => $type) {
-                if (!is_string($type) || !is_string($symptoms[$i] ?? null) ||
-                    !is_string($makes[$i] ?? null) || !is_string($models[$i] ?? null)) {
-                    throw new DomainException('Invalid device data.');
-                }
-                if (trim($type) === '' && trim($symptoms[$i]) === '' &&
-                    trim($makes[$i]) === '' && trim($models[$i]) === '') continue;
-                $devices[] = [
-                    'device_type_code'=>$type, 'reported_symptoms'=>$symptoms[$i],
-                    'make'=>$makes[$i], 'model'=>$models[$i],
-                ];
-            }
-            $ticket = edpCreateIntakeDraft($pdo,(int)$staff['user_id'],$branchId,$devices);
+            $ticket = edpCreateIntakeDraft($pdo,(int)$staff['user_id'],$branchId,
+                edpPreviewPostedDevices($_POST),$key);
             edpPreviewRedirect('?page=draft&id='.$ticket);
+        }
+        if ($action === 'edit_draft' || $action === 'abandon_draft') {
+            $draftId = edpPreviewPositiveId($_POST['draft_id'] ?? null);
+            $draftCheck = edpPreviewDraft($pdo,(int)$staff['user_id'],$draftId);
+            if (!$draftCheck) {
+                http_response_code(404);
+                throw new DomainException('Draft not found in your assigned branch.');
+            }
+            if ($action === 'edit_draft') {
+                edpEditIntakeDraft($pdo,(int)$staff['user_id'],$draftId,edpPreviewPostedDevices($_POST));
+                edpPreviewRedirect('?page=draft&id='.$draftId);
+            }
+            edpAbandonIntakeDraft($pdo,(int)$staff['user_id'],$draftId);
+            edpPreviewRedirect('?page=drafts');
         }
         if ($action === 'issue') {
             $draftId = edpPreviewPositiveId($_POST['draft_id'] ?? null);
@@ -106,9 +142,11 @@ try {
                 throw new DomainException('Confirm the customer signed the intake terms.');
             }
             $mode = $_POST['customer_mode'] ?? null;
+            $confirmedPhone = null;
             if ($mode === 'existing') {
                 $customerId = edpPreviewPositiveId($_POST['customer_id'] ?? null);
-                edpPreviewVerifyExistingCustomer($pdo,$customerId,(int)$draftCheck['branch_id']);
+                $confirmedPhone = is_string($_POST['confirm_phone'] ?? null) ? trim($_POST['confirm_phone']) : '';
+                edpPreviewVerifyExistingCustomer($pdo,$customerId,(int)$draftCheck['branch_id'],$confirmedPhone);
                 $customerData = null;
             } elseif ($mode === 'new') {
                 $name = is_string($_POST['full_name'] ?? null) ? trim($_POST['full_name']) : '';
@@ -128,12 +166,13 @@ try {
                 $pdo->beginTransaction();
                 try {
                     if ($customerData !== null) {
+                        edpPreviewRejectDuplicateCustomer($pdo,(int)$draftCheck['branch_id'],$customerData[1]);
                         $stmt = $pdo->prepare('INSERT INTO customers (full_name,phone,email) VALUES (?,?,?)');
                         $stmt->execute($customerData);
                         $customerId = (int)$pdo->lastInsertId();
                     }
                     $issued = edpIssueIntakeDraft($pdo,(int)$staff['user_id'],$draftId,$customerId,
-                        edpPreviewPrivateRoot(),$relative);
+                        edpPreviewPrivateRoot(),$relative,'CLASSROOM-1',$confirmedPhone);
                     $pdo->commit();
                 } catch (Throwable $e) {
                     if ($pdo->inTransaction()) $pdo->rollBack();
@@ -151,12 +190,15 @@ try {
     }
     if ($page !== 'login' && !$staff) edpPreviewRedirect('?page=login');
     if ($page === 'login' && $staff) edpPreviewRedirect('?page=intake');
-    if ($page === 'intake') {
+    if ($page === 'drafts') {
+        $drafts = edpPreviewDrafts($pdo,(int)$staff['user_id']);
+    } elseif ($page === 'intake') {
         $branches = edpPreviewBranches($pdo,(int)$staff['user_id']);
         $catalogs = edpReferenceCatalogs($pdo);
     } elseif ($page === 'draft') {
         $id = edpPreviewPositiveId($_GET['id'] ?? null);
         $draft = edpPreviewDraft($pdo,(int)$staff['user_id'],$id);
+        $catalogs = edpReferenceCatalogs($pdo);
         if (!$draft) {
             http_response_code(404);
             throw new DomainException('This draft is unavailable in your assigned branch.');
@@ -181,6 +223,11 @@ try {
                 ? (int)$_POST['draft_id'] : 0;
             $draft = $id > 0 ? edpPreviewDraft($pdo,(int)$staff['user_id'],$id) : null;
             if ($draft) $customers = edpPreviewCustomerMatches($pdo,(int)$draft['branch_id'],'');
+        } elseif ($action === 'edit_draft' || $action === 'abandon_draft') {
+            $page = 'draft';
+            $id = is_string($_POST['draft_id'] ?? null) && ctype_digit($_POST['draft_id']) ? (int)$_POST['draft_id'] : 0;
+            $draft = $id > 0 ? edpPreviewDraft($pdo,(int)$staff['user_id'],$id) : null;
+            $catalogs = edpReferenceCatalogs($pdo);
         } elseif ($action === 'create_draft') {
             $page = 'intake';
             $branches = edpPreviewBranches($pdo,(int)$staff['user_id']);
@@ -193,6 +240,7 @@ try {
     $error = 'The academic preview is temporarily unavailable.';
 }
 $csrf = edpPreviewCsrf();
+$draftRequestKey = bin2hex(random_bytes(32));
 $h = 'edpPreviewEscape';
 ?>
 <!doctype html>
@@ -208,6 +256,7 @@ $h = 'edpPreviewEscape';
 <?php if ($staff): ?><div class="signed"><span><?= $h($staff['full_name']) ?> · <?= $h($staff['role_code']) ?></span>
 <form method="post" action=""><input type="hidden" name="csrf_token" value="<?= $h($csrf) ?>"><input type="hidden" name="action" value="logout"><button class="plain" type="submit">Sign out</button></form></div><?php endif; ?></header>
 <main class="layout">
+<?php if ($staff): ?><nav class="quicknav" aria-label="Intake navigation"><a href="?page=intake">New intake</a><a href="?page=drafts">My drafts</a></nav><?php endif; ?>
 <?php if ($error !== ''): ?><div class="alert" role="alert"><?= $h($error) ?></div><?php endif; ?>
 <?php if ($page === 'login'): ?>
 <section class="panel narrow"><p class="eyebrow">Staff authentication</p><h1>Academic workspace</h1>
@@ -217,25 +266,53 @@ $h = 'edpPreviewEscape';
 <label>Email<input type="email" name="email" autocomplete="username" maxlength="190" required></label>
 <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
 <button class="primary" type="submit">Sign in</button></form></section>
+<?php elseif ($page === 'drafts' && $staff): ?>
+<section class="panel"><p class="eyebrow">Saved work</p><h1>My Drafts</h1>
+<p>Resume an unissued ticket to correct its devices, select a customer and issue it. Abandoned drafts are not repair cancellations.</p>
+<?php if (!$drafts): ?><p>No unfinished drafts assigned to your account.</p>
+<?php else: ?><div class="draft-list">
+<?php foreach ($drafts as $row): ?><a class="draft-link" href="?page=draft&amp;id=<?= (int)$row['ticket_id'] ?>">
+<strong>Draft #<?= (int)$row['ticket_id'] ?></strong> · <?= $h($row['branch_name']) ?>
+<span><?= (int)$row['device_count'] ?> device(s) · <?= $h($row['intake_at']) ?> UTC</span></a><?php endforeach; ?>
+</div><?php endif; ?></section>
 <?php elseif ($page === 'intake' && $staff): ?>
 <nav><a href="?page=intake">Intake</a></nav><section class="panel"><p class="eyebrow">Step 1 of 2</p><h1>Create a repair draft</h1>
-<p>Register up to three devices before selecting the customer. Additional devices can be supported in later UI revisions.</p>
-<form method="post" action="?page=intake" class="stack"><input type="hidden" name="action" value="create_draft"><input type="hidden" name="csrf_token" value="<?= $h($csrf) ?>">
+<p>Register up to three devices before selecting the customer. Select a predefined defect category or Other, then describe the actual symptoms.</p>
+<form method="post" action="?page=intake" class="stack"><input type="hidden" name="action" value="create_draft"><input type="hidden" name="csrf_token" value="<?= $h($csrf) ?>"><input type="hidden" name="draft_request_key" value="<?= $h($draftRequestKey) ?>">
 <label>Receiving branch<select name="branch_id" required>
 <?php foreach ($branches as $b): ?><option value="<?= (int)$b['branch_id'] ?>"><?= $h($b['branch_name']) ?></option><?php endforeach; ?>
 </select></label>
 <?php for ($i=1; $i<=3; $i++): ?><fieldset class="device"><legend>Device <?= $i ?><?= $i===1?' · required':' · optional' ?></legend>
 <div class="grid-two"><label>Type<select name="device_type_code[]" <?= $i===1?'required':'' ?>><option value="">Choose type</option>
 <?php foreach ($catalogs['device_types']??[] as $type): ?><option value="<?= $h($type['code']) ?>"><?= $h($type['label']) ?></option><?php endforeach; ?></select></label>
+<label>Defect category<select name="defect_code[]" <?= $i===1?'required':'' ?>><option value="">Choose defect</option>
+<?php foreach ($catalogs['defect_types']??[] as $defect): ?><option value="<?= $h($defect['code']) ?>"><?= $h($defect['label']) ?></option><?php endforeach; ?></select></label>
 <label>Reported issue<input type="text" name="reported_symptoms[]" maxlength="2000" placeholder="e.g. No display" <?= $i===1?'required':'' ?>></label>
 <label>Make<input type="text" name="make[]" maxlength="100" placeholder="Optional"></label><label>Model<input type="text" name="model[]" maxlength="160" placeholder="Optional"></label></div>
 </fieldset><?php endfor; ?>
 <button class="primary" type="submit" <?= $branches?'':'disabled' ?>>Save draft</button></form></section>
 <?php elseif ($page === 'draft' && $draft && $staff): ?>
 <nav><a href="?page=intake">← New intake</a></nav><section class="panel"><p class="eyebrow">Step 2 of 2 · <?= $h($draft['branch_name']) ?></p>
-<h1>Issue draft #<?= (int)$draft['ticket_id'] ?></h1><p>Review the devices, select an existing customer or register a new customer, then attach the signed intake image.</p>
+<h1>Draft #<?= (int)$draft['ticket_id'] ?></h1><p>First correct any device information. Then select a customer and record staff-attested signed intake evidence.</p>
 <div class="device-summary"><?php foreach ($draft['devices'] as $dev): ?><div><strong>Device <?= (int)$dev['sequence_no'] ?></strong> · <?= $h($dev['device_type_code']) ?><?= $dev['model_snapshot']?' · '.$h($dev['model_snapshot']):'' ?>
 <p><?= $h($dev['reported_symptoms']) ?></p></div><?php endforeach; ?></div>
+<section class="search-panel"><h2>Edit saved devices</h2>
+<form method="post" action="?page=draft&amp;id=<?= (int)$draft['ticket_id'] ?>" class="stack">
+<input type="hidden" name="action" value="edit_draft"><input type="hidden" name="csrf_token" value="<?= $h($csrf) ?>">
+<input type="hidden" name="draft_id" value="<?= (int)$draft['ticket_id'] ?>">
+<?php foreach ($draft['devices'] as $device): ?><fieldset class="device"><legend>Device <?= (int)$device['sequence_no'] ?></legend>
+<div class="grid-two"><label>Type<select name="device_type_code[]" required>
+<?php foreach ($catalogs['device_types']??[] as $type): ?><option value="<?= $h($type['code']) ?>" <?= $type['code']===$device['device_type_code']?'selected':'' ?>><?= $h($type['label']) ?></option><?php endforeach; ?></select></label>
+<label>Defect category<select name="defect_code[]" required><option value="">Choose defect</option>
+<?php foreach ($catalogs['defect_types']??[] as $defect): ?><option value="<?= $h($defect['code']) ?>" <?= $defect['code']===$device['defect_code']?'selected':'' ?>><?= $h($defect['label']) ?></option><?php endforeach; ?></select></label>
+<label>Reported problem<input type="text" name="reported_symptoms[]" maxlength="2000" value="<?= $h($device['reported_symptoms']) ?>" required></label>
+<label>Make<input type="text" name="make[]" maxlength="100" value="<?= $h($device['make_snapshot']) ?>"></label>
+<label>Model<input type="text" name="model[]" maxlength="160" value="<?= $h($device['model_snapshot']) ?>"></label></div>
+</fieldset><?php endforeach; ?>
+<button class="primary" type="submit">Save device corrections</button></form>
+<form method="post" action="?page=draft&amp;id=<?= (int)$draft['ticket_id'] ?>" class="stack abandon-form">
+<input type="hidden" name="action" value="abandon_draft"><input type="hidden" name="csrf_token" value="<?= $h($csrf) ?>"><input type="hidden" name="draft_id" value="<?= (int)$draft['ticket_id'] ?>">
+<button class="plain danger-button" type="submit">Abandon this unissued draft</button></form></section>
 <section class="search-panel"><h2>Returning customer lookup</h2><form method="get" action="" class="search-row"><input type="hidden" name="page" value="draft"><input type="hidden" name="id" value="<?= (int)$draft['ticket_id'] ?>">
 <label>Search name or phone<input type="search" name="q" value="<?= $h(is_string($_GET['q']??null)?$_GET['q']:'') ?>" minlength="2" maxlength="80" placeholder="Enter at least 2 characters"></label><button type="submit">Search</button></form></section>
 <form method="post" action="?page=draft&amp;id=<?= (int)$draft['ticket_id'] ?>" enctype="multipart/form-data" class="stack">
@@ -247,10 +324,14 @@ $h = 'edpPreviewEscape';
 <label class="choice"><input type="radio" name="customer_mode" value="existing"> Returning customer (select from search results)</label>
 <label>Existing customer<select name="customer_id"><option value="">Choose searched customer</option>
 <?php foreach ($customers as $customer): ?><option value="<?= (int)$customer['customer_id'] ?>"><?= $h($customer['full_name']) ?> · phone ending <?= $h($customer['phone_suffix']) ?></option><?php endforeach; ?></select></label>
+<label>Confirm full recorded phone for returning customer<input type="tel" name="confirm_phone" inputmode="numeric" autocomplete="off" maxlength="15" placeholder="Enter complete recorded phone"></label>
 </fieldset>
-<fieldset><legend>Signed intake evidence</legend><label>Signed PNG, JPEG or WebP image (max 5 MiB)
+<fieldset><legend>Staff-attested signed intake evidence</legend>
+<p class="hint">CLASSROOM-1 terms: Staff must explain the reported repair scope, diagnostic assessment, quotation approval before paid repair, and customer review of costs before pickup. The checkbox records the staff member's attestation; image file checks cannot verify a handwritten signature.</p>
+<label>Image of signed intake terms (PNG, JPEG or WebP; maximum 5 MiB)
 <input type="hidden" name="MAX_FILE_SIZE" value="5242880"><input type="file" name="signature" accept="image/png,image/jpeg,image/webp" required></label>
-<label class="choice"><input type="checkbox" name="signed_terms" value="yes" required> I confirm the customer signed the CLASSROOM-1 intake terms and authorized this repair intake.</label></fieldset>
+<label class="choice"><input type="checkbox" name="signed_terms" value="yes" required> As the intake staff member, I attest the customer reviewed and signed the displayed CLASSROOM-1 terms before issuance.</label>
+<?php if (edpPreviewUploadCapacity() < 5242880): ?><p class="hint" role="status">This PHP server's upload configuration is below 5 MiB. Ask the administrator to raise upload_max_filesize and post_max_size, or use a smaller image.</p><?php endif; ?></fieldset>
 <p class="hint">The portal code will be shown once on the confirmation screen. The PIN is the last four digits of the recorded phone and is stored only as a password hash.</p>
 <button class="primary" type="submit">Issue repair ticket</button></form></section>
 <?php elseif ($page === 'receipt' && is_array($receipt)): ?>

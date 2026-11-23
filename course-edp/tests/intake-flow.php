@@ -71,11 +71,41 @@ try {
             'device_type_code'=>'LAPTOP','reported_symptoms'=>'  ']]),
             'blank reported defect rejected before database write');
 
-        $ticket=edpCreateIntakeDraft($pdo,$intake,$branch,[
-            ['device_type_code'=>'LAPTOP','reported_symptoms'=>'Will not power on',
+        $initialDevices = [
+            ['device_type_code'=>'LAPTOP','defect_code'=>'NO_POWER','reported_symptoms'=>'Will not power on',
              'make'=>'Example','model'=>'Book One','accessories'=>'Charger'],
-            ['device_type_code'=>'DESKTOP','reported_symptoms'=>'Frequent overheating','model'=>'Tower Two'],
+            ['device_type_code'=>'DESKTOP','defect_code'=>'OVERHEATING',
+             'reported_symptoms'=>'Frequent overheating','model'=>'Tower Two'],
+        ];
+        $requestKey = str_repeat('c',64);
+        $ticket=edpCreateIntakeDraft($pdo,$intake,$branch,$initialDevices,$requestKey);
+        intakePass(edpCreateIntakeDraft($pdo,$intake,$branch,$initialDevices,$requestKey)===$ticket,
+            'retrying a draft request reuses the original ticket ID');
+        intakeReject(fn()=>edpCreateIntakeDraft($pdo,$intake,$branch,[
+            ['device_type_code'=>'LAPTOP','defect_code'=>'NOT_A_DEFECT',
+             'reported_symptoms'=>'Needs diagnosis']]), 'invalid defect category rejected');
+        edpEditIntakeDraft($pdo,$intake,$ticket,[
+            ['device_type_code'=>'LAPTOP','defect_code'=>'NO_DISPLAY','reported_symptoms'=>'Screen stays black',
+             'make'=>'Example','model'=>'Book One','accessories'=>'Charger'],
+            ['device_type_code'=>'DESKTOP','defect_code'=>'OVERHEATING',
+             'reported_symptoms'=>'Frequent overheating','model'=>'Tower Two'],
         ]);
+        $findDefects=$pdo->prepare('SELECT f.defect_code FROM ticket_defects f
+            JOIN ticket_devices d ON d.ticket_device_id=f.ticket_device_id
+            WHERE d.ticket_id=? AND d.sequence_no=1');
+        $findDefects->execute([$ticket]);
+        intakePass($findDefects->fetchColumn()==='NO_DISPLAY',
+            'editing a draft replaces its controlled defect reference');
+        $abandon = edpCreateIntakeDraft($pdo,$intake,$branch,$initialDevices);
+        edpAbandonIntakeDraft($pdo,$intake,$abandon);
+        $q=$pdo->prepare('SELECT ticket_state,portal_code FROM repair_tickets WHERE ticket_id=?');
+        $q->execute([$abandon]);$gone=$q->fetch(PDO::FETCH_ASSOC);
+        intakePass($gone['ticket_state']==='ABANDONED' && $gone['portal_code']===null,
+            'abandoned draft retains history without issuing tracking credentials');
+        intakeReject(fn()=>edpEditIntakeDraft($pdo,$intake,$abandon,$initialDevices),
+            'abandoned draft cannot be edited');
+        intakeReject(fn()=>edpIssueIntakeDraft($pdo,$intake,$abandon,$customer,$privateRoot,$signature),
+            'abandoned draft cannot be issued');
         $q=$pdo->prepare('SELECT ticket_state,customer_id,ticket_code FROM repair_tickets WHERE ticket_id=?');
         $q->execute([$ticket]);$draft=$q->fetch(PDO::FETCH_ASSOC);
         intakePass($draft['ticket_state']==='DRAFT' && $draft['customer_id']===null &&

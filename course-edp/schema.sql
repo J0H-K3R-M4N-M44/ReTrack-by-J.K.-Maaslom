@@ -146,17 +146,20 @@ CREATE TABLE repair_tickets (
   ticket_code VARCHAR(24) NULL COMMENT 'Allocated when issuing the draft; distinct from the private portal code',
   portal_code CHAR(5) NULL COMMENT 'Five hexadecimal characters; generated only when issued',
   portal_pin_hash VARCHAR(255) NULL COMMENT 'Hash of four-digit phone suffix at issuance',
-  ticket_state ENUM('DRAFT','OPEN','CLOSED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+  ticket_state ENUM('DRAFT','ABANDONED','OPEN','CLOSED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
   intake_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   issued_at DATETIME NULL,
   closed_at DATETIME NULL,
   created_by_user_id INT UNSIGNED NOT NULL,
+  create_request_key CHAR(64) NULL COMMENT 'Unique browser retry key for one draft creation',
   terms_version VARCHAR(40) NULL,
   terms_signed_at DATETIME NULL,
   terms_signature_path VARCHAR(500) NULL COMMENT 'Opaque reference to protected signed intake file',
   PRIMARY KEY (ticket_id),
   UNIQUE KEY uq_ticket_code (ticket_code),
   UNIQUE KEY uq_portal_code (portal_code),
+  UNIQUE KEY uq_draft_request (create_request_key),
+  CONSTRAINT chk_draft_request CHECK (create_request_key IS NULL OR create_request_key REGEXP '^[0-9a-f]{64}$'),
   UNIQUE KEY uq_ticket_customer_pair (ticket_id, customer_id),
   UNIQUE KEY uq_ticket_branch_pair (ticket_id, branch_id),
   KEY idx_ticket_branch (branch_id, ticket_state, intake_at),
@@ -168,10 +171,10 @@ CREATE TABLE repair_tickets (
   CONSTRAINT chk_portal_credentials CHECK ((portal_code IS NULL AND portal_pin_hash IS NULL) OR
                                            (portal_code IS NOT NULL AND portal_pin_hash IS NOT NULL)),
   CONSTRAINT chk_ticket_state_fields CHECK (
-    (ticket_state = 'DRAFT' AND ticket_code IS NULL AND issued_at IS NULL AND closed_at IS NULL
+    (ticket_state IN ('DRAFT','ABANDONED') AND ticket_code IS NULL AND issued_at IS NULL AND closed_at IS NULL
      AND portal_code IS NULL AND portal_pin_hash IS NULL AND terms_signed_at IS NULL)
     OR
-    (ticket_state <> 'DRAFT' AND customer_id IS NOT NULL AND
+    (ticket_state NOT IN ('DRAFT','ABANDONED') AND customer_id IS NOT NULL AND
      ticket_code IS NOT NULL AND portal_code IS NOT NULL AND portal_pin_hash IS NOT NULL AND
      terms_version IS NOT NULL AND terms_signed_at IS NOT NULL AND terms_signature_path IS NOT NULL AND
      issued_at IS NOT NULL AND

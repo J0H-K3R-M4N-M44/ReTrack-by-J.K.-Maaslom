@@ -37,7 +37,7 @@ function edpInTransaction(PDO $pdo, callable $work): mixed
     }
 }
 
-function edpActiveBranchStaff(PDO $pdo, int $actorId, int $branchId, array $allowedRoles): void
+function edpActiveBranchStaff(PDO $pdo, int $actorId, int $branchId, array $allowedRoles): string
 {
     $query = $pdo->prepare('SELECT role_code, is_active FROM users WHERE user_id = ? FOR UPDATE');
     $query->execute([$actorId]);
@@ -52,6 +52,7 @@ function edpActiveBranchStaff(PDO $pdo, int $actorId, int $branchId, array $allo
     if (!$query->fetchColumn()) {
         throw new DomainException('This record is outside your assigned branch.');
     }
+    return (string)$user['role_code'];
 }
 
 /** Advance a technician's assigned repair and record the timeline atomically. */

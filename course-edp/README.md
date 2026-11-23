@@ -24,6 +24,16 @@ New files (not public endpoints):
 
 **Security boundary:** the signature path must come from server-owned upload staging after authenticated staff selection, not directly from a browser-provided filename. The functions do not check sessions/CSRF or provide public uploads; wire those later in a guarded controller with per-file ownership records. This example assumes the prerecorded intake signature is an image; additional signed-document formats need a separate validation policy.
 
+## Phase 3, slice C — intake recovery, defect choices and negative HTTP tests
+
+- The preview now includes **My Drafts** (up to 50 recent authored drafts), an edit form for all existing devices, and an audited **Abandon** action. Abandonment uses `ABANDONED` to distinguish a never-issued draft from a cancelled repair. It preserves the draft record, while no public code is created.
+- Create-draft submits a random 64-character request key (`repair_tickets.create_request_key` UNIQUE), so retries return the same draft rather than duplicating tickets. The key is not a substitute for CSRF or authentication.
+- Intake selects active `defect_types`, including `OTHER`; choices are saved to `ticket_defects`. Reported symptoms remain free text. Existing drafts can change their type, defect and reported symptoms before issue; the current form edits existing device rows only, not device counts.
+- Returning customer reuse requires re-entering the **full recorded phone number** for the selected customer. An existing branch phone is flagged before issuing a duplicate *new* customer. Shared family phone numbers are not globally unique.
+- The staff checkbox explicitly records **staff attestation** of classroom terms. File MIME and content checks do not cryptographically or visually prove a real signature. Preview terms are `CLASSROOM-1` and must be replaced with final approved terms before deployment.
+- The preview refuses non-loopback web requests. It revalidates staff accounts and active branch membership on protected requests. Its local CI server sets `upload_max_filesize=6M` and `post_max_size=7M` to test the app's 5 MiB limit; actual installations must check their PHP and web-server limits.
+- Expanded HTTP checks cover idempotent create POSTs, draft resume/edit/abandon, wrong-phone confirmation, duplicate contacts, oversized and empty uploads, cross-branch draft requests and disabled staff sessions. These tests remain synthetic and are *not* substitute for a real Chrome mobile/accessibility review.
+
 ## What is deliberately NOT complete
 
 This is the **database foundation and isolated reference actions**, not a wired-up website, complete onboarding and issuance service, file upload/streaming code, COD collection or courier delivery, password reset UX, external REST integration, browser-driven EDP exercises, or human acceptance testing. The Sogod prototype's workflow remains the reference. No claim of full PHP compatibility should be made based on these database tests.

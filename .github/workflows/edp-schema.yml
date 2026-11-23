@@ -70,7 +70,8 @@ jobs:
           set -euo pipefail
           mkdir -p "$REPAIRTRACK_EDP_PRIVATE_ROOT"
           chmod 700 "$REPAIRTRACK_EDP_PRIVATE_ROOT"
-          php -S 127.0.0.1:8743 -t course-edp/public > "$RUNNER_TEMP/edp-preview.log" 2>&1 &
+          php -d upload_max_filesize=6M -d post_max_size=7M \
+            -S 127.0.0.1:8743 -t course-edp/public > "$RUNNER_TEMP/edp-preview.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           for attempt in 1 2 3 4 5 6 7 8; do
