@@ -70,13 +70,13 @@ Chromium also asserts no page-wide horizontal overflow or missing labels on requ
 
 ## Phase 4 follow-up — safe fixture and keyboard recovery
 
-**Implementation checkpoint:** \`098abf740187a272b86916f52dc84c4e3d73ac35\`  
+**Implementation checkpoint:** `098abf740187a272b86916f52dc84c4e3d73ac35`  
 **Exact-source CI:** [run #45161776895](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45161776895), both jobs passed.  
 **60-PNG screenshot set:** [artifact #14812570303](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45161776895/artifacts/14812570303), expires December 7, 2026.
 
 ### Safer disposable fixture
 
-The CLI fixture now refuses use without the explicit \`REPAIRTRACK_EDP_CONFIRM_FRESH=I_CONFIRM_NEW_DISPOSABLE_REPAIRTRACK_EDP\` opt-in, local loopback DB host and exact \`repairtrack_edp\` environment values. Its \`preflight\` and \`create\` paths independently require empty operational tables and only the fictional \`SOGOD-DEMO\` branch, without changing the 23-table application schema. Python also refuses to start without the opt-in and asks the PHP preflight to inspect the actual DB before issuing any HTTP requests. CI explicitly tests refusal **without confirmation** and refusal **after the fictional journey populates the database**. This is a defense against accidental reuse, not a substitute for operator review of database credentials or a guarantee about all possible localhost configurations.
+The CLI fixture now refuses use without the explicit `REPAIRTRACK_EDP_CONFIRM_FRESH=I_CONFIRM_NEW_DISPOSABLE_REPAIRTRACK_EDP` opt-in, local loopback DB host and exact `repairtrack_edp` environment values. Its `preflight` and `create` paths independently require empty operational tables and only the fictional `SOGOD-DEMO` branch, without changing the 23-table application schema. Python also refuses to start without the opt-in and asks the PHP preflight to inspect the actual DB before issuing any HTTP requests. CI explicitly tests refusal **without confirmation** and refusal **after the fictional journey populates the database**. This is a defense against accidental reuse, not a substitute for operator review of database credentials or a guarantee about all possible localhost configurations.
 
 ### Authenticated keyboard and error recovery
 
