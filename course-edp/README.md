@@ -2,6 +2,13 @@
 
 This folder contains a **standalone 23-table academic schema**. It is **not an upgrade to the existing RepairTrack database or application**. The PHP site under `app/`, `admin/`, and `views/` still expects the historical schema: **never point it to `repairtrack_edp` until migration and end-to-end tests are complete**.
 
+
+## Current branch status (updated through Technician Workspace slice D)
+
+The current academic preview now has a local-only **staff intake route** (`public/index.php`), a separate **customer tracking route** (`public/track.php`), and a separate **Technician Workspace** (`public/technician.php`). The latter works with **assigned fictional repairs**; the manager assignment, quotation sending/customer approval, and cashier interfaces are **not** implemented yet. The 23-table academic database, intake web journey, customer timeline, and technician web journey are covered by disposable MySQL and localhost HTTP CI. The original legacy website remains an independent application and is **not** migrated. No public deployment is authorized.
+
+Older section notes below describe what was missing at their respective milestone, and should not be read as the latest system-wide feature inventory.
+
 ## What's included
 
 - Five staff roles, branches and branch membership; device/defect/status reference catalogs; accepted transition pairs; Sogod **fictional** classroom branch and locations.
@@ -36,7 +43,7 @@ New files (not public endpoints):
 
 ## What is deliberately NOT complete
 
-This is the **database foundation and isolated reference actions**, not a wired-up website, complete onboarding and issuance service, file upload/streaming code, COD collection or courier delivery, password reset UX, external REST integration, browser-driven EDP exercises, or human acceptance testing. The Sogod prototype's workflow remains the reference. No claim of full PHP compatibility should be made based on these database tests.
+**Still missing across the current academic implementation:** a unified legacy migration, complete admin and cashier UI, manager quotation approval, COD collection or courier delivery, password reset UX, external REST integration, full browser-driven EDP exercises, and human acceptance testing. The Sogod prototype's workflow remains the reference. No claim of full PHP compatibility should be made based on these database tests.
 
 ## Verification (disposable MySQL only)
 
@@ -104,7 +111,7 @@ Do **not** run `php -S` from the repository root: that would expose `course-edp/
 
 The preview includes: private-session staff login and role/branch checks; CSRF on all form POSTs; protected sign-out; server-validated device categories; device-first draft creation; a branch-restricted lookup for returning customers; new customer registration within the issuance transaction; actual PNG/JPEG/WebP validation and protected upload staging; transactionally recorded issued devices, initial status events, and signature metadata; and a receipt which is removed from the session after first display. It never reveals the PIN, and it does not allow serving stored customer images from this preview.
 
-**Known limitations:** This is classroom intake workflow only, not a complete browser system. There is no customer portal, repair board, status UI, finance UI, file-download endpoint, generic account management, async JavaScript event demonstrations, public maps, Notepad integration, or external REST API yet. Image upload consent checkbox records a staff confirmation, not cryptographic proof of the customer's signature. Staff login throttling uses a local protected-file counter suitable only for a single-instance localhost demonstration. Sessions require HTTPS and a correctly configured web server before any nonlocal use. The browser form displays three device rows, although the domain service accepts up to 25. Customer email and phone numbers in tests must be fictional. The use of `COUNTER_CASH` remains the only enabled academic payment service; COD has not been implemented.
+**Known limitations at slice B (historical):** At the original intake milestone, there was no customer portal or technician interface. Both now exist in separate academic routes (slices C and D). The full admin/cashier consoles, file-download endpoint, generic account management, complete asynchronous JavaScript demonstration, maps, Notepad integration, and external REST API remain outstanding. Image upload consent checkbox records a staff confirmation, not cryptographic proof of the customer's signature. Staff login throttling uses a local protected-file counter suitable only for a single-instance localhost demonstration. Sessions require HTTPS and a correctly configured web server before any nonlocal use. The browser form displays three device rows, although the domain service accepts up to 25. Customer email and phone numbers in tests must be fictional. The use of `COUNTER_CASH` remains the only enabled academic payment service; COD has not been implemented.
 
 **Verification:** The existing `.github/workflows/edp-schema.yml` now also serves `course-edp/public/` on localhost and runs `tests/web-smoke.py` after the disposable MySQL domain tests. The HTTP test verifies login/CSRF/role denial, a two-device draft, invalid image rejection, issue confirmation, duplicate issue rejection, receipt non-replay and logout. No deployed site or original database is accessed.
 
