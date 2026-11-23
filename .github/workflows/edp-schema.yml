@@ -34,6 +34,8 @@ jobs:
           php -l course-edp/app/cashier.php
           php -l course-edp/public/cashier.php
           php -l course-edp/tests/cashier-flow.php
+          php -l course-edp/tests/full-journey-fixture.php
+          python3 -m py_compile course-edp/tests/full-journey-http.py
           php -l course-edp/public/manager.php
           php -l course-edp/tests/manager-flow.php
           php -l course-edp/public/technician.php
@@ -93,4 +95,5 @@ jobs:
             if curl -sSf -o /dev/null 'http://127.0.0.1:8743/?page=login'; then break; fi
             sleep 1
           done
+          python3 course-edp/tests/full-journey-http.py
           python3 course-edp/tests/web-smoke.py

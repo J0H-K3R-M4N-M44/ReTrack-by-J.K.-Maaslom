@@ -162,3 +162,13 @@ The disposable GitHub Actions job now runs the extended `tests/web-smoke.py`: an
 - Pickup is permitted only once the current bill is **fully paid** and all devices are `READY_FOR_PICKUP` with `AT_LOCATION` custody. The cashier must re-enter the full recorded phone and attest the actual customer counter handover. The verification is rechecked while locked; `edpConfirmPickup()` then records `COMPLETED` for every device, customer-visible events, `WITH_CUSTOMER` custody, handover timestamps, and `CLOSED` ticket state atomically. **This is a staff-attested classroom step**, not independent cryptographic identity proof, and it does not support proxy collection, courier delivery or COD.
 - Tests: rollback-only `tests/cashier-flow.php` verifies multi-device invoice totals, repeated issue, role/branch restrictions, partial payments and retry/overrun protection, wrong-customer phone, pickup closure, and receipt authorization. The HTTP smoke test adds exact Ticket Code lookup, separate cashier login, CSRF, cross-branch denial, premature billing rejection, real cash receipts and customer-portal completion.
 - **Remaining limitations:** manager offline approval is only staff-attested; there is no automated receipt email/SMS, no cashier refunds or bill correction UI, no COD, no real-browser visual/accessibility audit, no secure externally deployed environment or integrated legacy migration. The user must not rely on this local demo as a fiscal/legal receipt system.
+
+## Cross-role acceptance milestone (full journey)
+
+See [`ACCEPTANCE.md`](ACCEPTANCE.md). In addition to individual PHP domain and HTTP tests, the
+academic CI now runs `tests/full-journey-http.py` against the same disposable localhost
+MySQL preview. The CLI fixture provisions **staff accounts only**; real HTTP handlers
+create the two-device ticket, quotations, payments, and completion timeline. The test
+asserts complete customer-visible and database state without silently supplying
+approved quotes or repairing statuses through direct SQL. This is a stronger integration
+gate, **not** visual browser acceptance or public deployment readiness.
