@@ -136,6 +136,94 @@ with sync_playwright() as playwright:
         check(response.status==303 and 'technician.php?page=login' in response.headers.get('location',''),
               'Notepad lab requires an authenticated technician')
         context.close()
+
+        # Observe the actual completed two-device repair made via the full-journey
+        # HTTP suite. Do not seed "approved" quotes or payments directly in SQL:
+        # the screenshots must represent the tested end-to-end business rules.
+        handoff = os.environ.get('EDP_BROWSER_JOURNEY_MANIFEST')
+        if handoff:
+            private_file = Path(handoff)
+            check(private_file.is_file(), 'full HTTP journey supplied an ephemeral browser handoff')
+            journey = json.loads(private_file.read_text(encoding='utf-8'))
+            code = journey['ticket_code']
+            check(code.startswith('RT-') and len(code) == 15 and len(journey['device_ids']) == 2,
+                  'populated browser evidence references a real fictional two-device ticket')
+
+            def journey_staff(role, target, heading):
+                session = browser.new_context(viewport={'width': 1366, 'height': 900},
+                    timezone_id='Asia/Manila')
+                tab = session.new_page()
+                tab.goto(BASE + '/' + role + '.php?page=login', wait_until='networkidle')
+                user = journey['staff'][role]
+                tab.get_by_label('Email', exact=True).fill(user['email'])
+                tab.get_by_label('Password', exact=True).fill(user['password'])
+                tab.locator('form button[type="submit"]').first.click()
+                tab.get_by_role('heading', name=heading, exact=True).wait_for(timeout=12000)
+                response = tab.goto(BASE + '/' + target, wait_until='networkidle')
+                check(response is not None and response.status == 200,
+                      role+' populated repair detail loads with authenticated fictional account')
+                return session, tab
+
+            device_id = journey['device_ids'][0]
+            session, tab = journey_staff('technician',
+                'technician.php?page=device&id='+device_id, 'My repair queue')
+            tab.get_by_role('heading', name='Repair progress', exact=True).wait_for()
+            check(code in tab.locator('main').inner_text() and
+                  'PRIVATE_JOURNEY_DIAGNOSIS_ABC' in tab.locator('main').inner_text(),
+                  'technician populated detail includes journey ticket and private diagnosis')
+            screenshot_viewports(tab, 'populated-technician-detail')
+            tab.goto(BASE+'/technician.php?view=history', wait_until='networkidle')
+            check(code in tab.locator('main').inner_text(),
+                  'technician history includes completed fictional journey ticket')
+            screenshot_viewports(tab, 'populated-technician-history')
+            session.close()
+
+            session, tab = journey_staff('manager',
+                'manager.php?page=device&id='+device_id, 'Manager queue')
+            tab.get_by_role('heading', name='Quotation review', exact=True).wait_for()
+            check(code in tab.locator('main').inner_text()
+                  and 'APPROVED' in tab.locator('main').inner_text()
+                  and '300.00' in tab.locator('main').inner_text(),
+                  'manager populated detail retains an approved 300-peso quotation')
+            screenshot_viewports(tab, 'populated-manager-quote')
+            session.close()
+
+            session, tab = journey_staff('cashier',
+                'cashier.php?page=ticket&id='+journey['ticket_id'], 'Cashier desk')
+            tab.get_by_role('heading', name='Payment history', exact=True).wait_for()
+            check(code in tab.locator('main').inner_text()
+                  and '600.00' in tab.locator('main').inner_text(),
+                  'cashier populated ticket shows the completed itemized payment journey')
+            check(tab.locator('a[href*="page=receipt"]').count() == 2,
+                  'cashier populated ticket exposes precisely two fictional payment receipts')
+            screenshot_viewports(tab, 'populated-cashier-ticket')
+            tab.locator('a[href*="page=receipt"]').first.click()
+            tab.get_by_role('heading', name='Cash receipt #', exact=False).wait_for()
+            check(code in tab.locator('main').inner_text(),
+                  'cashier receipt is authorized and linked to the same fictional ticket')
+            screenshot_viewports(tab, 'populated-cashier-receipt')
+            session.close()
+
+            session = browser.new_context(viewport={'width': 1366, 'height': 900},
+                timezone_id='Asia/Manila')
+            tab = session.new_page()
+            tab.goto(BASE+'/track.php', wait_until='networkidle')
+            tab.get_by_label('Tracking code').fill(journey['portal_code'])
+            tab.get_by_label('Portal PIN').fill(journey['portal_pin'])
+            tab.get_by_role('button', name='View repair progress').click()
+            tab.get_by_role('heading', name='Repair progress', exact=True).wait_for(timeout=12000)
+            rendered = tab.locator('main').inner_text()
+            check(code in rendered and rendered.count('Collected by customer') == 2,
+                  'customer populated timeline shows both completed handovers')
+            check('PRIVATE_JOURNEY_DIAGNOSIS_ABC' not in rendered and
+                  'journey@example.test' not in rendered and
+                  'Cash receipt #' not in rendered,
+                  'customer screenshots exclude private diagnosis, contact and cashier receipts')
+            screenshot_viewports(tab, 'populated-customer-timeline')
+            session.close()
+        else:
+            print('NOTE: no private full-journey handoff; populated browser screens were not tested')
+
         print('PASS: real Chromium HCI and EDP lab acceptance completed')
     finally:
         browser.close()
