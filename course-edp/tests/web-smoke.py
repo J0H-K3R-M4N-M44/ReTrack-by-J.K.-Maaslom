@@ -482,4 +482,143 @@ status, _, manager_revoked = fetch(manager,'/manager.php')
 check(status == 200 and 'Manager sign in' in manager_revoked and 'Manager queue' not in manager_revoked,
       'disabled manager loses current privileged session')
 
+# Cashier integration: actual HTTP across receipt, payment, and pickup screens.
+cash_fixture = json.loads(subprocess.run(
+    ['php', 'course-edp/tests/web-fixture.php', 'cashier-create'],
+    capture_output=True, check=True, text=True, env=os.environ.copy()).stdout)
+cash_anon = browser()
+status, _, cash_login = fetch(cash_anon, '/cashier.php?page=login')
+check(status == 200 and 'Cashier sign in' in cash_login,
+      'cashier console has its own signed-out login page')
+status, _, cash_bad_csrf = form(cash_anon, '/cashier.php?page=login', {
+    'action':'login','csrf_token':'invalid',
+    'email':cash_fixture['email'],'password':cash_fixture['password']})
+check(status == 403, 'cashier login rejects invalid CSRF')
+status, _, cash_deny = form(cash_anon,'/cashier.php?page=login',{
+    'action':'login','csrf_token':token(cash_bad_csrf),
+    'email':tech_fixture['other_email'],'password':tech_fixture['other_password']})
+check(status == 401 and 'Invalid cashier credentials' in cash_deny,
+      'technician role cannot sign in to cash desk')
+cash = browser()
+status, _, login_cash = fetch(cash, '/cashier.php?page=login')
+status, _, desk = form(cash, '/cashier.php?page=login',{
+    'action':'login','csrf_token':token(login_cash),
+    'email':cash_fixture['email'],'password':cash_fixture['password']})
+check(status == 200 and 'Cashier desk' in desk,
+      'authorized cashier signs into an isolated session')
+code = cash_fixture['ticket_code']
+status, _, invalid_code = fetch(cash,'/cashier.php?ticket_code='+cash_fixture['portal_code'])
+check(status == 422 and 'internal RT-' in invalid_code,
+      'cash desk rejects five-character public tracking code')
+status, details_url, cash_detail = fetch(cash,'/cashier.php?ticket_code='+code)
+check(status == 200 and 'Repair devices' in cash_detail and code in cash_detail,
+      'exact Ticket Code retrieves branch-owned repair details')
+cash_id = str(cash_fixture['ticket_id'])
+check('page=ticket' in details_url and 'Cashier Customer' in cash_detail,
+      'cash desk uses internal ticket lookup rather than the portal code')
+status, _, cash_csrf_rejected = form(cash,'/cashier.php?page=ticket&id='+cash_id,{
+    'action':'issue_bill','ticket_id':cash_id,'csrf_token':'invalid'})
+check(status == 403, 'cashier bill issuance is CSRF protected')
+status, _, premature_bill = form(cash,'/cashier.php?page=ticket&id='+cash_id,{
+    'action':'issue_bill','ticket_id':cash_id,'csrf_token':token(cash_detail)})
+check(status == 422 and 'Every device must be ready' in premature_bill,
+      'cashier cannot bill ticket while a device is still in testing')
+other_cash = browser()
+status, _, other_cash_login = fetch(other_cash,'/cashier.php?page=login')
+status, _, other_cash_desk = form(other_cash,'/cashier.php?page=login',{
+    'action':'login','csrf_token':token(other_cash_login),
+    'email':cash_fixture['other_email'],'password':cash_fixture['other_password']})
+check(status == 200 and 'Cashier desk' in other_cash_desk,
+      'other-branch cashier can sign into own desk')
+status, _, denied_cash = fetch(other_cash,'/cashier.php?page=ticket&id='+cash_id)
+check(status == 404 and code not in denied_cash,
+      'cashier cannot view ticket from another branch')
+status, _, denied_code = fetch(other_cash,'/cashier.php?ticket_code='+code)
+check(status == 404 and code not in denied_code,
+      'cashier cannot search another branch Ticket Code')
+subprocess.run(['php','course-edp/tests/web-fixture.php','cashier-ready',code],
+               check=True,capture_output=True,env=os.environ.copy())
+status, _, ready_detail = fetch(cash,'/cashier.php?page=ticket&id='+cash_id)
+status, _, billed_detail = form(cash,'/cashier.php?page=ticket&id='+cash_id,{
+    'action':'issue_bill','ticket_id':cash_id,'csrf_token':token(ready_detail)})
+bill_number=re.search(r'B-[A-F0-9]{14}',billed_detail)
+check(status == 200 and bill_number is not None and '200.00' in billed_detail,
+      'cashier issues 200-peso bill with two approved device line items')
+status, _, retried_bill = form(cash,'/cashier.php?page=ticket&id='+cash_id,{
+    'action':'issue_bill','ticket_id':cash_id,'csrf_token':token(billed_detail)})
+check(status == 200 and bill_number.group() in retried_bill,
+      'duplicate bill issuance reuses existing issued bill')
+csrf_cash=token(retried_bill)
+bill_match=re.search(r'name="bill_id" value="(\d+)"',retried_bill)
+check(bill_match is not None,'cash form selects issued bill ID')
+bill_id=bill_match.group(1)
+status, _, unpaid_pickup = form(cash,'/cashier.php?page=ticket&id='+cash_id,{
+    'action':'pickup','ticket_id':cash_id,'csrf_token':csrf_cash,
+    'confirmed_phone':'09123456789','attested':'yes'})
+check(status == 422 and 'unpaid balance' in unpaid_pickup,
+      'unpaid ticket cannot be released at counter')
+first_key=uuid.uuid4().hex+uuid.uuid4().hex
+first_payment={'action':'payment','ticket_id':cash_id,'bill_id':bill_id,
+               'csrf_token':csrf_cash,'request_key':first_key,'amount':'50.00'}
+status, first_receipt_url, first_receipt = form(cash,'/cashier.php?page=ticket&id='+cash_id,first_payment)
+receipt_match=re.search(r'page=receipt&id=\d+',first_receipt_url)
+check(status == 200 and receipt_match is not None and '50.00' in first_receipt and
+      '150.00' in first_receipt,'partial counter cash creates printable receipt and accurate balance')
+status, replay_url, replay = form(cash,'/cashier.php?page=ticket&id='+cash_id,first_payment)
+check(status == 200 and replay_url == first_receipt_url,
+      'repeat payment POST with same request key returns same receipt')
+status, _, altered = form(cash,'/cashier.php?page=ticket&id='+cash_id,{
+    **first_payment,'amount':'51.00'})
+check(status == 422 and 'already used differently' in altered,
+      'altering an idempotency-key payment is rejected')
+second_key=uuid.uuid4().hex+uuid.uuid4().hex
+status, _, overpaid = form(cash,'/cashier.php?page=ticket&id='+cash_id,{
+    **first_payment,'amount':'151.00','request_key':second_key})
+check(status == 422 and 'exceeds the remaining balance' in overpaid,
+      'cashier cannot record overpayment')
+status, second_receipt_url, second_receipt = form(cash,'/cashier.php?page=ticket&id='+cash_id,{
+    **first_payment,'amount':'150.00','request_key':second_key})
+check(status == 200 and '150.00' in second_receipt and
+      'Current remaining balance' in second_receipt and
+      '0.00' in second_receipt,'second payment settles bill and creates separate receipt')
+status, _, current_details = fetch(cash,'/cashier.php?page=ticket&id='+cash_id)
+check(status == 200 and 'Remaining balance' in current_details and '0.00' in current_details,
+      'cash desk reflects settled bill')
+status, _, wrong_pickup_phone = form(cash,'/cashier.php?page=ticket&id='+cash_id,{
+    'action':'pickup','ticket_id':cash_id,'csrf_token':token(current_details),
+    'confirmed_phone':'09998887777','attested':'yes'})
+check(status == 422 and 'Recorded customer contact does not match' in wrong_pickup_phone,
+      'pickup rejects incorrect full recorded phone')
+status, _, missing_attestation = form(cash,'/cashier.php?page=ticket&id='+cash_id,{
+    'action':'pickup','ticket_id':cash_id,'csrf_token':token(current_details),
+    'confirmed_phone':'09123456789'})
+check(status == 422 and 'Confirm the customer received' in missing_attestation,
+      'cashier cannot release repair without handover attestation')
+status, _, picked_up = form(cash,'/cashier.php?page=ticket&id='+cash_id,{
+    'action':'pickup','ticket_id':cash_id,'csrf_token':token(current_details),
+    'confirmed_phone':'09123456789','attested':'yes'})
+check(status == 200 and 'CLOSED' in picked_up and
+      'Counter pickup confirmed' in picked_up,'authorized and paid pickup closes ticket')
+status, _, repeated_pickup = form(cash,'/cashier.php?page=ticket&id='+cash_id,{
+    'action':'pickup','ticket_id':cash_id,'csrf_token':token(picked_up),
+    'confirmed_phone':'09123456789','attested':'yes'})
+check(status == 422 and 'Only an open ticket' in repeated_pickup,
+      'duplicate physical handover is refused')
+status, _, receipt_denied = fetch(other_cash,'/'+first_receipt_url.split('/')[-1])
+check(status == 404 and 'Cash receipt #' not in receipt_denied,
+      'cross-branch cashier cannot view another receipt')
+customer_cash = browser()
+status, _, cash_portal_login = fetch(customer_cash,'/track.php')
+status, _, cash_customer_view = form(customer_cash,'/track.php',{
+    'action':'login','csrf_token':token(cash_portal_login),
+    'portal_code':cash_fixture['portal_code'],'portal_pin':'6789'})
+check(status == 200 and cash_customer_view.count('Collected by customer') == 2 and
+      'CLOSED' not in cash_customer_view and 'Completed' in cash_customer_view,
+      'customer timeline reflects both completed handovers without staff cash details')
+subprocess.run(['php','course-edp/tests/web-fixture.php','cashier-revoke',cash_fixture['email']],
+               check=True,capture_output=True,env=os.environ.copy())
+status, _, removed_cashier = fetch(cash,'/cashier.php')
+check(status == 200 and 'Cashier sign in' in removed_cashier and 'Cashier desk' not in removed_cashier,
+      'disabled cashier loses privileged session on next request')
+
 print('All isolated academic web smoke checks passed.')

@@ -35,6 +35,83 @@ if (($argv[1] ?? '') === 'portal-revoke') {
     exit;
 }
 
+/** Synthetic cashier browser case: no production users or customer data. */
+if (($argv[1]??'')==='cashier-create') {
+    $branch=(int)$pdo->query("SELECT branch_id FROM branches WHERE branch_code='SOGOD-DEMO'")->fetchColumn();
+    if (!$branch)throw new RuntimeException('Fictional classroom branch is required');
+    $suffix=bin2hex(random_bytes(6));
+    $password=bin2hex(random_bytes(14));
+    $otherPassword=bin2hex(random_bytes(14));
+    $q=$pdo->prepare('INSERT INTO users(full_name,email,password_hash,role_code) VALUES (?,?,?,?)');
+    $q->execute(['Cashier Demo','cashdesk-'.$suffix.'@example.test',password_hash($password,PASSWORD_DEFAULT),'CASHIER']);
+    $cashierId=(int)$pdo->lastInsertId();
+    $pdo->prepare('INSERT INTO branches(branch_code,branch_name) VALUES (?,?)')
+        ->execute(['CB-'.$suffix,'Other Fictional Cashier Branch']);
+    $otherBranch=(int)$pdo->lastInsertId();
+    $q->execute(['Other Cashier Demo','cashdesk-other-'.$suffix.'@example.test',
+        password_hash($otherPassword,PASSWORD_DEFAULT),'CASHIER']);
+    $otherId=(int)$pdo->lastInsertId();
+    $q=$pdo->prepare('INSERT INTO user_branch_assignments(user_id,branch_id) VALUES (?,?)');
+    $q->execute([$cashierId,$branch]);$q->execute([$otherId,$otherBranch]);
+    $pdo->prepare("INSERT INTO customers(full_name,phone) VALUES('Fictional Cashier Customer','09123456789')")->execute();
+    $customer=(int)$pdo->lastInsertId();
+    $code='RT-'.strtoupper(bin2hex(random_bytes(6)));
+    $portal=strtoupper(substr(bin2hex(random_bytes(3)),0,5));
+    $pdo->prepare("INSERT INTO repair_tickets(customer_id,branch_id,ticket_code,portal_code,portal_pin_hash,
+        ticket_state,issued_at,created_by_user_id,terms_version,terms_signed_at,terms_signature_path)
+        VALUES (?,?,?,?,?,'OPEN',UTC_TIMESTAMP(),?,'CLASSROOM-1',UTC_TIMESTAMP(),'signed/fictional-cashier.png')")
+        ->execute([$customer,$branch,$code,$portal,password_hash('6789',PASSWORD_DEFAULT),$cashierId]);
+    $ticket=(int)$pdo->lastInsertId();
+    $q=$pdo->prepare("SELECT location_id FROM storage_locations WHERE branch_id=? AND location_code='COUNTER'");
+    $q->execute([$branch]);$location=(int)$q->fetchColumn();
+    $qOwner=$pdo->prepare('INSERT INTO customer_devices(customer_id,device_type_code) VALUES (?,?)');
+    $qDevice=$pdo->prepare("INSERT INTO ticket_devices(ticket_id,customer_id,branch_id,customer_device_id,
+        sequence_no,item_code,device_type_code,status_code,custody_state,location_id,reported_symptoms)
+        VALUES (?,?,?,?,?,?,?,?,'AT_LOCATION',?,'Synthetic classroom test repair')");
+    $qQuote=$pdo->prepare("INSERT INTO repair_quotes(ticket_device_id,quote_status,version_no,
+        labor_amount,total_amount,prepared_by_user_id,decision_recorded_by,decision_at,sent_at)
+        VALUES (?,'APPROVED',1,?,?,?,?,UTC_TIMESTAMP(),UTC_TIMESTAMP())");
+    $deviceIds=[];
+    foreach ([['LAPTOP','READY_FOR_PICKUP','125.50'],['DESKTOP','TESTING','74.50']] as $i=>$v) {
+        [$type,$status,$amount]=$v;
+        $qOwner->execute([$customer,$type]);$owner=(int)$pdo->lastInsertId();
+        $qDevice->execute([$ticket,$customer,$branch,$owner,$i+1,$code.'-0'.($i+1),$type,$status,$location]);
+        $deviceIds[]=(int)$pdo->lastInsertId();
+        $qQuote->execute([$deviceIds[$i],$amount,$amount,$cashierId,$cashierId]);
+    }
+    echo json_encode(['email'=>'cashdesk-'.$suffix.'@example.test','password'=>$password,
+        'other_email'=>'cashdesk-other-'.$suffix.'@example.test','other_password'=>$otherPassword,
+        'ticket_code'=>$code,'ticket_id'=>$ticket,'portal_code'=>$portal,'device_ids'=>$deviceIds],JSON_THROW_ON_ERROR);
+    exit;
+}
+if (($argv[1]??'')==='cashier-ready') {
+    $code=strtoupper((string)($argv[2]??''));
+    if (!preg_match('/^RT-[0-9A-F]{12}$/D',$code))throw new RuntimeException('Invalid fictional cash desk code');
+    $q=$pdo->prepare("SELECT d.ticket_device_id FROM ticket_devices d
+        JOIN repair_tickets t ON t.ticket_id=d.ticket_id
+        JOIN users u ON u.user_id=t.created_by_user_id
+        JOIN customers c ON c.customer_id=t.customer_id
+        WHERE t.ticket_code=? AND t.ticket_state='OPEN' AND u.email LIKE 'cashdesk-%@example.test'
+          AND c.full_name='Fictional Cashier Customer' AND d.status_code='TESTING'");
+    $q->execute([$code]);$devices=$q->fetchAll(PDO::FETCH_COLUMN);
+    if (count($devices)!==1)throw new RuntimeException('Fixture ready transition unavailable');
+    $id=(int)$devices[0];
+    $pdo->prepare("UPDATE ticket_devices SET status_code='READY_FOR_PICKUP' WHERE ticket_device_id=?")
+        ->execute([$id]);
+    $pdo->prepare("INSERT INTO ticket_status_events(ticket_device_id,from_status,to_status,public_summary,is_customer_visible)
+        VALUES (?,'TESTING','READY_FOR_PICKUP','Fictional repair passed quality checks',1)")->execute([$id]);
+    echo 'Fictional second device ready'."\n";exit;
+}
+if (($argv[1]??'')==='cashier-revoke') {
+    $email=(string)($argv[2]??'');
+    if (!preg_match('/^cashdesk-[a-f0-9]{12}@example[.]test$/D',$email))
+        throw new RuntimeException('Only cashier fixtures may be disabled');
+    $q=$pdo->prepare("UPDATE users SET is_active=0 WHERE email=? AND role_code='CASHIER'");
+    $q->execute([$email]);
+    if ($q->rowCount()!==1)throw new RuntimeException('Cashier fixture missing');
+    echo 'Cashier disabled'."\n";exit;
+}
+
 /** Technicians are provisioned only by the disposable CLI fixture, never by a web endpoint. */
 if (($argv[1] ?? '') === 'tech-create') {
     $branch=(int)$pdo->query("SELECT branch_id FROM branches WHERE branch_code='SOGOD-DEMO'")->fetchColumn();
