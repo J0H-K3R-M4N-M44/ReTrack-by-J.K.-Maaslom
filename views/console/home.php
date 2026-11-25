@@ -82,6 +82,7 @@ require __DIR__ . '/../workspace/navigation.php';
         <p class="workspace-count">Showing <?= $page['from'] ?>–<?= $page['to'] ?> of <?= $page[
      'total'
  ] ?> · maximum 10 per page</p>
+        <?php if ($view === 'queue' && !$isCourier): ?><p class="workspace-queue-guidance">Oldest last update appears first to help staff find repairs that may need attention. No automatic deadline or ETA is implied.</p><?php endif; ?>
         <?php if (!$page['rows']): ?>
             <div class="workspace-empty"><h3>No matching records</h3><p>Try clearing your filters or searching with a shorter term.</p></div>
         <?php elseif ($view === 'board'): ?>
@@ -123,10 +124,8 @@ require __DIR__ . '/../workspace/navigation.php';
             </div>
         <?php else: ?>
             <?php if ($view === 'drafts'): ?><div id="drafts"><?php endif; ?>
-            <p class="table-scroll-hint">Swipe or scroll sideways to see all columns.</p>
-            <div class="staff-table-wrap" tabindex="0" aria-label="<?= h(
-                $listTitle,
-            ) ?>, scroll sideways for more columns">
+            <p class="table-scroll-hint">On smaller screens, each record is shown as a stacked card.</p>
+            <div class="staff-table-wrap" tabindex="0" aria-label="<?= h($listTitle) ?> records">
             <table class="staff-table workspace-table"><caption class="sr-only"><?= h(
                 $listTitle,
             ) ?></caption>
@@ -164,6 +163,7 @@ require __DIR__ . '/../workspace/navigation.php';
                             'Technician',
                             'Status',
                             'Repair started (PH time)',
+                            'Last updated (PH time)',
                             'Action',
                         ],
                     };
@@ -178,44 +178,46 @@ require __DIR__ . '/../workspace/navigation.php';
                 </tr></thead><tbody>
                 <?php foreach ($page['rows'] as $row): ?><tr>
                     <?php if ($view === 'cash'): ?>
-                        <td><?= h($row['ticket_code']) ?><small><?= h(
+                        <td data-label="Ticket / tracking code"><?= h($row['ticket_code']) ?><small><?= h(
     $row['portal_code'] ?: 'No short tracking code',
-) ?></small></td><td><?= h($row['bill_number']) ?></td><td><?= h(
+) ?></small></td><td data-label="Bill"><?= h($row['bill_number']) ?></td><td data-label="Branch"><?= h(
     $row['branch_name'],
-) ?></td><td><?= h(workspaceDate($row['issued_at'])) ?></td><td><?= h(
+) ?></td><td data-label="Issued (PH time)"><?= h(workspaceDate($row['issued_at'])) ?></td><td data-label="Status"><?= h(
     ucfirst(strtolower($row['bill_status'])),
-) ?></td><td class="numeric"><?= h($row['currency']) ?> <?= number_format(
+) ?></td><td class="numeric" data-label="Bill total"><?= h($row['currency']) ?> <?= number_format(
      (float) $row['total_amount'],
      2,
- ) ?></td><td class="numeric"><?= h($row['currency']) ?> <?= number_format(
+ ) ?></td><td class="numeric" data-label="Cash received"><?= h($row['currency']) ?> <?= number_format(
      (float) $row['amount_paid'],
      2,
- ) ?></td><td class="numeric"><?php $difference = (float) $row['total_amount'] - (float) $row['amount_paid']; ?>
-    <?= $difference < 0 ? 'Refund due · ' : '' ?><?= h($row['currency']) ?> <?= number_format(abs($difference), 2) ?></td><td><a href="cash.php?bill_id=<?= (int) $row['bill_id'] ?>">Open cash record</a></td>
+ ) ?></td><td class="numeric" data-label="Balance"><?php $difference = (float) $row['total_amount'] - (float) $row['amount_paid']; ?>
+    <?= $difference < 0 ? 'Refund due · ' : '' ?><?= h($row['currency']) ?> <?= number_format(abs($difference), 2) ?></td><td data-label="Action"><a href="cash.php?bill_id=<?= (int) $row['bill_id'] ?>">Open cash record</a></td>
                     <?php elseif ($view === 'drafts'): ?>
-                        <td>#<?= (int) $row['ticket_id'] ?></td><td><?= h(
+                        <td data-label="Draft">#<?= (int) $row['ticket_id'] ?></td><td data-label="Customer"><?= h(
     $row['customer_name'] ?? 'Not recorded',
-) ?></td><td><?= h($row['branch_name']) ?></td><td><?= h(
+) ?></td><td data-label="Branch"><?= h($row['branch_name']) ?></td><td data-label="Created (PH time)"><?= h(
     workspaceDate($row['created_at']),
-) ?></td><td><a href="intake_create.php?id=<?= (int) $row['ticket_id'] ?>">Open draft</a></td>
+) ?></td><td data-label="Action"><a href="intake_create.php?id=<?= (int) $row['ticket_id'] ?>">Open draft</a></td>
                     <?php elseif ($isCourier): ?>
-                        <td><?= h($row['transfer_code']) ?><small><?= h(
+                        <td data-label="Transfer / item"><?= h($row['transfer_code']) ?><small><?= h(
     $row['item_code'],
-) ?></small></td><td><?= h($row['origin'] . ' → ' . $row['destination']) ?></td><td><?= h(
+) ?></small></td><td data-label="Route"><?= h($row['origin'] . ' → ' . $row['destination']) ?></td><td data-label="Destination"><?= h(
     $row['destination_location'],
-) ?></td><td><span class="workspace-status"><?= h(
+) ?></td><td data-label="Status"><span class="workspace-status"><?= h(
     str_replace('_', ' ', $row['item_status']),
-) ?></span></td><td><?= h(workspaceDate($row['dispatched_at'])) ?></td>
+) ?></span></td><td data-label="Dispatched (PH time)"><?= h(workspaceDate($row['dispatched_at'])) ?></td>
                     <?php else: ?>
-                        <td><?= h($row['item_code']) ?><small><?= h(
+                        <td data-label="Item / device"><?= h($row['item_code']) ?><small><?= h(
     dashboardDeviceLabel($row),
-) ?></small></td><td><?= h($row['branch_name']) ?></td><td><?= h(
+) ?></small></td><td data-label="Branch"><?= h($row['branch_name']) ?></td><td data-label="Technician"><?= h(
     $row['technician'] ?: 'Unassigned',
-) ?></td><td><span class="workspace-status status-<?= h(
+) ?></td><td data-label="Status"><span class="workspace-status status-<?= h(
     strtolower($row['repair_status']),
-) ?>"><?= h(dashboardStatusLabel($row['repair_status'])) ?></span></td><td><?= h(
+) ?>"><?= h(dashboardStatusLabel($row['repair_status'])) ?></span></td><td data-label="Repair started (PH time)"><?= h(
     workspaceDate($row['repair_started_at']),
-) ?></td><td><a href="device.php?id=<?= (int) $row['ticket_device_id'] ?>&amp;return=<?= h(
+) ?></td><td data-label="Last updated (PH time)"><?= h(
+    workspaceDate($row['updated_at']),
+) ?></td><td data-label="Action"><a href="device.php?id=<?= (int) $row['ticket_device_id'] ?>&amp;return=<?= h(
     urlencode($returnQuery),
 ) ?>">Open device</a></td>
                     <?php endif; ?>
