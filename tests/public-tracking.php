@@ -50,6 +50,7 @@ $query->execute([$ticketId]);
 $code = replaceTrackingCode($pdo, $manager['user_id'], $ticketId, $query->fetchColumn());
 $repair = publicRepair($pdo, $code);
 checkPublic($repair !== null, 'Private code opens issued repair');
+$initialDeviceCount = count($repair['devices']);
 checkPublic(
     publicRepair($pdo, $repair['ticket_code']) === null,
     'Receipt numbers do not grant access',
@@ -240,10 +241,13 @@ $pdo->prepare(
 )->execute([$secondDeviceId, $tech['user_id'], $longPublicMessage]);
 
 $multiDeviceView = publicRepair($pdo, $newCode);
-checkPublic(count($multiDeviceView['devices']) === 2, 'Customer portal did not return both devices');
 checkPublic(
-    $multiDeviceView['devices'][1]['item_code'] === $secondItemCode,
-    'Second device is not grouped under its issued ticket',
+    count($multiDeviceView['devices']) === $initialDeviceCount + 1,
+    'Customer portal did not return the additional device',
+);
+checkPublic(
+    $multiDeviceView['devices'][$initialDeviceCount]['item_code'] === $secondItemCode,
+    'Additional device is not grouped under its issued ticket',
 );
 checkPublic(
     str_contains($multiDeviceView['devices'][1]['public_summary'], 'intentionally long'),
@@ -256,6 +260,11 @@ checkPublic(
 
 file_put_contents(
     __DIR__ . '/public-fixture.json',
-    json_encode(['ticket' => $ticketId, 'code' => $newCode, 'second_item_code' => $secondItemCode]),
+    json_encode([
+        'ticket' => $ticketId,
+        'code' => $newCode,
+        'second_item_code' => $secondItemCode,
+        'device_count' => count($multiDeviceView['devices']),
+    ]),
 );
 echo "PASS: public privacy, access-code revocation, stale sharing, role/branch boundaries, customer updates, queue filtering and pagination.\n";
