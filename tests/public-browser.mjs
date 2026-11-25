@@ -26,7 +26,7 @@ try {
   assert(await page.getByRole('heading', { name: 'Current shared estimate' }).isVisible());
   assert((await page.locator('.public-estimate').innerText()).includes('99.00'));
   assert(!(await page.locator('.public-estimate').innerText()).includes('325.35'));
-  assert(await page.getByRole('heading', { name: 'What happens next?' }).isVisible());
+  assert(await page.getByRole('heading', { name: 'Next step' }).isVisible());
   assert(!(await page.content()).includes('PRIVATE_SENTINEL'));
   assert.equal(
     await page.locator('script:not([src])').count(),
