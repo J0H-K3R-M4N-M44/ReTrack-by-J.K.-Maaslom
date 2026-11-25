@@ -71,10 +71,13 @@ async function verifyLinenStatusContrast(page) {
     const luminance = (color) => {
       const open = color.indexOf('(');
       const close = color.indexOf(')', open + 1);
-      assert(open >= 0 && close > open, 'Unexpected computed color: ' + color);
+      if (open < 0 || close <= open) {
+        throw new Error('Unexpected computed color: ' + color);
+      }
       const values = color.slice(open + 1, close).split(',').slice(0, 3).map(value => Number(value.trim()));
-      assert(values.length === 3 && values.every(Number.isFinite),
-        'Could not parse computed RGB color: ' + color);
+      if (values.length !== 3 || !values.every(Number.isFinite)) {
+        throw new Error('Could not parse computed RGB color: ' + color);
+      }
       const linear = values.map(value => {
         const channel = value / 255;
         return channel <= 0.04045
