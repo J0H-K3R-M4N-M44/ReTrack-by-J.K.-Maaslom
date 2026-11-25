@@ -123,6 +123,16 @@ workspaceCheck(
     consoleDevices($pdo, $manager, ['q' => 'WORK-0'])['page']['total'] === 0,
     'Archive leaks into queue',
 );
+// The demo ticket may not have a phone number. Add a deterministic synthetic
+// contact so this test exercises portal-code issuance without changing app rules.
+$testPhone = '0917' . str_pad((string) ($ticket % 10000000), 7, '0', STR_PAD_LEFT);
+$pdo->prepare(
+    "INSERT INTO customer_contacts
+        (customer_id, contact_type, contact_value, normalized_value, is_primary, preferred_for_notifications)
+     SELECT customer_id, 'PHONE', ?, ?, 1, 0
+     FROM repair_tickets WHERE ticket_id = ?
+     ON DUPLICATE KEY UPDATE contact_value = VALUES(contact_value), is_primary = 1",
+)->execute([$testPhone, $testPhone, $ticket]);
 $phone = $pdo->prepare(
     "SELECT cc.normalized_value FROM customer_contacts cc JOIN repair_tickets t ON t.customer_id=cc.customer_id WHERE t.ticket_id=? AND cc.contact_type='PHONE' ORDER BY cc.is_primary DESC,cc.contact_id DESC LIMIT 1",
 );
