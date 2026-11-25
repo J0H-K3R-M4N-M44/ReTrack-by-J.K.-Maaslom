@@ -43,7 +43,7 @@
         <section class="public-card">
             <p class="eyebrow"><?= h($device['item_code']) ?></p>
             <h2><?= h(dashboardDeviceLabel($device)) ?></h2>
-            <p class="public-status"><?= h(dashboardStatusLabel($device['repair_status'])) ?></p>
+            <p class="eyebrow">Current repair stage</p><p class="public-status"><?= h(publicStageLabel($device)) ?></p>
             <h3>Device custody</h3><p><?= h(publicCustody($device)) ?></p>
             <?php if ($device['estimate']): ?>
             <div class="public-estimate">
@@ -55,7 +55,7 @@
             <?php else: ?>
             <p>No current estimate has been shared for this device.</p>
             <?php endif; ?>
-            <h3>What happens next?</h3><p><?= h(publicNextStep($device)) ?></p>
+            <h3>Next step</h3><p><?= h(publicNextStep($device)) ?></p>
             <?php if (
                 $device['public_summary']
             ): ?><h3>Message from the service team</h3><p class="public-message"><?= h(
@@ -109,9 +109,9 @@
         $repair['branch_name'],
     ) ?> and quote <?= h($repair['ticket_code']) ?>.</p><?php if (
     $repair['phone']
-): ?><p>Branch phone: <?= h(
+): ?><p>Branch phone: <a href="tel:<?= h(preg_replace('/[^0-9+]/', '', (string) $repair['phone'])) ?>"><?= h(
     $repair['phone'],
-) ?></p><?php endif; ?><p>Please confirm collection arrangements and any amount due with staff. This page does not take payments.</p></section>
+) ?></a></p><?php else: ?><p>A branch phone number is not listed on this tracking page. Use the contact details on your service receipt or visit the branch.</p><?php endif; ?><p>Please confirm collection arrangements and any amount due with staff. This page does not take payments.</p></section>
     <?php endif; ?>
     <p><a href="index.php">Back to public home</a></p>
 </main>
