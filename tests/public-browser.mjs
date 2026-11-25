@@ -45,7 +45,24 @@ try {
     'Timeline timestamp is missing machine-readable datetime');
   assert(!Number.isNaN(Date.parse(await timestamp.getAttribute('datetime'))),
     'Timeline datetime value is invalid');
+  assert((await timestamp.getAttribute('datetime')).endsWith('+08:00'),
+    'Timeline timestamp must retain the Philippine time offset');
+  assert.equal(await page.locator(
+    '.public-device-card button, .public-device-card form, .public-device-card input, ' +
+    '.public-device-card select, .public-device-card textarea'
+  ).count(), 0, 'Device details must remain read-only for customers');
   assert(await page.getByRole('heading', { name: 'Need help with this repair?' }).isVisible());
+  const branchContact = page.locator('.public-contact-card');
+  const branchPhone = branchContact.locator('a[href^="tel:"]');
+  if (await branchPhone.count()) {
+    assert.match(await branchPhone.getAttribute('href'), /^tel:\+?[0-9]+$/,
+      'Branch phone link is not a safe tap-to-call number');
+    assert((await branchPhone.boundingBox()).height >= 44,
+      'Branch phone link is too small for touch');
+  } else {
+    assert((await branchContact.innerText()).includes('phone number is not listed'),
+      'Missing branch phone must have a clear contact fallback');
+  }
   assert(!(await page.content()).includes('PRIVATE_SENTINEL'));
   assert.equal(
     await page.locator('script:not([src])').count(),
@@ -175,7 +192,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    'PASS: customer flow, escaped updates, no-JS access, revocation, code sharing/CSRF, filters and mobile layout.'
+    'PASS: customer flow, multi-device cards, long updates, Philippine timestamps, read-only device details, escaped updates, access revocation, CSRF, filters and mobile layout.'
   );
 } finally {
   await browser.close();
