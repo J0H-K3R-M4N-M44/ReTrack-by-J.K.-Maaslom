@@ -1,6 +1,6 @@
 # RepairTrack MVP — manual user acceptance checklist
 
-**Prepared:** 22 November 2026. **Status:** READY FOR HUMAN TESTING, **NOT** user-approved. These are test instructions, not claims that real customers or staff accepted the product.
+**Prepared:** 22 November 2026. **Updated:** 25 November 2026. **Status:** READY FOR HUMAN TESTING, **NOT** user-approved. These are test instructions, not claims that real customers or staff accepted the product.
 
 ## Environment and evidence
 
@@ -32,6 +32,11 @@ Use a **fictional-only** clean XAMPP/PHP/MySQL environment based on `MVP-Stabili
 | UAT-18 | Keyboard tester | Tab/Shift-Tab through tracking, login, quote and staff queue; activate buttons with Enter/Space | Visible focus, logical order, proper labels, no keyboard trap; skip link reaches main content |
 | UAT-19 | Screen-reader tester | Navigate each page by landmarks/headings/labels; deliberately trigger validation errors | Status/error changes have meaningful announcements; descriptions and inputs are connected |
 | UAT-20 | Staff | Disconnect database in an isolated test; revisit dashboard | Shows an unavailable state rather than misleading zero or a green connection indicator |
+| UAT-21 | Manager / Intake staff | Prepare fictional open repairs with different last-update times; inspect Queue and then History | Queue places the oldest last update first and shows its Philippine-time timestamp; History remains newest-first; the order is an attention aid, not an ETA, SLA or automatic priority |
+| UAT-22 | Staff | Open the repair queue at 320px and 390px; inspect several records and use an available row action | Each record becomes a readable labelled card; device, branch, technician, status, repair start, last update and action remain identifiable; no page-level or queue-level horizontal scrolling hides content |
+| UAT-23 | Manager | Open technician assignment options with fictional technicians below capacity, at capacity and already assigned to the current device; include active repairs waiting for a customer, parts or pickup | Options show active workload and remaining slots; full technicians are unavailable for new assignments, the current technician remains selectable for a no-op, and server-side capacity validation still rejects an over-capacity assignment |
+| UAT-24 | Customer / Staff | Open fictional public tracking records in AWAITING_CUSTOMER_APPROVAL and AWAITING_PARTS; test a configured branch phone and a branch without a phone | The two stages and next steps are clearly different; the customer is told to contact the branch for a decision or parts estimate; no supplier tracking or ETA is implied; customer decisions remain staff-recorded; phone is tap-to-call when configured and the fallback is explicit otherwise |
+| UAT-25 | Customer | Use public tracking navigation at 320px and 390px with touch and keyboard | Navigation stays in one horizontally scrollable row; every destination remains reachable, targets are at least 44px high, and the page itself does not overflow horizontally |
 
 ## Run log (copy per scenario)
 
