@@ -68,6 +68,22 @@ try {
       `Console overflow at ${width}`
     );
   }
+  await page.locator('#queue-status').selectOption('');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.waitForURL('**/staff_home.php?*');
+  await page.setViewportSize({ width: 390, height: 900 });
+  const mobileQueue = await page.locator('.workspace-table').evaluate(table => ({
+    rowDisplay: getComputedStyle(table.tBodies[0].rows[0]).display,
+    tableMinWidth: getComputedStyle(table).minWidth,
+    allCellsHaveLabels: [...table.tBodies[0].rows].every(row =>
+      [...row.cells].every(cell => Boolean(cell.dataset.label))),
+    wrapperFits: table.parentElement.scrollWidth <= table.parentElement.clientWidth + 1,
+  }));
+  assert.equal(mobileQueue.rowDisplay, 'grid', 'Mobile queue row did not become a record card');
+  assert.equal(mobileQueue.tableMinWidth, '0px', 'Mobile queue retained a wide table minimum');
+  assert(mobileQueue.allCellsHaveLabels, 'Mobile queue cards are missing visible field labels');
+  assert(mobileQueue.wrapperFits, 'Mobile queue still requires horizontal scrolling');
+  await page.screenshot({ path: site + '/mvp-queue-mobile.png', fullPage: true });
   await page.goto(url + '/admin/ticket.php?id=' + fixture.ticket);
   assert.equal(
     (
