@@ -17,9 +17,9 @@ async function checkInbox(width, paymentsBefore) {
   await page.locator('#password').fill(password);
   await page.getByRole('button', { name: 'Login', exact: true }).click();
   await page.waitForURL('**/staff_home.php');
-  const badge = page.locator('header .rt-unread');
-  assert.equal((await badge.innerText()).trim(), (paymentsBefore + 19) + ' unread');
-  await badge.click();
+  const activityLink = page.locator('header .rt-unread');
+  assert.equal((await activityLink.innerText()).trim(), 'Staff activity');
+  await activityLink.click();
   assert.equal(new URL(page.url()).searchParams.get('group'), 'payments');
   const payments = page.locator('option[value="payments"]');
   assert.equal(await payments.textContent(), 'Payments · ' + paymentsBefore + ' unread');
@@ -27,7 +27,7 @@ async function checkInbox(width, paymentsBefore) {
   const reference = await first.locator('strong').innerText();
   await first.getByRole('button', { name: 'Mark read' }).click();
   await page.waitForURL('**/*view=inbox*');
-  assert.equal((await badge.innerText()).trim(), (paymentsBefore + 18) + ' unread');
+  assert.equal((await page.locator('header .rt-unread').innerText()).trim(), 'Staff activity');
   assert.equal(await payments.textContent(), 'Payments · ' + (paymentsBefore - 1) + ' unread');
   assert.equal(await page.locator('option[value="pickups"]').textContent(), 'Pickups · 19 unread');
   assert.equal(await page.getByText(reference, { exact: true }).count(), 0);
@@ -37,7 +37,7 @@ async function checkInbox(width, paymentsBefore) {
   const row = page.locator('.activity-list li').filter({ hasText: reference });
   assert.equal(await row.getByText('Read', { exact: true }).count(), 1);
   await page.close();
-  console.log('Passed cashier inbox, header count and read history at ' + width + 'px');
+  console.log('Passed cashier inbox, category unread counts and read history at ' + width + 'px');
 }
 
 try {
