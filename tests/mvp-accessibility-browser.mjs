@@ -55,10 +55,12 @@ try {
         linksStayOnOneLine: [...nav.querySelectorAll('a')].every(link =>
           getComputedStyle(link).whiteSpace === 'nowrap'),
         navFitsViewport: nav.getBoundingClientRect().right <= innerWidth,
+        allLinksFitWithoutScrolling: nav.scrollWidth <= nav.clientWidth + 1,
       }));
       assert.equal(mobileNav.flexWrap, 'nowrap', 'Customer navigation should stay on one compact row');
-      assert(mobileNav.linksStayOnOneLine && mobileNav.navFitsViewport,
-        'Customer navigation links should scroll within the header without page overflow');
+      assert(mobileNav.linksStayOnOneLine && mobileNav.navFitsViewport &&
+        mobileNav.allLinksFitWithoutScrolling,
+        'Customer navigation links should remain fully visible without horizontal clipping');
     }
     const targets = await page.locator(
       '.public-header a, .public-card details summary, .public-button'
