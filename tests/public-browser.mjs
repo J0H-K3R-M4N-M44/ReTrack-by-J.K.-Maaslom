@@ -27,6 +27,25 @@ try {
   assert((await page.locator('.public-estimate').innerText()).includes('99.00'));
   assert(!(await page.locator('.public-estimate').innerText()).includes('325.35'));
   assert(await page.getByRole('heading', { name: 'Next step' }).first().isVisible());
+  assert.equal(await page.locator('.public-device-card').count(), 2,
+    'Customer portal must keep each device in its own card');
+  assert(await page.getByRole('heading', { name: 'Devices on this ticket' }).isVisible());
+  assert((await page.locator('.public-device-card').nth(0).locator('.public-device-label').innerText())
+    .includes('Device 1 of 2'));
+  assert((await page.locator('.public-device-card').nth(1).locator('.public-device-label').innerText())
+    .includes(fixture.second_item_code));
+  const longMessage = page.locator('.public-device-card').nth(1).locator('.public-message');
+  assert((await longMessage.innerText()).length > 500,
+    'Long customer-visible update was truncated');
+  const timelineEntry = page.locator('.public-timeline-entry').first();
+  assert((await timelineEntry.innerText()).includes(fixture.second_item_code),
+    'Timeline update is not identified with its device');
+  const timestamp = timelineEntry.locator('time');
+  assert(await timestamp.getAttribute('datetime'),
+    'Timeline timestamp is missing machine-readable datetime');
+  assert(!Number.isNaN(Date.parse(await timestamp.getAttribute('datetime'))),
+    'Timeline datetime value is invalid');
+  assert(await page.getByRole('heading', { name: 'Need help with this repair?' }).isVisible());
   assert(!(await page.content()).includes('PRIVATE_SENTINEL'));
   assert.equal(
     await page.locator('script:not([src])').count(),
@@ -38,6 +57,15 @@ try {
     assert(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       `Tracking overflow at ${width}`
+    );
+    assert(
+      await page.locator('.public-device-card').nth(1).locator('.public-message')
+        .evaluate(element => element.scrollWidth <= element.clientWidth + 1),
+      `Long customer update overflows at ${width}`
+    );
+    assert(
+      await page.locator('.public-timeline time').first().isVisible(),
+      `Timeline timestamp is hidden at ${width}`
     );
   }
   await page.screenshot({ path: site + '/public-tracking-mobile.png', fullPage: true });
