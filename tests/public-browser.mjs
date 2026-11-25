@@ -27,14 +27,19 @@ try {
   assert((await page.locator('.public-estimate').innerText()).includes('99.00'));
   assert(!(await page.locator('.public-estimate').innerText()).includes('325.35'));
   assert(await page.getByRole('heading', { name: 'Next step' }).first().isVisible());
-  assert.equal(await page.locator('.public-device-card').count(), 2,
+  assert.equal(await page.locator('.public-device-card').count(), fixture.device_count,
     'Customer portal must keep each device in its own card');
   assert(await page.getByRole('heading', { name: 'Devices on this ticket' }).isVisible());
-  assert((await page.locator('.public-device-card').nth(0).locator('.public-device-label').innerText())
-    .includes('Device 1 of 2'));
-  assert((await page.locator('.public-device-card').nth(1).locator('.public-device-label').innerText())
-    .includes(fixture.second_item_code));
-  const longMessage = page.locator('.public-device-card').nth(1).locator('.public-message');
+  assert((await page.locator('.public-device-card').first().locator('.public-device-label').innerText())
+    .includes('Device 1 of ' + fixture.device_count));
+  const secondDeviceCard = page.locator(
+    '.public-device-card[data-item-code="' + fixture.second_item_code + '"]'
+  );
+  assert.equal(await secondDeviceCard.count(), 1,
+    'Additional device is not shown as its own card');
+  assert((await secondDeviceCard.locator('.public-device-label').innerText())
+    .includes('Device ' + fixture.device_count + ' of ' + fixture.device_count));
+  const longMessage = secondDeviceCard.locator('.public-message');
   assert((await longMessage.innerText()).length > 500,
     'Long customer-visible update was truncated');
   const timelineEntry = page.locator('.public-timeline-entry').first();
@@ -76,7 +81,7 @@ try {
       `Tracking overflow at ${width}`
     );
     assert(
-      await page.locator('.public-device-card').nth(1).locator('.public-message')
+      await secondDeviceCard.locator('.public-message')
         .evaluate(element => element.scrollWidth <= element.clientWidth + 1),
       `Long customer update overflows at ${width}`
     );
