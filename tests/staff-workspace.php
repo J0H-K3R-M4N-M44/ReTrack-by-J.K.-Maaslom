@@ -100,7 +100,7 @@ workspaceCheck(
 $pdo->prepare(
     'UPDATE ticket_devices SET updated_at = DATE_SUB(UTC_TIMESTAMP(), INTERVAL 10 DAY) WHERE ticket_device_id = ?',
 )->execute([$created[1]]);
-$active = consoleDevices($pdo, $manager, []);
+$active = consoleDevices($pdo, $manager, ['q' => 'WORK-']);
 workspaceCheck(
     (int) $active['page']['rows'][0]['ticket_device_id'] === (int) $created[1],
     'Queue must show the oldest last update first',
