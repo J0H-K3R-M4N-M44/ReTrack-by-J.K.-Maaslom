@@ -30,6 +30,22 @@ try {
   });
   assert.equal(bad.status(), 403);
   await page.locator('.quote-editor summary').click();
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    const fieldSizes = await page.locator(
+      '.quote-editor .quote-form input:not([type=hidden]):not([type=checkbox]):not([type=radio]), ' +
+      '.quote-editor .quote-form select, .quote-editor .quote-form textarea'
+    ).evaluateAll(elements => elements
+      .filter(element => element.getClientRects().length > 0)
+      .map(element => ({
+        name: element.name,
+        height: element.getBoundingClientRect().height,
+      })));
+    assert(fieldSizes.length > 0 &&
+      fieldSizes.every(item => item.height >= 44),
+      'Quote form control below 44px at ' + width + 'px: ' + JSON.stringify(fieldSizes));
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page
     .locator('[name=labor_description]')
     .fill('Diagnose cooling issue <img src=x onerror=alert(1)>');

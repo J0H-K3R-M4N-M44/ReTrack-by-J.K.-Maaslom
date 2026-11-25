@@ -862,3 +862,74 @@
     flex: 1 1 140px;
   }
 }
+
+
+/* Shared staff form baseline: consistent control size and feedback. */
+.staff-page input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+.staff-page select,
+.staff-page .payments-action input:not([type='checkbox']) {
+  min-height: 44px;
+  line-height: 1.4;
+}
+
+.staff-page textarea {
+  min-height: 5.5rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.staff-page :focus-visible {
+  outline: 3px solid var(--gold-300);
+  outline-offset: 3px;
+}
+
+.staff-page :is(input, select, textarea)[aria-invalid='true'] {
+  border-color: #e7a09b;
+  box-shadow: 0 0 0 1px #e7a09b;
+}
+
+.staff-page :is(input, select, textarea):disabled,
+.staff-page button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.staff-page input[type='checkbox'],
+.staff-page input[type='radio'] {
+  accent-color: var(--gold-300);
+}
+
+.staff-page button,
+.staff-page .secondary-btn {
+  min-height: 44px;
+}
+
+/* The intake wizard is a standalone page rather than a .staff-page shell. */
+.intake-form input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+.intake-form select,
+.intake-form textarea,
+.intake-search input {
+  min-height: 44px;
+  line-height: 1.4;
+}
+
+.intake-form textarea {
+  min-height: 5.5rem;
+  line-height: 1.5;
+}
+
+.intake-form :is(input, select, textarea)[aria-invalid='true'] {
+  border-color: #e7a09b;
+  box-shadow: 0 0 0 1px #e7a09b;
+}
+
+.intake-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.intake-form .form-help,
+.intake-search-panel .form-help {
+  font-size: 0.78rem;
+  line-height: 1.5;
+}

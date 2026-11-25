@@ -62,3 +62,20 @@ Run keyboard-only checks across the real staff forms and public portal; verify v
 - Keep manual UAT, Windows/XAMPP recovery, screen-reader review and hosted verification as explicit gates.
 
 **Current limitation:** this is a source and screenshot audit of the reviewed staff queue and public tracking screens, not a complete visual inspection of every page in every role. Items marked for later review are not certified as passing. Automated browser checks are not human usability acceptance or WCAG conformance certification.
+
+
+## Batch 2 — shared staff form consistency
+
+**Audit finding:** the inspected forms already use visible labels, grouped fieldsets, review-before-save steps and explicit confirmation for important cash/access actions. The inconsistency was at the control level: legacy staff pages, estimate/cash pages and the custom intake wizard did not share one minimum field size, text-area rhythm or consistent invalid/disabled feedback.
+
+**Implemented:**
+- Standardized staff text inputs, selects and textareas to a minimum 44px control height; textareas retain a larger readable minimum. Checkbox/radio controls keep their separate native sizing.
+- Standardized visible focus, invalid-field borders and disabled-control feedback for staff forms.
+- Applied the same field sizing and invalid/disabled states to the standalone intake wizard.
+- Increased intake helper text slightly for comfortable reading without changing the help content.
+- Added browser checks for intake customer/device steps, quote-editor fields, technician progress fields and cashier amount entry at phone widths.
+- Enabled the existing payment/pickup and staff-activity workflows on the active UX branch so the form changes are exercised in their existing isolated environments.
+
+**Behavior preserved:** no controller, PHP validation, POST intent, CSRF token, review token, database query, quote approval, technician assignment, payment, inventory or custody code was changed. Native and server-side validation remain authoritative.
+
+**Batch 2 status:** implementation and regression coverage are committed; automated CI verification is the next gate.

@@ -485,6 +485,17 @@ try {
   const tech = await login('technician',360);
   async function stage(status) {
     await tech.goto(deviceUrl);
+    const repairFieldSizes = await tech.locator(
+      '#repair-status, #repair-note, #public-message'
+    ).evaluateAll(elements => elements
+      .filter(element => element.getClientRects().length > 0)
+      .map(element => ({
+        name: element.id,
+        height: element.getBoundingClientRect().height,
+      })));
+    assert(repairFieldSizes.length === 3 &&
+      repairFieldSizes.every(item => item.height >= 44),
+      'Technician repair form control below 44px: ' + JSON.stringify(repairFieldSizes));
     await tech.locator('select[name=status]').selectOption(status);
     await press(tech,'Review progress');
     await press(tech,'Confirm change');
@@ -535,6 +546,11 @@ try {
   await cashier.waitForLoadState('load');
   await checkWidth(cashier);
   assert.equal(await cashier.locator('#cash-amount').inputValue(), '2750.00');
+  assert(
+    (await cashier.locator('#cash-amount').evaluate(element =>
+      element.getBoundingClientRect().height)) >= 44,
+    'Cash amount field is below the 44px staff form baseline.'
+  );
   await cashier.locator('[name=confirm]').check();
   await press(cashier, 'Review payment');
   await press(cashier, 'Confirm cash received');
