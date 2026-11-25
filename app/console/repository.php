@@ -42,11 +42,15 @@ function consoleDevices(PDO $pdo, array $user, array $input): array
         $sql .= ' AND d.repair_status = ?';
         $pageParams[] = $status;
     }
+    // Surface the longest-unupdated open work first; keep history newest-first.
+    $order = consoleView($user, $input) === 'history'
+        ? 'updated_at DESC, ticket_device_id DESC'
+        : 'updated_at ASC, ticket_device_id ASC';
     $page = dashboardPage(
         $pdo,
         $sql,
         $pageParams,
-        'updated_at DESC, ticket_device_id DESC',
+        $order,
         requestText($input, 'page', '1'),
     );
     $count = $pdo->prepare("SELECT d.repair_status, COUNT(*) AS total FROM ticket_devices d
