@@ -86,12 +86,12 @@ Run keyboard-only checks across the real staff forms and public portal; verify v
 **Audit basis:** the current public tracking view, public tracking repository function, customer CSS, and existing PHP/Playwright suites. The controller's customer data query already limits returned device columns and filters the timeline to customer-visible events. The UI refinement therefore keeps the public data contract unchanged.
 
 **Implemented:**
-- Added a clearly named **Devices on this ticket** section. Each device now has a distinct numbered heading and keeps its own current stage, custody, current shared estimate, next step and approved public summary together.
+- Added a clearly named **Devices on this ticket** section. Each device now has a distinct numbered heading and keeps its own current stage, recorded location/handover state, current shared estimate, next step and approved public summary together.
 - Kept the repair timeline globally newest-first across the ticket. Each event now has a stronger heading, an explicit device item code and a machine-readable `datetime` value carrying the Philippine `+08:00` offset. The visible time remains in Philippine local time.
 - Improved estimate hierarchy without changing its meaning: current response state/revision and estimated total are easier to scan, while the page still states that an estimate is not a bill, receipt or balance due and cannot be approved or paid here.
 - Improved wrapping and line spacing for long customer-visible messages while retaining line breaks and HTML escaping.
 - Kept branch phone contact tap-to-call and gave the link a branch-specific accessible name. The existing explanatory fallback remains when a phone number is absent.
-- Extended the isolated PHP fixture with a second synthetic device and long public update. Browser assertions cover two-device grouping, timeline/device association, timestamp validity and offset, no private-note leakage, read-only device details, branch contact fallback/link behavior, and no horizontal overflow at 320, 390, 768 and 1440 pixels.
+- Extended the isolated PHP fixture with a second synthetic device and long public update. Browser assertions cover multi-device grouping, timeline/device association, timestamp validity and offset, no private-note leakage, read-only device details, branch contact fallback/link behavior, and no horizontal overflow at 320, 390, 768 and 1440 pixels.
 
 **Behavior deliberately unchanged:** no public repository/query permission changes, no customer self-approval, chat, SMS/email, GPS, ETA/SLA, supplier tracking, COD or online payments. Device details remain read-only. The timeline remains a saved staff-update feed, not live tracking. No schema, controller, estimate-decision, payment or custody code was changed.
 
