@@ -89,3 +89,17 @@ The CLI fixture now refuses use without the explicit `REPAIRTRACK_EDP_CONFIRM_FR
 These are automated synthetic tests, not a human-submitted manager decision or a real financial transaction. A physically operated phone, full keyboard workflows, 200% zoom, screen reader, native Windows file watcher and live/offline REST acceptance have **not** been demonstrated. Use [MANUAL-PHASE4-ACCEPTANCE.md](MANUAL-PHASE4-ACCEPTANCE.md) for dated observed evidence.
 
 **Decision:** **PASS** for exact-source automated Phase 4 extensions; **OPEN** for manual HCI/EDP sign-off; **HOLD** public deployment, customer consent certification and legacy merge.
+
+
+## 2026-11-25 follow-up — persisted-state verification after rejected overpayment
+
+**Test-hardening commits:** [`675718d`](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/commit/675718dfe71245ad125f30e624e1b38df985f3dc) expands the fresh-fixture guard; [`3c4902b`](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/commit/3c4902b2461162c9d8d1107f9cf591c593a7f4b7) adds the browser-to-database regression assertion. These commits change test support only; application PHP, schema and UI are untouched.
+
+- After Chromium submits **₱180.01** against the **₱180.00** remaining balance and receives HTTP 422, the browser test now invokes the existing CLI inspector in read-only mode.
+- It asserts the bill remains **₱300.00**, exactly one payment row remains (**₱120.00**), and the computed outstanding balance remains **₱180.00**.
+- It also asserts the same ticket remains **OPEN** and its single device remains **READY_FOR_PICKUP** with **AT_LOCATION** custody. This closes the prior evidence gap where the UI was checked but the database was not re-read after the rejected browser POST.
+- The disposable-database guard now explicitly counts `ticket_defects` and `password_reset_tokens` as well as the other operational tables. The 23-table schema remains unchanged; the six reference/catalog tables remain seeded, and the single `SOGOD-DEMO` branch is checked separately.
+
+**Local checks:** `php -l` passed for the updated fixture. The new Python helper/assertion block passed an isolated syntax parse and exact-decimal arithmetic check. **Exact-SHA GitHub Actions for `3c4902b` is still pending verification**; the previously green run #45162227479 covers only the preceding `46d4be2` commit and must not be treated as proof for these changes.
+
+**Decision:** test hardening is implemented, but the new automated acceptance gate remains **PENDING** until the exact-source MySQL/Chromium and Windows build workflow is confirmed green. Manual phone, zoom, assistive-technology, native Windows watcher and live/offline REST checks remain open as recorded in [MANUAL-PHASE4-ACCEPTANCE.md](MANUAL-PHASE4-ACCEPTANCE.md).
