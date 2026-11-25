@@ -1,10 +1,10 @@
 # RepairTrack — Windows/XAMPP acceptance and recovery handoff
 
-**Prepared:** 22 November 2026. **Status:** INSTRUCTIONS ONLY — no Windows/XAMPP test or real-user sign-off has been performed. This document complements the proven [disposable Linux SQL/evidence restore](mvp-recovery-rehearsal.md) and the [20-case manual UAT checklist](mvp-uat-checklist.md).
+**Prepared:** 22 November 2026. **Status:** INSTRUCTIONS ONLY — no Windows/XAMPP test or real-user sign-off has been performed. This document complements the proven [disposable Linux SQL/evidence restore](mvp-recovery-rehearsal.md) and the [25-case manual UAT checklist](mvp-uat-checklist.md).
 
 ## 1. Prepare an isolated fictional installation
 
-Use only a specifically authorized, disposable XAMPP setup with fictional device, contact and receipt records. Record the tested `MVP-Stabilization` commit, PHP and MySQL/MariaDB versions, Windows version, browser, operator and test start time.
+Use only a specifically authorized, disposable XAMPP setup with fictional device, contact and receipt records. Record the exact tested branch and commit (for this UX pass, the PR #61 head on `MVP-UX-Polish-2026-11-25`), PHP and MySQL/MariaDB versions, Windows version, browser, operator and test start time.
 
 1. Make a **new** web folder under `htdocs`, separate from any working project. Copy the reviewed application there; do not reuse real customer data.
 2. Create writable private directories **outside** `htdocs`, e.g. `C:\repairtrack-private-test\intake` and `C:\repairtrack-private-test\inventory`. Keep access restricted to the test operator and PHP/Apache account. Confirm that browsing these paths by HTTP is impossible.
@@ -14,7 +14,7 @@ Use only a specifically authorized, disposable XAMPP setup with fictional device
 
 ## 2. Human acceptance and accessibility
 
-Execute [UAT-01 through UAT-20](mvp-uat-checklist.md). Use appropriate role-based accounts and a separate anonymous customer session. For each scenario, record role, test machine/browser, actual result, status (Not run / Pass / Fail / Blocked), redacted screenshot/issue ID, tester and retest result. A CI green check does not count as a human sign-off.
+Execute [UAT-01 through UAT-25](mvp-uat-checklist.md). Use appropriate role-based accounts and a separate anonymous customer session. For each scenario, record role, test machine/browser, actual result, status (Not run / Pass / Fail / Blocked), redacted screenshot/issue ID, tester and retest result. A CI green check does not count as a human sign-off.
 
 Test touch screens at 320/390/768/1440 CSS pixels, keyboard-only Tab/Shift-Tab/Enter/Escape, no-JavaScript where supported, and at least one real screen reader (NVDA on Windows or VoiceOver on mobile). Include staff mobile More menu, no-JavaScript fallback, customer code/PIN, signed issuance, protected quote/cash forms, and sign-out/back-button behavior.
 
@@ -37,7 +37,7 @@ The completed Linux CI rehearsal verified **47 tables, two cash entries totaling
 
 | Gate | Evidence to collect | Current status |
 | --- | --- | --- |
-| UAT sign-off | Actual UAT-01..20 results, named testers and retested blockers | **Not run** |
+| UAT sign-off | Actual UAT-01..25 results, named testers and retested blockers | **Not run** |
 | Staff/screen-reader accessibility | Keyboard and screen-reader test notes and screenshots | **Not run** |
 | Windows/XAMPP recovery | Operator log without secrets, SHA-256 comparison, SQL/finance/custody reconciliation, restore duration | **Not run** |
 | Merge into `main` | Independent review, current CI, explicit approval for PR #56 only | **Pending** |
