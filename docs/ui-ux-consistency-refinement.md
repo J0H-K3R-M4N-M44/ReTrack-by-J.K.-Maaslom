@@ -96,3 +96,13 @@ Run keyboard-only checks across the real staff forms and public portal; verify v
 **Behavior deliberately unchanged:** no public repository/query permission changes, no customer self-approval, chat, SMS/email, GPS, ETA/SLA, supplier tracking, COD or online payments. Device details remain read-only. The timeline remains a saved staff-update feed, not live tracking. No schema, controller, estimate-decision, payment or custody code was changed.
 
 **Batch 3 verification:** the code and regression assertions are committed. The branch push workflow result and screenshot artifact still need inspection; automated verification must not be marked passed until those results are available. Human UAT and screen-reader acceptance remain separate gates.
+
+
+## Batch 4 — responsive operational views: status-board theme slice
+
+**Implemented on the UX branch:**
+- Replaced the status board's fixed dark lane/card surfaces with the existing workspace theme tokens. Lane surfaces use the panel token; cards use the soft-surface token; borders, primary text and secondary lane counts use the corresponding line/text/muted tokens. This fixes the contrast mismatch when Linen is selected without introducing a new visual system.
+- Extended the existing isolated manager browser journey to inspect the actual board in Linen at 320, 390, 768 and 1440 CSS pixels, verify the computed lane/card colors and text, and capture `mvp-board-mobile.png` for visual review.
+- Added the board screenshot to the existing MVP workflow artifact upload. No new workflow or CI service was introduced.
+
+**Scope and remaining review:** this is the first focused Batch 4 slice, not completion of the full responsive audit. Queue, activity and cashier flows already have focused mobile checks in their existing suites; status-board rendering now has a targeted theme/overflow regression. Still to inspect manually are fixed-dock obstruction, board reading order with assistive technology, and the complete history/cash-list experience across roles. UAT-26 covers the status-board theme and viewport checks. Human screen-reader and Windows/XAMPP acceptance remain separate release gates.
