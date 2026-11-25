@@ -94,8 +94,9 @@ $inMore = !in_array($currentSection, $shortcuts, true);
 <header class="rt-top">
     <span>Workspace <b>/ <?= h($navigation[$currentSection][0] ?? 'Repair operations') ?></b></span>
     <?php if (array_sum($activityCounts) > 0): ?>
-        <a class="rt-unread" href="activity.php?group=<?= h(array_key_first(array_filter($activityCounts))) ?>">
-            <?= (int) array_sum($activityCounts) ?> unread
+        <a class="rt-unread" href="activity.php"
+            aria-label="Open staff activity. Unread counts are available by category.">
+            Staff activity
         </a>
     <?php endif; ?>
     <details id="rt-menu">
