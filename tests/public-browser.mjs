@@ -75,12 +75,21 @@ try {
   const mobileQueue = await page.locator('.workspace-table').evaluate(table => ({
     rowDisplay: getComputedStyle(table.tBodies[0].rows[0]).display,
     tableMinWidth: getComputedStyle(table).minWidth,
+    tableRole: table.getAttribute('role'),
+    rowRoles: [...table.tBodies[0].rows].every(row => row.getAttribute('role') === 'row'),
+    cellRoles: [...table.tBodies[0].rows].every(row =>
+      [...row.cells].every(cell => cell.getAttribute('role') === 'cell')),
+    headerRoles: [...table.tHead.rows].every(row =>
+      [...row.cells].every(cell => cell.getAttribute('role') === 'columnheader')),
     allCellsHaveLabels: [...table.tBodies[0].rows].every(row =>
       [...row.cells].every(cell => Boolean(cell.dataset.label))),
     wrapperFits: table.parentElement.scrollWidth <= table.parentElement.clientWidth + 1,
   }));
   assert.equal(mobileQueue.rowDisplay, 'grid', 'Mobile queue row did not become a record card');
   assert.equal(mobileQueue.tableMinWidth, '0px', 'Mobile queue retained a wide table minimum');
+  assert.equal(mobileQueue.tableRole, 'table', 'Mobile queue must retain table semantics');
+  assert(mobileQueue.rowRoles && mobileQueue.cellRoles && mobileQueue.headerRoles,
+    'Mobile queue must retain row, cell and column-header roles');
   assert(mobileQueue.allCellsHaveLabels, 'Mobile queue cards are missing visible field labels');
   assert(mobileQueue.wrapperFits, 'Mobile queue still requires horizontal scrolling');
   await page.screenshot({ path: site + '/mvp-queue-mobile.png', fullPage: true });
