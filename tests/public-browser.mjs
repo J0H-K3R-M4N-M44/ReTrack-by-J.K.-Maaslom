@@ -166,6 +166,44 @@ try {
     color: 'rgb(20, 32, 43)',
   }, 'Staff queue filter does not follow Linen theme tokens');
 
+  // The status board must use the same active theme tokens as the queue.
+  await page.goto(url + '/admin/staff_home.php?view=board');
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    assert(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      'Status board overflows at ' + width + 'px'
+    );
+  }
+  const boardPalette = await page.locator('.board-lane').first().evaluate(lane => {
+    const card = lane.querySelector('.board-card');
+    const small = lane.querySelector('h3 small');
+    if (!card || !small) return null;
+    const laneStyle = getComputedStyle(lane);
+    const cardStyle = getComputedStyle(card);
+    return {
+      laneBackground: laneStyle.backgroundColor,
+      laneText: laneStyle.color,
+      laneBorder: laneStyle.borderTopColor,
+      laneSecondaryText: getComputedStyle(small).color,
+      cardBackground: cardStyle.backgroundColor,
+      cardText: cardStyle.color,
+      cardBorder: cardStyle.borderTopColor,
+    };
+  });
+  assert.deepEqual(boardPalette, {
+    laneBackground: 'rgb(255, 253, 249)',
+    laneText: 'rgb(20, 32, 43)',
+    laneBorder: 'rgb(131, 145, 151)',
+    laneSecondaryText: 'rgb(69, 87, 99)',
+    cardBackground: 'rgb(230, 239, 237)',
+    cardText: 'rgb(20, 32, 43)',
+    cardBorder: 'rgb(131, 145, 151)',
+  }, 'Status-board lane and card surfaces must follow Linen theme tokens');
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.screenshot({ path: site + '/mvp-board-mobile.png', fullPage: true });
+  await page.goto(url + '/admin/staff_home.php');
+
   await page.screenshot({ path: site + '/mvp-queue-mobile.png', fullPage: true });
   await page.goto(url + '/admin/ticket.php?id=' + fixture.ticket);
   assert.equal(
