@@ -57,6 +57,7 @@ async function noOverflow(page, label) {
 
 
 async function verifyLinenStatusContrast(page) {
+  const returnUrl = page.url();
   await page.goto(base + '/admin/staff_home.php?view=queue');
   const results = await page.evaluate(() => {
     document.documentElement.dataset.theme = 'linen';
@@ -110,6 +111,7 @@ async function verifyLinenStatusContrast(page) {
     assert(row.contrast >= 4.5,
       'Linen status badge contrast below 4.5:1: ' + JSON.stringify(row));
   }
+  await page.goto(returnUrl);
   console.log('PASS: nine repair status badges meet 4.5:1 contrast in Linen.');
 }
 
