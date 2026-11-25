@@ -42,10 +42,11 @@ function consoleDevices(PDO $pdo, array $user, array $input): array
         $sql .= ' AND d.repair_status = ?';
         $pageParams[] = $status;
     }
-    // Surface the longest-unupdated open work first; keep history newest-first.
-    $order = consoleView($user, $input) === 'history'
-        ? 'updated_at DESC, ticket_device_id DESC'
-        : 'updated_at ASC, ticket_device_id ASC';
+    // Only the active repair queue needs an oldest-update-first attention order.
+    $view = consoleView($user, $input);
+    $order = $view === 'queue'
+        ? 'updated_at ASC, ticket_device_id ASC'
+        : 'updated_at DESC, ticket_device_id DESC';
     $page = dashboardPage(
         $pdo,
         $sql,
