@@ -5,7 +5,8 @@ declare(strict_types=1);
 $schema = file_get_contents(__DIR__ . '/../schema.sql');
 $seed = file_get_contents(__DIR__ . '/../seed_reference.sql');
 $actions = file_get_contents(__DIR__ . '/../app/actions.php');
-if (!is_string($schema) || !is_string($seed) || !is_string($actions)) {
+$fixture = file_get_contents(__DIR__ . '/full-journey-fixture.php');
+if (!is_string($schema) || !is_string($seed) || !is_string($actions) || !is_string($fixture)) {
     throw new RuntimeException('Academic SQL or isolated domain action source missing.');
 }
 
@@ -14,6 +15,41 @@ $tables = $matches[1];
 if (count($tables) !== 23 || count(array_unique($tables)) !== 23) {
     throw new RuntimeException('Expected exactly 23 unique classroom tables.');
 }
+
+// Every schema table must be classified: operational tables are guarded by
+// the disposable fixture, branches are checked separately, and only the
+// explicit reference catalogs may contain seeded rows.
+if (!preg_match('/foreach\s*\(\s*\[(.*?)\]\s+as\s+\$table\s*\)/s', $fixture, $guardMatch)) {
+    throw new RuntimeException('Disposable fixture operational-table guard is missing.');
+}
+preg_match_all("/'([a-z_]+)'/", $guardMatch[1], $guardMatches);
+$guardTables = $guardMatches[1];
+$referenceTables = [
+    'roles', 'device_types', 'defect_types', 'repair_statuses',
+    'allowed_status_transitions', 'storage_locations',
+];
+$classifiedTables = array_merge($guardTables, ['branches'], $referenceTables);
+if (count($classifiedTables) !== count(array_unique($classifiedTables))) {
+    throw new RuntimeException('A schema table is classified more than once in the disposable fixture guard.');
+}
+$missingTables = array_values(array_diff($tables, $classifiedTables));
+$unknownTables = array_values(array_diff($classifiedTables, $tables));
+if ($missingTables || $unknownTables) {
+    throw new RuntimeException('Disposable fixture guard table coverage mismatch. Missing: '
+        . implode(', ', $missingTables) . '; unknown: ' . implode(', ', $unknownTables));
+}
+if (!str_contains($fixture, 'SELECT branch_code FROM branches')
+    || !str_contains($fixture, "['SOGOD-DEMO']")) {
+    throw new RuntimeException('Disposable fixture must separately require the single SOGOD-DEMO branch.');
+}
+preg_match_all('/\bINSERT\s+INTO\s+([a-z_]+)/i', $seed, $seededMatches);
+$seededTables = array_unique($seededMatches[1]);
+foreach ($referenceTables as $table) {
+    if (!in_array($table, $seededTables, true)) {
+        throw new RuntimeException("Reference catalog is not explicitly seeded: $table");
+    }
+}
+
 if (!preg_match('/\bUSE\s+repairtrack_edp\s*;/i', $schema)
     || !preg_match('/\bUSE\s+repairtrack_edp\s*;/i', $seed)) {
     throw new RuntimeException('Both SQL files must explicitly select the disposable academic database.');
@@ -63,4 +99,4 @@ foreach (['edpChangeRepairStatus', 'edpRecordCashPayment', 'edpAssignTechnician'
         throw new RuntimeException("Academic action safeguard missing: $required");
     }
 }
-echo "PASS: 23 tables, customer/branch ownership FKs, guarded actions, fictional seed, and no destructive SQL.\n";
+echo "PASS: 23 tables, exhaustive fixture guard, customer/branch ownership FKs, guarded actions, fictional seed, and no destructive SQL.\n";
