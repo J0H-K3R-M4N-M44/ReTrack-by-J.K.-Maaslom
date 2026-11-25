@@ -97,7 +97,14 @@ workspaceCheck(
     technicianActiveCount($pdo, $tech['user_id']) === technicianActiveLimit(),
     'Cancelled work consumes capacity',
 );
+$pdo->prepare(
+    'UPDATE ticket_devices SET updated_at = DATE_SUB(UTC_TIMESTAMP(), INTERVAL 10 DAY) WHERE ticket_device_id = ?',
+)->execute([$created[1]]);
 $active = consoleDevices($pdo, $manager, []);
+workspaceCheck(
+    (int) $active['page']['rows'][0]['ticket_device_id'] === (int) $created[1],
+    'Queue must show the oldest last update first',
+);
 $history = consoleDevices($pdo, $manager, ['view' => 'history', 'q' => 'WORK-0']);
 workspaceCheck(
     count($active['page']['rows']) === 10 && $active['page']['pages'] > 1,
