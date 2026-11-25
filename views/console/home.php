@@ -126,10 +126,10 @@ require __DIR__ . '/../workspace/navigation.php';
             <?php if ($view === 'drafts'): ?><div id="drafts"><?php endif; ?>
             <p class="table-scroll-hint">On smaller screens, each record is shown as a stacked card.</p>
             <div class="staff-table-wrap" tabindex="0" aria-label="<?= h($listTitle) ?> records">
-            <table class="staff-table workspace-table"><caption class="sr-only"><?= h(
+            <table class="staff-table workspace-table" role="table"><caption class="sr-only"><?= h(
                 $listTitle,
             ) ?></caption>
-                <thead><tr>
+                <thead role="rowgroup"><tr role="row">
                     <?php
                     $columns = match (true) {
                         $view === 'cash' => [
@@ -167,7 +167,7 @@ require __DIR__ . '/../workspace/navigation.php';
                             'Action',
                         ],
                     };
-                    foreach ($columns as $column): ?><th scope="col" class="<?= in_array($column, [
+                    foreach ($columns as $column): ?><th scope="col" role="columnheader" class="<?= in_array($column, [
     'Bill total',
     'Cash received',
     'Balance',
@@ -175,10 +175,10 @@ require __DIR__ . '/../workspace/navigation.php';
     ? 'numeric'
     : '' ?>"><?= h($column) ?></th><?php endforeach;
                     ?>
-                </tr></thead><tbody>
-                <?php foreach ($page['rows'] as $row): ?><tr>
+                </tr></thead><tbody role="rowgroup">
+                <?php foreach ($page['rows'] as $row): ?><tr role="row">
                     <?php if ($view === 'cash'): ?>
-                        <td data-label="Ticket / tracking code"><?= h($row['ticket_code']) ?><small><?= h(
+                        <td role="cell" data-label="Ticket / tracking code"><?= h($row['ticket_code']) ?><small><?= h(
     $row['portal_code'] ?: 'No short tracking code',
 ) ?></small></td><td data-label="Bill"><?= h($row['bill_number']) ?></td><td data-label="Branch"><?= h(
     $row['branch_name'],
