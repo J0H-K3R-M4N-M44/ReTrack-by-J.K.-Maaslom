@@ -124,7 +124,7 @@
         <p>Contact <?= h($repair['branch_name']) ?> and quote <?= h($repair['ticket_code']) ?>.</p>
         <?php if ($repair['phone']): ?>
             <p class="public-branch-phone">Branch phone:
-                <a aria-label="Call <?= h($repair['branch_name']) ?>" href="tel:<?= h(preg_replace('/[^0-9+]/', '', (string) $repair['phone'])) ?>"><?= h($repair['phone']) ?></a>
+                <a aria-label="Call <?= h($repair['branch_name']) ?> at <?= h($repair['phone']) ?>" href="tel:<?= h(preg_replace('/[^0-9+]/', '', (string) $repair['phone'])) ?>"><?= h($repair['phone']) ?></a>
             </p>
         <?php else: ?>
             <p>A branch phone number is not listed on this tracking page. Use the contact details on your service receipt or visit the branch.</p>
