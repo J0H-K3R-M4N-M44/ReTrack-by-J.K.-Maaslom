@@ -111,23 +111,27 @@
             <?php elseif ($canAssign): ?>
                 <input type="hidden" name="action" value="assign">
                 <label for="technician">Active technician at this branch
-                    <select id="technician" name="technician" required>
+                    <select id="technician" name="technician" required aria-describedby="technician-capacity-help">
                         <option value="">Choose technician</option>
-                        <?php foreach ($technicians as $tech): ?>
-                        <option <?= (int) $tech['active_count'] >= technicianActiveLimit() &&
-                        (int) $device['assigned_technician_id'] !== (int) $tech['user_id']
-                            ? 'disabled'
-                            : '' ?> value="<?= (int) $tech['user_id'] ?>" <?= $values[
+                        <?php foreach ($technicians as $tech):
+                            $isCurrent = (int) $device['assigned_technician_id'] === (int) $tech['user_id'];
+                            $isAtLimit = (int) $tech['active_count'] >= technicianActiveLimit();
+                            $isUnavailable = $isAtLimit && !$isCurrent;
+                            $freeSlots = max(0, technicianActiveLimit() - (int) $tech['active_count']);
+                        ?>
+                        <option <?= $isUnavailable ? 'disabled' : '' ?> value="<?= (int) $tech['user_id'] ?>" <?= $values[
     'technician'
 ] === (string) $tech['user_id']
     ? 'selected'
     : '' ?>><?= h($tech['full_name']) ?> · <?= (int) $tech[
      'active_count'
- ] ?>/<?= technicianActiveLimit() ?> active</option>
+ ] ?>/<?= technicianActiveLimit() ?> active · <?= $isCurrent
+    ? ($isAtLimit ? 'current assignment · at limit' : 'current assignment')
+    : ($isAtLimit ? 'at capacity' : $freeSlots . ($freeSlots === 1 ? ' slot free' : ' slots free')) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </label>
-                <p>Choose an active technician in this branch. The limit is <?= technicianActiveLimit() ?> active devices across all branches. Closed, completed and cancelled work does not count.</p>
+                <p id="technician-capacity-help">The limit is <?= technicianActiveLimit() ?> active devices per technician across all branches. Work waiting for a customer, parts or pickup still counts until the repair is closed. Technicians at capacity cannot receive another device; choose someone with an open slot or finish eligible work first.</p>
                 <button name="intent" value="review" class="logout-btn">Review assignment</button>
             <?php else: ?>
                 <input type="hidden" name="action" value="progress">
