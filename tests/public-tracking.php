@@ -267,4 +267,4 @@ file_put_contents(
         'device_count' => count($multiDeviceView['devices']),
     ]),
 );
-echo "PASS: public privacy, access-code revocation, stale sharing, role/branch boundaries, customer updates, queue filtering and pagination.\n";
+echo "PASS: public privacy, access revocation, estimate boundaries, multi-device grouping, long updates, role/branch boundaries and pagination.\n";
