@@ -70,7 +70,7 @@ try {
   }
   await page.locator('#queue-status').selectOption('');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
-  await page.waitForURL('**/staff_home.php?*');
+  await page.waitForURL(currentUrl => new URL(currentUrl).searchParams.get('status') !== 'DIAGNOSING');
   await page.setViewportSize({ width: 390, height: 900 });
   const mobileQueue = await page.locator('.workspace-table').evaluate(table => ({
     rowDisplay: getComputedStyle(table.tBodies[0].rows[0]).display,
