@@ -197,7 +197,7 @@
   .public-header nav {
     display: flex;
     flex-wrap: nowrap;
-    gap: 16px;
+    gap: 10px;
     max-width: 100%;
     overflow-x: auto;
     overscroll-behavior-x: contain;
@@ -208,6 +208,6 @@
     flex: 0 0 auto;
     min-height: 44px;
     white-space: nowrap;
-    font-size: 0.9rem;
+    font-size: 0.82rem;
   }
 }
