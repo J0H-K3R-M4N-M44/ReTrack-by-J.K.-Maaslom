@@ -17,13 +17,13 @@ require_once __DIR__ . '/../app/bootstrap.php';
 $pdo = edpPreviewDb();
 $command = $argv[1] ?? '';
 
-/** No fixture creation in a database with existing tickets, staff, or evidence. */
+/** No fixture creation in a database with existing operational or security records. */
 function edpJourneyRequireFresh(PDO $pdo): void
 {
-    foreach (['users','user_branch_assignments','customers','customer_devices',
-        'repair_tickets','ticket_devices','ticket_status_events','repair_quotes',
-        'repair_bills','repair_bill_items','repair_bill_payments','media_assets',
-        'notes','audit_events'] as $table) {
+    foreach (['users','user_branch_assignments','password_reset_tokens','customers',
+        'customer_devices','repair_tickets','ticket_devices','ticket_defects',
+        'ticket_status_events','repair_quotes','repair_bills','repair_bill_items',
+        'repair_bill_payments','media_assets','notes','audit_events'] as $table) {
         // Fixed hard-coded allowlist; table identifiers never derive from inputs.
         if ((int)$pdo->query('SELECT COUNT(*) FROM ' . $table)->fetchColumn() !== 0) {
             throw new RuntimeException('Refusing a database containing existing operational records.');
