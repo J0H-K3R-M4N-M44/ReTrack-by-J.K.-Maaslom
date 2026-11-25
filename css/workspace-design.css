@@ -111,6 +111,26 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
   border-color: var(--rt-line);
 }
 
+/* Theme tokens override the legacy staff form defaults on every staff screen. */
+.rt-layout .staff-page input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+.rt-layout .staff-page select,
+.rt-layout .staff-page textarea {
+  color: var(--rt-text);
+  background-color: var(--rt-panel);
+  border-color: var(--rt-line);
+}
+.rt-layout .staff-page input::placeholder,
+.rt-layout .staff-page textarea::placeholder {
+  color: var(--rt-muted);
+  opacity: 1;
+}
+
+/* Keep keyboard focus visible and theme-consistent across the staff workspace. */
+.rt-layout :focus-visible {
+  outline: 3px solid var(--rt-accent);
+  outline-offset: 3px;
+}
+
 /* Separate the task list from the secondary seven-day trend. */
 .rt-layout .workspace-list + .workspace-trends { margin-top: 24px; }
 
