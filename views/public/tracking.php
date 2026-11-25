@@ -54,7 +54,7 @@
                     <p class="eyebrow public-stage-label">Current repair stage</p>
                     <p class="public-status"><?= h(publicStageLabel($device)) ?></p>
                 </div>
-                <h4>Device custody</h4>
+                <h4>Device location</h4>
                 <p><?= h(publicCustody($device)) ?></p>
                 <?php if ($device['estimate']): ?>
                 <div class="public-estimate">
