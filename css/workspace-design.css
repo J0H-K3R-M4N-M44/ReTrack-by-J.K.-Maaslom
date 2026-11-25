@@ -139,9 +139,16 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
   min-height: 44px;
   display: inline-flex;
   align-items: center;
-  color: var(--rt-accent);
-  font-weight: 600;
+  color: var(--rt-muted);
+  font-size: .9rem;
+  font-weight: 500;
+  text-decoration: none;
   white-space: nowrap;
+}
+.rt-unread:hover,
+.rt-unread:focus-visible {
+  color: var(--rt-text);
+  text-decoration: underline;
 }
 
 /* Progressive enhancement: More uses JavaScript on phones; when scripting is
