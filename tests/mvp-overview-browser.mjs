@@ -55,8 +55,59 @@ async function noOverflow(page, label) {
     label + ' overflows: ' + JSON.stringify(size));
 }
 
+
+async function verifyLinenStatusContrast(page) {
+  await page.goto(base + '/admin/staff_home.php?view=queue');
+  const results = await page.evaluate(() => {
+    document.documentElement.dataset.theme = 'linen';
+    const names = [
+      'received', 'diagnosing', 'awaiting_customer_approval',
+      'awaiting_parts', 'in_progress', 'testing',
+      'ready_for_pickup', 'completed', 'cancelled',
+    ];
+    const container = document.createElement('div');
+    container.style.cssText = 'position:absolute;left:-10000px;top:0;';
+    document.body.append(container);
+    const luminance = (color) => {
+      const values = color.match(/[\\d.]+/g).slice(0, 3).map(Number);
+      const linear = values.map(value => {
+        const channel = value / 255;
+        return channel <= 0.04045
+          ? channel / 12.92
+          : ((channel + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+    };
+    const rows = names.map(name => {
+      const badge = document.createElement('span');
+      badge.className = 'workspace-status status-' + name;
+      badge.textContent = name;
+      container.append(badge);
+      const style = getComputedStyle(badge);
+      const foreground = luminance(style.color);
+      const background = luminance(style.backgroundColor);
+      const lighter = Math.max(foreground, background);
+      const darker = Math.min(foreground, background);
+      return {
+        status: name,
+        foreground: style.color,
+        background: style.backgroundColor,
+        contrast: (lighter + 0.05) / (darker + 0.05),
+      };
+    });
+    container.remove();
+    return rows;
+  });
+  for (const row of results) {
+    assert(row.contrast >= 4.5,
+      'Linen status badge contrast below 4.5:1: ' + JSON.stringify(row));
+  }
+  console.log('PASS: nine repair status badges meet 4.5:1 contrast in Linen.');
+}
+
 try {
   const session = await signedIn();
+  await verifyLinenStatusContrast(session.page);
   const page = session.page;
   assert.equal(await page.getByRole('heading', { name: 'Admin dashboard' }).count(), 1);
   assert.equal(await page.getByText('Under construction', { exact: true }).count(), 0);
