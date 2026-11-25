@@ -449,3 +449,98 @@
   color: #404b53;
   background: #f0f2f3;
 }
+
+
+/* Linen uses dark table text on its light surface, including secondary labels. */
+:root[data-theme="linen"] .rt-layout .workspace-table th {
+  color: #26343c;
+}
+:root[data-theme="linen"] .rt-layout .workspace-table td small,
+:root[data-theme="linen"] .rt-layout .table-scroll-hint {
+  color: #455763;
+}
+
+/* Phone queue: turn each semantic table row into a readable record card.
+   The column headers remain available to assistive technology. */
+@media (max-width: 767px) {
+  .rt-layout .workspace-list .staff-table-wrap {
+    max-width: 100%;
+    overflow: visible;
+  }
+  .rt-layout .workspace-list .workspace-table {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    border-collapse: separate;
+  }
+  .rt-layout .workspace-list .workspace-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .rt-layout .workspace-list .workspace-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+  .rt-layout .workspace-list .workspace-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--rt-line);
+    border-radius: 12px;
+    background: var(--rt-panel);
+  }
+  .rt-layout .workspace-list .workspace-table tbody tr:nth-child(even),
+  .rt-layout .workspace-list .workspace-table tbody tr:hover {
+    background: var(--rt-panel);
+  }
+  .rt-layout .workspace-list .workspace-table tbody td {
+    display: block;
+    min-width: 0;
+    width: auto;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rt-line);
+    color: var(--rt-text);
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .rt-layout .workspace-list .workspace-table tbody td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 4px;
+    color: var(--rt-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .rt-layout .workspace-list .workspace-table tbody td:last-child {
+    border-bottom: 0;
+  }
+  .rt-layout .workspace-list .workspace-table tbody td.numeric {
+    text-align: left;
+    white-space: normal;
+  }
+  .rt-layout .workspace-list .workspace-table tbody td small {
+    color: var(--rt-muted);
+  }
+  .rt-layout .workspace-list .workspace-table tbody td a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .rt-layout .workspace-list .table-scroll-hint {
+    display: block;
+    margin: 0 0 12px;
+    color: var(--rt-muted);
+    font-size: 0.85rem;
+  }
+}
