@@ -209,3 +209,19 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
     outline-offset: 2px;
   }
 }
+
+
+/* Status-board surfaces follow the active workspace theme, including Linen. */
+.rt-layout .board-lane {
+  border-color: var(--rt-line);
+  color: var(--rt-text);
+  background: var(--rt-panel);
+}
+.rt-layout .board-lane h3 small {
+  color: var(--rt-muted);
+}
+.rt-layout .board-card {
+  border-color: var(--rt-line);
+  color: var(--rt-text);
+  background: var(--rt-soft);
+}
