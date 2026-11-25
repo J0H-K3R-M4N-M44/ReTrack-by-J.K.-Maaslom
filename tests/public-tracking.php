@@ -209,8 +209,53 @@ checkPublic(publicStageLabel($customerDecisionWaiting) === 'Waiting for customer
 checkPublic(str_contains(publicNextStep($customerDecisionWaiting), 'Contact the branch'),
     'Customer approval wait lacks a branch contact action');
 
+// Add a second, fictional device to exercise the grouped customer portal view.
+$sequenceQuery = $pdo->prepare(
+    'SELECT COALESCE(MAX(child_sequence), 0) + 1 FROM ticket_devices WHERE ticket_id = ?',
+);
+$sequenceQuery->execute([$ticketId]);
+$secondSequence = (int) $sequenceQuery->fetchColumn();
+$secondItemCode = 'PORTAL-' . $ticketId . '-' . $secondSequence;
+$longPublicMessage = str_repeat(
+    'This fictional customer-visible update is intentionally long so the portal can be checked for readable wrapping on narrow screens. ',
+    7,
+) . "\nThe device remains at the service branch while staff arrange the required part.";
+
+$insertSecondDevice = $pdo->prepare(
+    "INSERT INTO ticket_devices (
+        ticket_id, child_sequence, item_code, device_type_snapshot, make_snapshot,
+        model_snapshot, alternative_identifiers, reported_symptoms, condition_notes,
+        accessory_checklist_completed, repair_status, public_summary, custody_state
+    ) VALUES (?, ?, ?, 'Laptop', 'RepairTrack Test', 'Second portal device',
+        'SYNTHETIC-PORTAL-DEVICE', 'Illustrative reported symptom',
+        'Synthetic condition notes', 1, 'AWAITING_PARTS', ?, 'AT_LOCATION')",
+);
+$insertSecondDevice->execute([$ticketId, $secondSequence, $secondItemCode, $longPublicMessage]);
+$secondDeviceId = (int) $pdo->lastInsertId();
+$pdo->prepare(
+    "INSERT INTO ticket_status_events (
+        ticket_device_id, from_status, to_status, actor_type, actor_user_id,
+        public_summary, is_customer_visible, created_at
+    ) VALUES (?, 'RECEIVED', 'AWAITING_PARTS', 'USER', ?, ?, 1, UTC_TIMESTAMP())",
+)->execute([$secondDeviceId, $tech['user_id'], $longPublicMessage]);
+
+$multiDeviceView = publicRepair($pdo, $newCode);
+checkPublic(count($multiDeviceView['devices']) === 2, 'Customer portal did not return both devices');
+checkPublic(
+    $multiDeviceView['devices'][1]['item_code'] === $secondItemCode,
+    'Second device is not grouped under its issued ticket',
+);
+checkPublic(
+    str_contains($multiDeviceView['devices'][1]['public_summary'], 'intentionally long'),
+    'Long customer-visible device update is missing',
+);
+checkPublic(
+    ($multiDeviceView['events'][0]['item_code'] ?? '') === $secondItemCode,
+    'Newest customer-visible event is not associated with its device',
+);
+
 file_put_contents(
     __DIR__ . '/public-fixture.json',
-    json_encode(['ticket' => $ticketId, 'code' => $newCode]),
+    json_encode(['ticket' => $ticketId, 'code' => $newCode, 'second_item_code' => $secondItemCode]),
 );
 echo "PASS: public privacy, access-code revocation, stale sharing, role/branch boundaries, customer updates, queue filtering and pagination.\n";
