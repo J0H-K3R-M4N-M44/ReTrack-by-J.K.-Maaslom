@@ -6,6 +6,7 @@ on:
     paths:
       - 'admin/dashboard.php'
       - 'css/dashboard.css'
+      - 'css/workspace.css'
       - 'tests/mvp-overview-browser.mjs'
       - 'tests/mvp-single-ticket-journey.php'
       - 'tests/mvp-backup-restore.sh'
