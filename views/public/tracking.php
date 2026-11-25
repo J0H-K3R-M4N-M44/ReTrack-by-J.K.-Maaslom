@@ -43,7 +43,7 @@
         <section class="public-card">
             <p class="eyebrow"><?= h($device['item_code']) ?></p>
             <h2><?= h(dashboardDeviceLabel($device)) ?></h2>
-            <p class="eyebrow">Current repair stage</p><p class="public-status"><?= h(publicStageLabel($device)) ?></p>
+            <p class="eyebrow public-stage-label">Current repair stage</p><p class="public-status"><?= h(publicStageLabel($device)) ?></p>
             <h3>Device custody</h3><p><?= h(publicCustody($device)) ?></p>
             <?php if ($device['estimate']): ?>
             <div class="public-estimate">
