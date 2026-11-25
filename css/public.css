@@ -211,3 +211,121 @@
     font-size: 0.82rem;
   }
 }
+
+
+/* Batch 3: keep each device's details together without repeating the ticket header. */
+.public-devices {
+  margin-bottom: 24px;
+}
+.public-section-heading {
+  margin: 0 0 14px;
+}
+.public-section-heading h2 {
+  margin: 0;
+}
+.public-section-heading p {
+  margin: 4px 0 0;
+  color: #c0ced4;
+}
+.public-device-card {
+  margin-bottom: 0;
+}
+.public-device-heading h3 {
+  margin: 4px 0 0;
+  font-size: 1.2rem;
+  overflow-wrap: anywhere;
+}
+.public-device-label {
+  margin: 0;
+}
+.public-device-status {
+  margin: 14px 0 18px;
+}
+.public-device-card h4 {
+  margin: 18px 0 4px;
+  font-size: 1rem;
+}
+.public-estimate {
+  border: 1px solid var(--steel-600);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--steel-900);
+}
+.public-estimate h4 {
+  margin-top: 0;
+}
+.public-estimate-status {
+  margin: 4px 0 10px;
+  color: #c0ced4;
+  font-size: 0.92rem;
+}
+.public-estimate-total {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 8px 0;
+}
+.public-estimate-total strong {
+  font-size: 1.25rem;
+}
+.public-estimate-note {
+  margin-bottom: 0;
+}
+.public-empty-estimate,
+.public-empty-history {
+  color: #c0ced4;
+}
+.public-message {
+  max-width: 72ch;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  hyphens: auto;
+}
+.public-timeline {
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 20px 0 8px;
+  padding: 0;
+}
+.public-timeline li {
+  position: relative;
+  margin-left: 7px;
+  padding: 4px 0 24px 22px;
+  border-left: 2px solid var(--steel-600);
+}
+.public-timeline li::before {
+  position: absolute;
+  top: 10px;
+  left: -7px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--gold-300);
+  border-radius: 50%;
+  background: var(--steel-800);
+  content: "";
+}
+.public-timeline-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+.public-timeline-device {
+  color: #c0ced4;
+  font-size: 0.84rem;
+  font-weight: 400;
+}
+.public-timeline time {
+  display: block;
+  margin-top: 8px;
+  color: #c0ced4;
+  font-size: 0.9rem;
+}
+.public-branch-phone {
+  margin: 8px 0;
+}
