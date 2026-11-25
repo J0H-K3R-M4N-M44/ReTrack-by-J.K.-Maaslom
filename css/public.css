@@ -180,3 +180,34 @@
   min-height: 44px;
   font-weight: 700;
 }
+
+
+/* Keep the customer links in one compact, horizontally scrollable row on phones. */
+@media (max-width: 600px) {
+  .public-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    padding: 10px 16px;
+  }
+  .public-header > a {
+    min-height: 36px;
+    font-weight: 700;
+  }
+  .public-header nav {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 16px;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    padding-bottom: 2px;
+  }
+  .public-header nav a {
+    flex: 0 0 auto;
+    min-height: 40px;
+    white-space: nowrap;
+    font-size: 0.9rem;
+  }
+}
