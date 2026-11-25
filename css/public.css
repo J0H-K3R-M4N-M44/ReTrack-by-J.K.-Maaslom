@@ -191,7 +191,7 @@
     padding: 10px 16px;
   }
   .public-header > a {
-    min-height: 36px;
+    min-height: 44px;
     font-weight: 700;
   }
   .public-header nav {
@@ -206,7 +206,7 @@
   }
   .public-header nav a {
     flex: 0 0 auto;
-    min-height: 40px;
+    min-height: 44px;
     white-space: nowrap;
     font-size: 0.9rem;
   }
