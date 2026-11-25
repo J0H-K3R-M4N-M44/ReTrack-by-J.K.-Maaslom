@@ -45,7 +45,7 @@
         </div>
         <div class="public-grid">
         <?php foreach ($repair['devices'] as $deviceIndex => $device): ?>
-            <section class="public-card public-device-card" aria-labelledby="public-device-title-<?= $deviceIndex + 1 ?>">
+            <section class="public-card public-device-card" data-item-code="<?= h($device['item_code']) ?>" aria-labelledby="public-device-title-<?= $deviceIndex + 1 ?>">
                 <header class="public-device-heading">
                     <p class="eyebrow public-device-label">Device <?= $deviceIndex + 1 ?> of <?= count($repair['devices']) ?> · <?= h($device['item_code']) ?></p>
                     <h3 id="public-device-title-<?= $deviceIndex + 1 ?>"><?= h(dashboardDeviceLabel($device)) ?></h3>
