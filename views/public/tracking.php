@@ -38,51 +38,65 @@
         ) ?>"><button class="public-button secondary" name="action" value="close">Close tracking</button></form>
     </div>
     <p>Updates reflect staff records, not live GPS. Refresh this page for the latest saved update.</p>
-    <div class="public-grid">
-    <?php foreach ($repair['devices'] as $device): ?>
-        <section class="public-card">
-            <p class="eyebrow"><?= h($device['item_code']) ?></p>
-            <h2><?= h(dashboardDeviceLabel($device)) ?></h2>
-            <p class="eyebrow public-stage-label">Current repair stage</p><p class="public-status"><?= h(publicStageLabel($device)) ?></p>
-            <h3>Device custody</h3><p><?= h(publicCustody($device)) ?></p>
-            <?php if ($device['estimate']): ?>
-            <div class="public-estimate">
-                <h3>Current shared estimate</h3>
-                <p>Revision <?= (int) $device['estimate']['revision'] ?> · <?= h(publicEstimateLabel($device['estimate'])) ?></p>
-                <p class="public-estimate-total">Estimated total <strong><?= h($device['estimate']['currency']) ?> <?= h(number_format((float) $device['estimate']['total'], 2)) ?></strong></p>
-                <p>This is not a bill, payment receipt or balance due. Staff record decisions; this page cannot approve estimates or accept payments.</p>
-            </div>
-            <?php else: ?>
-            <p>No current estimate has been shared for this device.</p>
-            <?php endif; ?>
-            <h3>Next step</h3><p><?= h(publicNextStep($device)) ?></p>
-            <?php if (
-                $device['public_summary']
-            ): ?><h3>Message from the service team</h3><p class="public-message"><?= h(
-    $device['public_summary'],
-) ?></p><?php endif; ?>
-        </section>
-    <?php endforeach; ?>
-    </div>
+    <section class="public-devices" aria-labelledby="public-devices-heading">
+        <div class="public-section-heading">
+            <h2 id="public-devices-heading">Devices on this ticket</h2>
+            <p>Each device has its own repair stage, estimate and next step.</p>
+        </div>
+        <div class="public-grid">
+        <?php foreach ($repair['devices'] as $deviceIndex => $device): ?>
+            <section class="public-card public-device-card" aria-labelledby="public-device-title-<?= $deviceIndex + 1 ?>">
+                <header class="public-device-heading">
+                    <p class="eyebrow public-device-label">Device <?= $deviceIndex + 1 ?> of <?= count($repair['devices']) ?> · <?= h($device['item_code']) ?></p>
+                    <h3 id="public-device-title-<?= $deviceIndex + 1 ?>"><?= h(dashboardDeviceLabel($device)) ?></h3>
+                </header>
+                <div class="public-device-status">
+                    <p class="eyebrow public-stage-label">Current repair stage</p>
+                    <p class="public-status"><?= h(publicStageLabel($device)) ?></p>
+                </div>
+                <h4>Device custody</h4>
+                <p><?= h(publicCustody($device)) ?></p>
+                <?php if ($device['estimate']): ?>
+                <div class="public-estimate">
+                    <h4>Current shared estimate</h4>
+                    <p class="public-estimate-status"><?= h(publicEstimateLabel($device['estimate'])) ?> · Revision <?= (int) $device['estimate']['revision'] ?></p>
+                    <p class="public-estimate-total"><span>Estimated total</span><strong><?= h($device['estimate']['currency']) ?> <?= h(number_format((float) $device['estimate']['total'], 2)) ?></strong></p>
+                    <p class="public-estimate-note">This is not a bill, payment receipt or balance due. Staff record decisions; this page cannot approve estimates or accept payments.</p>
+                </div>
+                <?php else: ?>
+                <p class="public-empty-estimate">No current estimate has been shared for this device.</p>
+                <?php endif; ?>
+                <h4>Next step</h4>
+                <p><?= h(publicNextStep($device)) ?></p>
+                <?php if ($device['public_summary']): ?>
+                    <h4>Message from the service team</h4>
+                    <p class="public-message"><?= h($device['public_summary']) ?></p>
+                <?php endif; ?>
+            </section>
+        <?php endforeach; ?>
+        </div>
+    </section>
     <section class="public-card">
         <h2>Repair timeline</h2>
-        <p>Newest updates first. Times are shown in Philippine time.</p>
-        <?php if (
-            !$repair['events']
-        ): ?><p>No customer updates have been published yet.</p><?php endif; ?>
+        <p>Newest updates across all devices first. Each update names the device it refers to. Times are shown in Philippine time.</p>
+        <?php if (!$repair['events']): ?>
+            <p class="public-empty-history">No customer updates have been published yet.</p>
+        <?php endif; ?>
         <ol class="public-timeline">
         <?php foreach ($repair['events'] as $event): ?>
-            <li><strong><?= h(dashboardStatusLabel($event['to_status'])) ?></strong> · <?= h(
-    $event['item_code'],
-) ?>
-                <p class="public-message"><?= h(
-                    $event['public_summary'] ?: 'Repair stage updated.',
-                ) ?></p>
-                <time><?= h(
-                    (new DateTimeImmutable($event['created_at'], new DateTimeZone('UTC')))
-                        ->setTimezone(new DateTimeZone('Asia/Manila'))
-                        ->format('M j, Y · g:i a'),
-                ) ?></time>
+            <?php
+                $eventTime = (new DateTimeImmutable($event['created_at'], new DateTimeZone('UTC')))
+                    ->setTimezone(new DateTimeZone('Asia/Manila'));
+            ?>
+            <li>
+                <article class="public-timeline-entry">
+                    <h3 class="public-timeline-title">
+                        <span><?= h(dashboardStatusLabel($event['to_status'])) ?></span>
+                        <span class="public-timeline-device">Item <?= h($event['item_code']) ?></span>
+                    </h3>
+                    <p class="public-message"><?= h($event['public_summary'] ?: 'Repair stage updated.') ?></p>
+                    <time datetime="<?= h($eventTime->format(DATE_ATOM)) ?>">Updated <?= h($eventTime->format('M j, Y')) ?> · <?= h($eventTime->format('g:i a')) ?></time>
+                </article>
             </li>
         <?php endforeach; ?>
         </ol>
@@ -105,13 +119,18 @@
         <?php
         endforeach; ?></nav>
     </section>
-    <section class="public-card"><h2>Need help with this repair?</h2><p>Contact <?= h(
-        $repair['branch_name'],
-    ) ?> and quote <?= h($repair['ticket_code']) ?>.</p><?php if (
-    $repair['phone']
-): ?><p>Branch phone: <a href="tel:<?= h(preg_replace('/[^0-9+]/', '', (string) $repair['phone'])) ?>"><?= h(
-    $repair['phone'],
-) ?></a></p><?php else: ?><p>A branch phone number is not listed on this tracking page. Use the contact details on your service receipt or visit the branch.</p><?php endif; ?><p>Please confirm collection arrangements and any amount due with staff. This page does not take payments.</p></section>
+    <section class="public-card public-contact-card">
+        <h2>Need help with this repair?</h2>
+        <p>Contact <?= h($repair['branch_name']) ?> and quote <?= h($repair['ticket_code']) ?>.</p>
+        <?php if ($repair['phone']): ?>
+            <p class="public-branch-phone">Branch phone:
+                <a aria-label="Call <?= h($repair['branch_name']) ?>" href="tel:<?= h(preg_replace('/[^0-9+]/', '', (string) $repair['phone'])) ?>"><?= h($repair['phone']) ?></a>
+            </p>
+        <?php else: ?>
+            <p>A branch phone number is not listed on this tracking page. Use the contact details on your service receipt or visit the branch.</p>
+        <?php endif; ?>
+        <p>Please confirm collection arrangements and any amount due with staff. This page does not take payments.</p>
+    </section>
     <?php endif; ?>
     <p><a href="index.php">Back to public home</a></p>
 </main>
