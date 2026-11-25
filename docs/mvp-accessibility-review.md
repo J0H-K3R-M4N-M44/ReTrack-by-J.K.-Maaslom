@@ -1,6 +1,6 @@
 # RepairTrack MVP — accessibility and usability checkpoint
 
-**Date:** 22 November 2026. **Status:** FOCUSED AUTOMATED CHECKS PASSED; human accessibility review is pending. No WCAG conformance claim.
+**Updated:** 25 November 2026. **Status:** FOCUSED AUTOMATED CHECKS PASSED; human accessibility review is pending. No WCAG conformance claim.
 
 ## Changes in this checkpoint
 
@@ -12,6 +12,7 @@
 | Motion | The unnecessary slide-in tracking form animation was removed; reduced-motion browsing stays stationary |
 | Responsive | Tracking page verified at 320, 390, 768 and 1440 CSS pixels without page-level horizontal overflow |
 | Existing admin overview | Previously fixed narrow-phone/tablet grid overflow, dashboard failure indicator, and misleading construction banner |
+| Staff repair-status badges in Linen theme | Added dark, status-specific label colors on light surfaces; all nine status variants pass a Chrome-computed foreground/background contrast check at 4.5:1 or higher |
 
 ## Test method and evidence
 
@@ -20,6 +21,12 @@
 **PASS:** [GitHub Actions 44996725360](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996725360), `quote-and-tracking-browser (public)` on code `2821057e`. Its log includes the accessibility PASS and the existing customer privacy/tracking browser PASS.
 
 The same code checkpoint also passed [staff activity & intake](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996725335) and [payment/pickup](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996725374) suites. Screenshots use fictional accounts only.
+
+## Light-theme status contrast — 25 November 2026
+
+A screenshot review of the local fictional-data preview found that pale repair-status labels remained in place when the workspace switched to the light Linen theme. The labels were difficult to distinguish from the near-white panels. The stylesheet now supplies dark, status-specific foreground colors and matching light backgrounds for the nine repair-state badges (including diagnosis, parts wait, active repair, testing, ready, completed and cancelled).
+
+The Chrome regression creates each status badge using the real workspace stylesheet, reads its computed foreground/background colors, and checks the WCAG text contrast formula. **PASS:** all nine badge combinations exceed the 4.5:1 normal-text threshold in the dashboard job of [MVP dashboard usability regression run 45590938947](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45590938947). This is a focused automated check only; it is not a site-wide contrast audit or WCAG certification.
 
 ## Staff workspace keyboard/no-JavaScript checkpoint
 
