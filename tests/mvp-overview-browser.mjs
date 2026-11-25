@@ -69,7 +69,12 @@ async function verifyLinenStatusContrast(page) {
     container.style.cssText = 'position:absolute;left:-10000px;top:0;';
     document.body.append(container);
     const luminance = (color) => {
-      const values = color.match(/[\\d.]+/g).slice(0, 3).map(Number);
+      const open = color.indexOf('(');
+      const close = color.indexOf(')', open + 1);
+      assert(open >= 0 && close > open, 'Unexpected computed color: ' + color);
+      const values = color.slice(open + 1, close).split(',').slice(0, 3).map(value => Number(value.trim()));
+      assert(values.length === 3 && values.every(Number.isFinite),
+        'Could not parse computed RGB color: ' + color);
       const linear = values.map(value => {
         const channel = value / 255;
         return channel <= 0.04045
