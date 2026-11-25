@@ -403,3 +403,49 @@
   background: #2c3b3f;
   font-weight: bold;
 }
+
+
+/* Linen is a light surface: use dark, status-specific text instead of the
+   pale-on-dark badge palette above. Keep the same semantic status colors. */
+:root[data-theme="linen"] .workspace-status {
+  border-color: #52636d;
+  color: #26343c;
+  background: #f1f4f5;
+}
+:root[data-theme="linen"] .status-received {
+  border-color: #28618b;
+  color: #17476a;
+  background: #eaf4fb;
+}
+:root[data-theme="linen"] .status-diagnosing,
+:root[data-theme="linen"] .status-awaiting_customer_approval {
+  border-color: #875e16;
+  color: #674409;
+  background: #fbf4e5;
+}
+:root[data-theme="linen"] .status-awaiting_parts {
+  border-color: #99501e;
+  color: #733710;
+  background: #fff0e5;
+}
+:root[data-theme="linen"] .status-in_progress {
+  border-color: #6f4b9d;
+  color: #54317d;
+  background: #f2ecfa;
+}
+:root[data-theme="linen"] .status-testing {
+  border-color: #1b7168;
+  color: #145b53;
+  background: #e9f6f3;
+}
+:root[data-theme="linen"] .status-ready_for_pickup {
+  border-color: #357a4c;
+  color: #265b38;
+  background: #edf7ef;
+}
+:root[data-theme="linen"] .status-completed,
+:root[data-theme="linen"] .status-cancelled {
+  border-color: #59646c;
+  color: #404b53;
+  background: #f0f2f3;
+}
