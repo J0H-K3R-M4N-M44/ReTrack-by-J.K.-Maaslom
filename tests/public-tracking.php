@@ -189,6 +189,26 @@ checkPublic(!isset($latestView['devices'][0]['estimate']['prepared_by_user_id'])
 checkPublic(publicNextStep(['custody_state' => 'WITH_CUSTOMER']) !== '',
     'Returned device lacks next action');
 
+$partsWaiting = [
+    'custody_state' => 'AT_LOCATION',
+    'repair_status' => 'AWAITING_PARTS',
+    'estimate' => null,
+];
+checkPublic(publicStageLabel($partsWaiting) === 'Waiting for parts',
+    'Parts wait was presented as a generic assessment stage');
+checkPublic(str_contains(publicNextStep($partsWaiting), 'required parts'),
+    'Parts wait lacks a parts-specific customer action');
+
+$customerDecisionWaiting = [
+    'custody_state' => 'AT_LOCATION',
+    'repair_status' => 'AWAITING_CUSTOMER_APPROVAL',
+    'estimate' => null,
+];
+checkPublic(publicStageLabel($customerDecisionWaiting) === 'Waiting for customer decision',
+    'Customer approval wait was not clearly labelled');
+checkPublic(str_contains(publicNextStep($customerDecisionWaiting), 'Contact the branch'),
+    'Customer approval wait lacks a branch contact action');
+
 file_put_contents(
     __DIR__ . '/public-fixture.json',
     json_encode(['ticket' => $ticketId, 'code' => $newCode]),
