@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+from decimal import Decimal
 
 from playwright.sync_api import sync_playwright, expect
 
@@ -40,6 +41,16 @@ def check(condition, description):
     if not condition:
         raise AssertionError(description)
     print('PASS: ' + description)
+
+
+def inspect_fixture_ticket(ticket_code):
+    """Read persisted state after a browser POST using the guarded CLI inspector."""
+    result = subprocess.run(
+        ['php', 'course-edp/tests/full-journey-fixture.php', 'inspect', ticket_code],
+        capture_output=True, text=True, env=os.environ.copy())
+    if result.returncode != 0:
+        raise RuntimeError('Read-only fixture inspection failed: ' + result.stderr.strip())
+    return json.loads(result.stdout)
 
 
 def fits_viewport(page, name, width):
@@ -247,6 +258,31 @@ with sync_playwright() as playwright:
                           and page.get_by_role('button',
                                                name='Complete counter pickup').count() == 0,
                           'partial payment: error is announced; balance and pickup guard survive')
+                    # A 422 response and unchanged DOM are not enough: inspect MySQL
+                    # after the rejected browser POST to prove no second payment row
+                    # was committed and the ticket/device remain at the branch.
+                    persisted = inspect_fixture_ticket(partial['ticket_code'])
+                    persisted_bill = persisted['bill']
+                    persisted_payments = persisted['payments']
+                    persisted_paid = sum(
+                        (Decimal(payment['amount']) for payment in persisted_payments),
+                        Decimal('0.00'))
+                    persisted_balance = (
+                        Decimal(persisted_bill['total_amount']) - persisted_paid
+                        if persisted_bill else None)
+                    check(persisted_bill is not None
+                          and Decimal(persisted_bill['total_amount']) == Decimal('300.00')
+                          and len(persisted_payments) == 1
+                          and persisted_payments[0]['amount'] == '120.00'
+                          and persisted_balance == Decimal('180.00'),
+                          'partial payment: read-only SQL after rejected overpayment confirms one 120-peso payment and 180-peso balance')
+                    check(str(persisted['ticket']['ticket_id']) == str(partial['ticket_id'])
+                          and persisted['ticket']['ticket_state'] == 'OPEN'
+                          and len(persisted['devices']) == 1
+                          and str(persisted['devices'][0]['ticket_device_id']) == str(partial['device_id'])
+                          and persisted['devices'][0]['status_code'] == 'READY_FOR_PICKUP'
+                          and persisted['devices'][0]['custody_state'] == 'AT_LOCATION',
+                          'partial payment: read-only SQL confirms rejected overpayment left ticket open and device at branch')
                     screenshot_viewports(page, 'partial-cashier-overpayment-error')
                     amount = page.get_by_label('Counter cash received (₱)', exact=True)
                     amount.fill('180.00')
