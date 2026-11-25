@@ -158,3 +158,25 @@
 .public-estimate-total strong {
   font-size: 1.2rem;
 }
+
+
+/* Separate a factual repair stage from the action the customer should take. */
+.public-stage-label {
+  margin: 18px 0 4px;
+  color: #c0ced4;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.public-status {
+  margin-top: 4px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.public-card a[href^="tel:"] {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 700;
+}
