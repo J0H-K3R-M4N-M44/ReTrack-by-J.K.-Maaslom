@@ -20,7 +20,8 @@ async function checkInbox(width, paymentsBefore) {
   const activityLink = page.locator('header .rt-unread');
   assert.equal((await activityLink.innerText()).trim(), 'Staff activity');
   await activityLink.click();
-  assert.equal(new URL(page.url()).searchParams.get('group'), 'payments');
+  // Cashiers default to their first permitted category; the header link stays uncluttered.
+  assert.equal(await page.locator('select[name="group"]').inputValue(), 'payments');
   const payments = page.locator('option[value="payments"]');
   assert.equal(await payments.textContent(), 'Payments · ' + paymentsBefore + ' unread');
   const first = page.locator('.activity-list li').first();
