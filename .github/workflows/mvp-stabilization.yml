@@ -207,5 +207,6 @@ jobs:
             quote-*.png
             public-tracking-mobile.png
             mvp-queue-mobile.png
+            mvp-board-mobile.png
           retention-days: 7
           if-no-files-found: ignore
