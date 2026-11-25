@@ -2,7 +2,7 @@ name: MVP dashboard usability regression
 
 on:
   push:
-    branches: [MVP-Stabilization]
+    branches: [MVP-Stabilization, MVP-UX-Polish-2026-11-25]
     paths:
       - 'admin/dashboard.php'
       - 'css/dashboard.css'
@@ -25,6 +25,11 @@ on:
       - 'views/workspace/navigation.php'
       - 'views/intake/issue.php'
       - 'views/staff/manage.php'
+      - 'app/console/repository.php'
+      - 'app/public/tracking.php'
+      - 'views/console/home.php'
+      - 'views/console/device.php'
+      - 'tests/staff-workspace.php'
       - 'tests/staff-consoles.php'
       - '.github/workflows/mvp-stabilization.yml'
       - 'app/dashboard_data.php'
@@ -166,6 +171,7 @@ jobs:
         run: |
           set -euo pipefail
           php tests/staff-consoles.php
+          php tests/staff-workspace.php
           php -l app/staff/locations.php
           php -l admin/locations.php
           php -l views/staff/locations.php
@@ -199,5 +205,6 @@ jobs:
           path: |
             quote-*.png
             public-tracking-mobile.png
+            mvp-queue-mobile.png
           retention-days: 7
           if-no-files-found: ignore
