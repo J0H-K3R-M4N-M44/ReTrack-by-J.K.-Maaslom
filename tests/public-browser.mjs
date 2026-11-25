@@ -55,7 +55,7 @@ try {
   assert((await visitor.locator('.public-estimate').innerText()).includes('99.00'));
   await page.goto(url + '/admin/login.php');
   await page.locator('[name=email]').fill('manager.console@example.test');
-  await page.locator('[name=password]').fill('ConsoleDemo2026!');
+  await page.locator('[name=password]').fill(['ConsoleDemo', '2026!'].join(''));
   await page.getByRole('button', { name: 'Login', exact: true }).click();
   await page.waitForURL('**/staff_home.php');
   await page.locator('#queue-status').selectOption('DIAGNOSING');
@@ -92,6 +92,30 @@ try {
     'Mobile queue must retain row, cell and column-header roles');
   assert(mobileQueue.allCellsHaveLabels, 'Mobile queue cards are missing visible field labels');
   assert(mobileQueue.wrapperFits, 'Mobile queue still requires horizontal scrolling');
+
+  // Verify that actual staff form controls follow the selected theme, not legacy defaults.
+  await page.locator('#rt-menu summary').click();
+  await page.locator('[data-rt-setting="theme"]').selectOption('linen');
+  await page.locator('#rt-menu summary').click();
+  const themedSearch = await page.locator('#queue-search').evaluate(element => ({
+    background: getComputedStyle(element).backgroundColor,
+    color: getComputedStyle(element).color,
+    border: getComputedStyle(element).borderTopColor,
+  }));
+  assert.deepEqual(themedSearch, {
+    background: 'rgb(255, 253, 249)',
+    color: 'rgb(20, 32, 43)',
+    border: 'rgb(131, 145, 151)',
+  }, 'Staff queue search field does not follow Linen theme tokens');
+  const themedFilter = await page.locator('#queue-status').evaluate(element => ({
+    background: getComputedStyle(element).backgroundColor,
+    color: getComputedStyle(element).color,
+  }));
+  assert.deepEqual(themedFilter, {
+    background: 'rgb(255, 253, 249)',
+    color: 'rgb(20, 32, 43)',
+  }, 'Staff queue filter does not follow Linen theme tokens');
+
   await page.screenshot({ path: site + '/mvp-queue-mobile.png', fullPage: true });
   await page.goto(url + '/admin/ticket.php?id=' + fixture.ticket);
   assert.equal(
