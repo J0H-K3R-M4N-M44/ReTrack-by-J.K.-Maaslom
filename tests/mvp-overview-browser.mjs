@@ -136,9 +136,30 @@ try {
     await page.reload();
     await noOverflow(page, 'Overview at ' + width + 'px');
     assert(await page.getByRole('link', { name: 'New intake' }).isVisible());
+    if (width <= 720) {
+      const mobileNavigation = await page.locator('.dashboard-nav .nav-item').evaluateAll(items =>
+        items.map(item => {
+          const label = item.querySelector(':scope > span:last-child');
+          const rect = item.getBoundingClientRect();
+          return {
+            label: label?.textContent.trim() || '',
+            ariaLabel: item.getAttribute('aria-label') || '',
+            hasIcon: Boolean(item.querySelector('.nav-icon')),
+            labelHidden: label ? getComputedStyle(label).display === 'none' : false,
+            width: rect.width,
+            height: rect.height,
+          };
+        })
+      );
+      assert(mobileNavigation.length >= 8, 'Admin mobile navigation lost a destination');
+      assert(mobileNavigation.every(item =>
+        item.label && item.ariaLabel === item.label && item.hasIcon &&
+        item.labelHidden && item.width >= 44 && item.height >= 44
+      ), 'Admin mobile navigation must use named icon targets: ' + JSON.stringify(mobileNavigation));
+    }
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: 'mvp-overview-mobile.png', fullPage: true });
+  await page.screenshot({ path: 'mvp-overview-mobile.png', fullPage: false });
 
   await page.getByRole('link', { name: 'Repair workbench' }).click();
   assert(new URL(page.url()).searchParams.get('tab') === 'workbench');
