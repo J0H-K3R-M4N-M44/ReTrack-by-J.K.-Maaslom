@@ -185,7 +185,7 @@ jobs:
           php tests/storage-locations.php
           case "${{ matrix.suite }}" in
             quotes) php tests/quotes.php ;;
-            public) php tests/public-tracking.php ;;
+            public) : ;; # Public tracking mutates its fixture; run it after the workspace overview check.
             *) exit 2 ;;
           esac
       - name: Exercise real quote or tracking HTTP views in Chrome
@@ -202,7 +202,7 @@ jobs:
           node tests/workspace-browser.mjs
           case "${{ matrix.suite }}" in
             quotes) node tests/quotes-browser.mjs && node tests/storage-locations-browser.mjs ;;
-            public) node tests/mvp-accessibility-browser.mjs && node tests/public-browser.mjs ;;
+            public) php tests/public-tracking.php && node tests/mvp-accessibility-browser.mjs && node tests/public-browser.mjs ;;
             *) exit 2 ;;
           esac
       - name: Upload fictional quote/customer tracking screenshots
