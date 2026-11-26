@@ -113,6 +113,21 @@ workspaceCheck(
     (int) $board['page']['rows'][0]['ticket_device_id'] === (int) $created[2],
     'Status board must keep the most recently updated work first',
 );
+$pdo->prepare(
+    "UPDATE ticket_devices
+     SET repair_status='COMPLETED', updated_at=DATE_SUB(UTC_TIMESTAMP(), INTERVAL 1 DAY)
+     WHERE ticket_device_id=?",
+)->execute([$created[1]]);
+$pdo->prepare(
+    'UPDATE ticket_devices SET updated_at=DATE_SUB(UTC_TIMESTAMP(), INTERVAL 2 DAY) WHERE ticket_device_id=?',
+)->execute([$created[0]]);
+$orderedHistory = consoleDevices($pdo, $manager, ['view' => 'history', 'q' => 'WORK-']);
+workspaceCheck(
+    count($orderedHistory['page']['rows']) === 2 &&
+        (int) $orderedHistory['page']['rows'][0]['ticket_device_id'] === (int) $created[1] &&
+        (int) $orderedHistory['page']['rows'][1]['ticket_device_id'] === (int) $created[0],
+    'Repair history must keep the newest update first',
+);
 $history = consoleDevices($pdo, $manager, ['view' => 'history', 'q' => 'WORK-0']);
 workspaceCheck(
     count($active['page']['rows']) === 10 && $active['page']['pages'] > 1,
