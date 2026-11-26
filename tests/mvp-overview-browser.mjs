@@ -167,11 +167,11 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'mvp-overview-mobile.png', fullPage: false });
 
-  await page.getByRole('link', { name: 'Repair workbench' }).click();
+  await page.getByRole('link', { name: 'Workbench' }).click();
   assert(new URL(page.url()).searchParams.get('tab') === 'workbench');
   assert(!(await page.locator('.analytics-grid').isVisible()),
     'Overview KPIs leaked into the workbench tab.');
-  await page.getByRole('link', { name: 'Customer roster' }).click();
+  await page.getByRole('link', { name: 'Customers' }).click();
   assert(!(await page.locator('.welcome-actions').isVisible()),
     'Quick actions leaked into the customer roster.');
   await page.goto(base + '/admin/dashboard.php');
