@@ -31,6 +31,12 @@ $descriptions = [
 ];
 [$title, $description] = $descriptions[$role];
 
+$notice = $_SESSION['intake_saved'] ?? false;
+unset($_SESSION['intake_saved']);
+if ($notice && !isset($_GET['view'])) {
+    $_GET['view'] = 'drafts';
+}
+
 $view = consoleView($user, $_GET);
 $_GET['view'] = $view;
 
@@ -44,12 +50,6 @@ if ($view === 'overview') {
         'CASHIER' => ['Cash desk overview', 'Find issued bills and continue counter-cash work.'],
         'VIEWER' => ['Branch snapshot', 'Review repair progress in your assigned branches.'],
     };
-}
-
-$notice = $_SESSION['intake_saved'] ?? false;
-unset($_SESSION['intake_saved']);
-if ($notice && !isset($_GET['view'])) {
-    $_GET['view'] = 'drafts';
 }
 
 $returnQuery = workspaceReturnQuery($user, http_build_query($_GET));
