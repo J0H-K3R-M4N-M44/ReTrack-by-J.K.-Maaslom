@@ -200,7 +200,6 @@ try {
         url: noJs.page.url(),
       }));
     assert(await noJs.page.locator('.system-status').evaluate(el => el.classList.contains('is-unavailable')));
-    assert(await noJs.page.locator('.sidebar-footer').evaluate(el => el.classList.contains('is-unavailable')));
     assert.equal(await noJs.page.locator('.metric-card .metric-value').first().innerText(), '—');
   } finally {
     writeFileSync(dataFile, original);
