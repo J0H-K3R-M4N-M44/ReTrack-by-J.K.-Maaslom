@@ -126,7 +126,13 @@ try {
   await navLink.hover();
   await navTooltip.waitFor({ state: 'visible' });
   assert.equal((await navTooltip.innerText()).trim(), await navLink.getAttribute('aria-label'));
+  assert.equal(await navLink.getAttribute('title'), null, 'Native title bubble should not duplicate the custom hover label');
   await page.mouse.move(1200, 900);
+  await navTooltip.waitFor({ state: 'hidden' });
+  assert.equal(await navLink.getAttribute('title'), 'Overview', 'Native title fallback was not restored');
+  await navLink.evaluate((element) => element.focus({ focusVisible: true }));
+  await navTooltip.waitFor({ state: 'visible' });
+  await page.keyboard.press('Escape');
   await navTooltip.waitFor({ state: 'hidden' });
   await rail.click();
 
