@@ -42,7 +42,9 @@ async function checkWidth(page) {
 async function checkRole(role, destination) {
   const page = await login(role, 1440);
   if (role === 'admin') {
-    await page.getByRole('link', { name: 'Staff workspace', exact: true }).click();
+    // Admin now starts in the shared overview; navigate directly to the requested workspace.
+    await page.getByRole('link', { name: destination, exact: true }).click();
+    await page.locator('#work-list').waitFor();
   }
   const screenshots = process.env.RUNNER_TEMP + '/workspace-screens';
   mkdirSync(screenshots, { recursive: true });
