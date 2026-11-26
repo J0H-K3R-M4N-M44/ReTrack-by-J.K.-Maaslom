@@ -106,3 +106,24 @@ Run keyboard-only checks across the real staff forms and public portal; verify v
 - Added the board screenshot to the existing MVP workflow artifact upload. No new workflow or CI service was introduced.
 
 **Scope and remaining review:** this is the first focused Batch 4 slice, not completion of the full responsive audit. Queue, activity and cashier flows already have focused mobile checks in their existing suites; status-board rendering now has a targeted theme/overflow regression. Still to inspect manually are fixed-dock obstruction, board reading order with assistive technology, and the complete history/cash-list experience across roles. UAT-26 covers the status-board theme and viewport checks. Human screen-reader and Windows/XAMPP acceptance remain separate release gates.
+
+
+## Batch 4 — remaining responsive operational views
+
+**Fixed mobile navigation**
+- Replaced the implicit column-auto-flow override with four explicit, equal-width dock columns. Dock labels can wrap inside their own target instead of widening the page or being clipped.
+- Capped the mobile More panel using the viewport height minus space for the dock and safe-area inset. This keeps the page menu above the fixed dock on short phone screens.
+- Added browser assertions at 360×900 and 320×568 for fixed positioning, viewport-bottom placement, four target sizes, label fit, final-content clearance, menu/dock separation, and Escape focus return. Role-specific menu destinations are still checked for Admin, Intake, Technician, Courier and Viewer.
+
+**Repair history and cashier search**
+- Added a cancelled synthetic device to the disposable public-browser fixture so the real Repair history route has a deterministic row. The fixture contains no real customer data and does not alter product schema or permissions.
+- The public browser test checks history at 320, 390, 768 and 1440px: row/card transformation, matching visible field labels, table/row/cell/header roles and no page overflow. It captures `mvp-history-mobile.png`.
+- The payment browser test checks the actual cashier bill search result at 360 and 320px, verifies every card label maps to its table column, preserves semantic roles, captures a cashier cash-list screenshot and then continues through the unchanged payment and pickup flow.
+- The PHP staff-workspace regression now uses two synthetic closed records with different update times and asserts that History remains newest-first.
+
+**Status-board reading order**
+- Each status lane is a named group whose accessible name comes from its visible status heading.
+- Each repair article is named by a real `h4` heading containing the device link. The heading is the first item in each card's DOM reading order; details follow it.
+- Browser assertions check heading/name relationships and source order; mobile layout checks check that lane order remains visually consistent. This is structural regression coverage, not a substitute for an NVDA/VoiceOver walkthrough.
+
+**Release boundary:** the changes affect only presentation, semantic labels and synthetic test fixtures. They do not change roles, branch scope, repair decisions, cash, custody, database schema or deployment. UAT-27 through UAT-29 remain unexecuted by human testers.
