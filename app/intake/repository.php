@@ -131,16 +131,19 @@ function intakeFindOrCreateCustomer(PDO $pdo, array $values): int
                 ? strtolower($contact)
                 : preg_replace('/[^0-9+]/', '', $contact);
 
+        $emailUpdatesAllowed = $values['contact_type'] === 'EMAIL' &&
+            ($values['email_notifications_consent'] ?? '0') === '1';
         $contactInsert = $pdo->prepare(
             'INSERT INTO customer_contacts
             (customer_id, contact_type, contact_value, normalized_value, is_primary, preferred_for_notifications)
-         VALUES (?, ?, ?, ?, 1, 1)',
+         VALUES (?, ?, ?, ?, 1, ?)',
         );
         $contactInsert->execute([
             $customerId,
             $values['contact_type'],
             $contact,
             $normalizedContact,
+            (int) $emailUpdatesAllowed,
         ]);
     }
 
