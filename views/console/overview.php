@@ -224,8 +224,8 @@ switch ($role) {
             ['Repair history', 'Read completed and cancelled records.', 'staff_home.php?view=history', 'history'],
         ];
         $rtRows = $data['page']['rows'] ?? [];
-        $rtRowsTitle = 'Recently updated repair records';
-        $rtRowsNote = 'This is a read-only view. It does not show customer contacts or private notes.';
+        $rtRowsTitle = 'Open repair records';
+        $rtRowsNote = 'The oldest last update appears first. This is a read-only view without customer contacts or private notes.';
         $rtEmptyText = 'No open repair records are currently available in your assigned branches.';
         break;
 }
