@@ -110,6 +110,24 @@ function emailJsSendTemplate(
         'user_id' => trim((string) $config['emailjs_public_key']),
         'template_params' => $templateParams,
     ];
+    $privateKey = trim((string) ($config['emailjs_private_key'] ?? ''));
+    if ($privateKey !== '') {
+        $payload['accessToken'] = $privateKey;
+    }
+
+    $result = $testTransport
+        ? $testTransport($payload)
+        : emailJsPostRateLimited($payload);
+
+    if (!is_array($result) || empty($result['ok'])) {
+        $status = is_array($result) ? (int) ($result['status'] ?? 0) : 0;
+        throw new RuntimeException('EmailJS send failed (HTTP ' . $status . ').');
+    }
+
+    return ['ok' => true, 'status' => (int) ($result['status'] ?? 200)];
+}
+
+    ];
 
     $result = $testTransport
         ? $testTransport($payload)
