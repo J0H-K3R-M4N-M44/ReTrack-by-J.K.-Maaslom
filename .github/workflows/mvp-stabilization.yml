@@ -206,6 +206,7 @@ jobs:
           path: |
             quote-*.png
             public-tracking-mobile.png
+            public-tracking-timeline-mobile.png
             mvp-queue-mobile.png
             mvp-board-mobile.png
             mvp-history-mobile.png
