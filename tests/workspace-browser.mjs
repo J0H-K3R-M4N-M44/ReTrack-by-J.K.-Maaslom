@@ -50,7 +50,7 @@ async function checkRoleOverview(role, email, expectedHeading, expectedCard) {
   const helpSummary = help.locator('summary');
   await helpSummary.hover();
   assert(await help.evaluate((element) => element.open), `${role} help tooltip did not open on hover`);
-  await page.mouse.move(1200, 900);
+  await rolePage.mouse.move(1200, 900);
   assert(!(await help.evaluate((element) => element.open)), `${role} help tooltip did not close on pointer leave`);
   await helpSummary.evaluate((element) => element.focus({ focusVisible: true }));
   assert(await help.evaluate((element) => element.open), `${role} help tooltip did not open on keyboard focus`);
