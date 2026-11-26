@@ -90,7 +90,13 @@ try {
       `Timeline timestamp is hidden at ${width}`
     );
   }
-  await page.screenshot({ path: site + '/public-tracking-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.locator('.public-device-card').first().evaluate(element => {
+    window.scrollBy(0, element.getBoundingClientRect().top - 56);
+  });
+  await page.screenshot({ path: site + '/public-tracking-mobile.png', fullPage: false });
+  await page.locator('.public-timeline').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: site + '/public-tracking-timeline-mobile.png', fullPage: false });
   await page.getByRole('button', { name: 'Close tracking' }).click();
   assert(await page.locator('#tracking-code').isVisible());
   const nojs = await browser.newContext({
@@ -252,7 +258,8 @@ try {
     'Mobile status lanes do not follow their document reading order');
 
   await page.setViewportSize({ width: 390, height: 900 });
-  await page.screenshot({ path: site + '/mvp-board-mobile.png', fullPage: true });
+  await page.locator('.status-board').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: site + '/mvp-board-mobile.png', fullPage: false });
 
   await page.goto(url + '/admin/staff_home.php?view=history&q=' + encodeURIComponent(fixture.history_item_code));
   await page.getByRole('heading', { name: 'Repair history' }).waitFor();
@@ -288,11 +295,20 @@ try {
     }
   }
   await page.setViewportSize({ width: 390, height: 900 });
-  await page.screenshot({ path: site + '/mvp-history-mobile.png', fullPage: true });
+  const historyRow = historyTable.locator('tbody tr').first();
+  await historyRow.evaluate(row => {
+    window.scrollBy(0, row.getBoundingClientRect().top - 56);
+  });
+  await page.screenshot({ path: site + '/mvp-history-mobile.png', fullPage: false });
 
   await page.goto(url + '/admin/staff_home.php');
-
-  await page.screenshot({ path: site + '/mvp-queue-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 900 });
+  const queueTable = page.locator('#work-list .workspace-table');
+  const queueRow = queueTable.locator('tbody tr').first();
+  await queueRow.evaluate(row => {
+    window.scrollBy(0, row.getBoundingClientRect().top - 56);
+  });
+  await page.screenshot({ path: site + '/mvp-queue-mobile.png', fullPage: false });
   await page.goto(url + '/admin/ticket.php?id=' + fixture.ticket);
   assert.equal(
     (
