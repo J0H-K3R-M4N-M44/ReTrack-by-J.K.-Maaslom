@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/emailjs.php';
+require_once __DIR__ . '/dashboard_data.php';
 
 /**
  * Customer email and staff inbox have different recipient rules and storage.
