@@ -66,15 +66,30 @@ document.querySelectorAll('.trend-point, .rt-help-tip').forEach((point) => {
       (root.dataset.rail === 'auto' && window.innerWidth <= 1279);
   }
 
+  function restoreNativeTitle(link) {
+    if (!link || link.dataset.tooltipTitle === undefined) return;
+    link.setAttribute('title', link.dataset.tooltipTitle);
+    delete link.dataset.tooltipTitle;
+  }
+
   function hideTooltip(link) {
     if (link && activeLink !== link) return;
+    restoreNativeTitle(activeLink);
     tooltip.hidden = true;
     activeLink = null;
   }
 
   function showTooltip(link) {
     if (!isCollapsed() || !link.dataset.tooltip) return;
+    if (activeLink && activeLink !== link) restoreNativeTitle(activeLink);
     activeLink = link;
+
+    // Avoid showing the browser's native title bubble at the same time.
+    if (link.hasAttribute('title')) {
+      link.dataset.tooltipTitle = link.getAttribute('title');
+      link.removeAttribute('title');
+    }
+
     tooltip.textContent = link.dataset.tooltip;
     tooltip.hidden = false;
 
@@ -103,6 +118,9 @@ document.querySelectorAll('.trend-point, .rt-help-tip').forEach((point) => {
       if (link.matches(':focus-visible')) showTooltip(link);
     });
     link.addEventListener('blur', () => hideTooltip(link));
+    link.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') hideTooltip(link);
+    });
   });
 
   window.addEventListener('resize', () => hideTooltip());
