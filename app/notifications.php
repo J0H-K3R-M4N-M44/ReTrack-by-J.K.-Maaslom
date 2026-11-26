@@ -183,6 +183,7 @@ function notificationStaffEvent(
     string $message,
     string $targetPath,
     ?int $onlyUserId = null,
+    string $eventKey = '',
 ): void {
     $roles = notificationStaffRoles($eventType);
     if (!$roles) {
@@ -197,6 +198,13 @@ function notificationStaffEvent(
     if ($onlyUserId !== null) {
         $sql .= ' AND u.user_id = ?';
         $params[] = $onlyUserId;
+    }
+    if ($eventType === 'QUOTE_DECISION' && $deviceId !== null) {
+        // The assigned technician gets the decision; other technicians do not.
+        $sql .= " AND (u.role <> 'TECHNICIAN' OR u.user_id = (
+            SELECT assigned_technician_id FROM ticket_devices WHERE ticket_device_id = ?
+        ))";
+        $params[] = $deviceId;
     }
     $sql .= " AND (u.role = 'ADMIN' OR EXISTS (
         SELECT 1 FROM user_branch_assignments a
@@ -220,6 +228,7 @@ function notificationStaffEvent(
             $eventType,
             $ticketId,
             $deviceId ?? 0,
+            $eventKey !== '' ? $eventKey : $eventType,
             $recipientId,
         ]));
         $insert->execute([
@@ -265,6 +274,7 @@ function notificationAfterStatusEvent(PDO $pdo, int $deviceId, int $statusEventI
     $to = (string) $event['to_status'];
     $reason = (string) ($event['reason_code'] ?? '');
     $target = 'device.php?id=' . $deviceId;
+    $eventKey = (string) $statusEventId;
 
     if ($reason === 'INTAKE_ISSUED' || $from === 'DRAFT') {
         notificationStaffEvent(
@@ -272,6 +282,8 @@ function notificationAfterStatusEvent(PDO $pdo, int $deviceId, int $statusEventI
             'New repair ticket',
             'Ticket ' . $event['ticket_code'] . ' has been received for assessment.',
             'staff_home.php?view=queue',
+            null,
+            $eventKey,
         );
         return;
     }
@@ -282,6 +294,8 @@ function notificationAfterStatusEvent(PDO $pdo, int $deviceId, int $statusEventI
             'Estimate shared with customer',
             'Ticket ' . $event['ticket_code'] . ' is waiting for a customer decision.',
             $target,
+            null,
+            $eventKey,
         );
         return;
     }
@@ -292,6 +306,8 @@ function notificationAfterStatusEvent(PDO $pdo, int $deviceId, int $statusEventI
             'Customer decision recorded',
             'A customer decision was recorded for ticket ' . $event['ticket_code'] . '.',
             $target,
+            null,
+            $eventKey,
         );
         return;
     }
@@ -302,6 +318,8 @@ function notificationAfterStatusEvent(PDO $pdo, int $deviceId, int $statusEventI
             'Device ready for pickup',
             'A device on ticket ' . $event['ticket_code'] . ' is ready for the cash desk.',
             'staff_home.php?view=cash',
+            null,
+            $eventKey,
         );
         return;
     }
@@ -312,6 +330,8 @@ function notificationAfterStatusEvent(PDO $pdo, int $deviceId, int $statusEventI
             'Repair work closed',
             'A device on ticket ' . $event['ticket_code'] . ' has been closed.',
             $target,
+            null,
+            $eventKey,
         );
         return;
     }
