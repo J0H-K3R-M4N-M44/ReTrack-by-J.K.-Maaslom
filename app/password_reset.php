@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/emailjs.php';
 
 /**
  * Send a generic recovery email when an active staff email is found.
@@ -22,19 +23,16 @@ function requestAdminPasswordReset(string $email): void
 
     $config = require $configFile;
     $appUrl = rtrim((string) ($config['app_url'] ?? ''), '/');
-    $mailFrom = (string) ($config['mail_from'] ?? '');
-
     if (
         !filter_var($appUrl, FILTER_VALIDATE_URL) ||
-        !in_array(parse_url($appUrl, PHP_URL_SCHEME), ['http', 'https'], true) ||
-        !filter_var($mailFrom, FILTER_VALIDATE_EMAIL)
+        !in_array(parse_url($appUrl, PHP_URL_SCHEME), ['http', 'https'], true)
     ) {
-        throw new RuntimeException('Recovery needs a valid app_url and mail_from.');
+        throw new RuntimeException('Recovery needs a valid app_url.');
     }
 
     $pdo = getPDO();
     $findUser = $pdo->prepare(
-        "SELECT user_id FROM users
+        "SELECT user_id, full_name FROM users
          WHERE email = ? AND is_active = 1
          LIMIT 1",
     );
@@ -84,23 +82,22 @@ function requestAdminPasswordReset(string $email): void
     }
 
     $resetUrl = $appUrl . '/admin/reset_password.php?token=' . rawurlencode($token);
-    $subject = 'RepairTrack account password reset';
-    $message =
-        "A password reset was requested for your RepairTrack staff account.\n\n" .
-        "Use this one-time link within 30 minutes:\n{$resetUrl}\n\n" .
-        'If you did not request this, you can ignore this email.';
-    $headers = [
-        'From' => $mailFrom,
-        'Content-Type' => 'text/plain; charset=UTF-8',
-        'X-Mailer' => 'RepairTrack',
-    ];
-
-    if (!mail($email, $subject, $message, $headers)) {
+    try {
+        emailJsSendTemplate($config, 'password_reset', [
+            'to_email' => $email,
+            'to_name' => (string) ($user['full_name'] ?? 'RepairTrack staff member'),
+            'subject' => 'RepairTrack account password reset',
+            'reset_url' => $resetUrl,
+            'expires_minutes' => 30,
+        ]);
+    } catch (Throwable $error) {
+        // Keep the public response generic. An unsuccessful handoff invalidates
+        // the token so no unusable reset credential remains active.
         $deleteToken = $pdo->prepare(
             'DELETE FROM password_reset_tokens WHERE user_id = ? AND token_hash = ?',
         );
         $deleteToken->execute([$userId, $tokenHash]);
-        error_log('RepairTrack password recovery email could not be sent.');
+        error_log('RepairTrack password recovery email could not be sent: ' . $error->getMessage());
     }
 }
 
