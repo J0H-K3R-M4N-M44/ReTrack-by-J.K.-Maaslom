@@ -103,13 +103,13 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                 </div>
 
                 <nav class="dashboard-nav">
-                    <a class="nav-item" href="staff_home.php">Staff workspace</a>
-                    <a class="nav-item" href="staff_home.php?view=cash">Cash desk</a>
-                    <a class="nav-item" href="staff.php"><span class="nav-icon" aria-hidden="true">＋</span><span>Staff management</span></a>
-                    <a class="nav-item" href="inventory.php">Branch inventory</a>
+                    <a class="nav-item" href="staff_home.php" aria-label="Staff workspace" title="Staff workspace"><i class="nav-icon fa-solid fa-screwdriver-wrench" aria-hidden="true"></i><span>Staff workspace</span></a>
+                    <a class="nav-item" href="staff_home.php?view=cash" aria-label="Cash desk" title="Cash desk"><i class="nav-icon fa-solid fa-cash-register" aria-hidden="true"></i><span>Cash desk</span></a>
+                    <a class="nav-item" href="staff.php" aria-label="Staff management" title="Staff management"><i class="nav-icon fa-solid fa-users" aria-hidden="true"></i><span>Staff management</span></a>
+                    <a class="nav-item" href="inventory.php" aria-label="Branch inventory" title="Branch inventory"><i class="nav-icon fa-solid fa-boxes-stacked" aria-hidden="true"></i><span>Branch inventory</span></a>
                     <a class="nav-item<?= $tab === 'overview'
                         ? ' is-active'
-                        : '' ?>" href="?tab=overview"<?= $tab === 'overview'
+                        : '' ?>" href="?tab=overview" aria-label="Operations overview" title="Operations overview"<?= $tab === 'overview'
     ? ' aria-current="page"'
     : '' ?>>
                         <i class="nav-icon fa-solid fa-chart-line" aria-hidden="true"></i>
@@ -117,7 +117,7 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                     </a>
                     <a class="nav-item<?= $tab === 'workbench'
                         ? ' is-active'
-                        : '' ?>" href="?tab=workbench"<?= $tab === 'workbench'
+                        : '' ?>" href="?tab=workbench" aria-label="Repair workbench" title="Repair workbench"<?= $tab === 'workbench'
     ? ' aria-current="page"'
     : '' ?>>
                         <i class="nav-icon fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>
@@ -125,14 +125,14 @@ function renderDashboardPager(array $page, string $key, string $tab): void
                     </a>
                     <a class="nav-item<?= $tab === 'customers'
                         ? ' is-active'
-                        : '' ?>" href="?tab=customers"<?= $tab === 'customers'
+                        : '' ?>" href="?tab=customers" aria-label="Customer roster" title="Customer roster"<?= $tab === 'customers'
     ? ' aria-current="page"'
     : '' ?>>
                         <i class="nav-icon fa-solid fa-users" aria-hidden="true"></i>
                         <span>Customer roster</span>
                     </a>
-                    <a class="nav-item" href="activity.php"><i class="nav-icon fa-solid fa-bell" aria-hidden="true"></i><span>Staff activity</span></a>
-                    <a class="nav-item" href="reports.php">
+                    <a class="nav-item" href="activity.php" aria-label="Staff activity" title="Staff activity"><i class="nav-icon fa-solid fa-bell" aria-hidden="true"></i><span>Staff activity</span></a>
+                    <a class="nav-item" href="reports.php" aria-label="Reports and records" title="Reports and records">
                         <i class="nav-icon fa-solid fa-file-invoice" aria-hidden="true"></i>
                         <span>Reports and records</span>
                     </a>
