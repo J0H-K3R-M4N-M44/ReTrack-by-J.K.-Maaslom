@@ -67,7 +67,7 @@ function emailJsPostRateLimited(array $payload): array
         if (is_resource($handle)) {
             fclose($handle);
         }
-        return emailJsHttpPost($payload);
+        throw new RuntimeException('EmailJS rate-limit lock is unavailable.');
     }
 
     try {
