@@ -250,3 +250,107 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
   font-size: 1rem;
   line-height: 1.4;
 }
+
+
+/* Bring legacy operational views into the shared workspace without changing
+   their forms, routes, permission checks or data behavior. */
+.rt-layout .dashboard-content,
+.rt-layout .intake-content {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+.rt-layout .welcome-panel {
+  color: var(--rt-text);
+  border-color: var(--rt-line);
+  background: var(--rt-glass);
+  box-shadow: none;
+}
+
+.rt-layout .welcome-panel p,
+.rt-layout .metric-card .card-heading,
+.rt-layout .metric-card small,
+.rt-layout .status-list dt {
+  color: var(--rt-muted);
+}
+
+.rt-layout .status-list dd {
+  color: var(--rt-text);
+}
+
+.rt-layout .intake-note,
+.rt-layout .intake-search-panel,
+.rt-layout .intake-review > div {
+  color: var(--rt-muted);
+  border-color: var(--rt-line);
+  background: var(--rt-soft);
+}
+
+.rt-layout .intake-form label,
+.rt-layout .intake-search label,
+.rt-layout .issuance-form label {
+  color: var(--rt-text);
+}
+
+.rt-layout .intake-form :is(input, select, textarea),
+.rt-layout .intake-search input,
+.rt-layout .issuance-form :is(input:not([type="checkbox"]), select, textarea) {
+  color: var(--rt-text);
+  background: var(--rt-panel);
+  border-color: var(--rt-line);
+}
+
+.rt-layout .intake-form :is(input, select, textarea)::placeholder,
+.rt-layout .intake-search input::placeholder,
+.rt-layout .issuance-form textarea::placeholder {
+  color: var(--rt-muted);
+  opacity: 1;
+}
+
+.rt-layout .intake-step > p,
+.rt-layout .intake-step-marker,
+.rt-layout .intake-review dt,
+.rt-layout .receipt-details dt {
+  color: var(--rt-muted);
+}
+
+.rt-layout .intake-step-marker.is-current,
+.rt-layout .intake-subheading,
+.rt-layout .staff-review dt {
+  color: var(--rt-accent);
+}
+
+.rt-layout .intake-step-marker.is-current > span,
+.rt-layout .intake-step-marker.is-complete > span {
+  color: var(--rt-on-accent);
+  border-color: var(--rt-accent);
+  background: var(--rt-accent);
+}
+
+.rt-layout .intake-search-panel {
+  border-radius: 12px;
+}
+
+.rt-layout .issuance-form :is(input, select, textarea),
+.rt-layout .issuance-form button,
+.rt-layout .intake-form button {
+  min-height: 44px;
+}
+
+.rt-layout .issuance-form :is(input, select, textarea):focus-visible {
+  outline: 3px solid var(--rt-accent);
+  outline-offset: 2px;
+}
+
+.rt-layout .issuance-form fieldset {
+  border-color: var(--rt-line);
+}
+
+.rt-layout .intake-choice-grid input {
+  accent-color: var(--rt-accent);
+}
+
+.rt-layout .evidence-previews img {
+  background: var(--rt-soft);
+}

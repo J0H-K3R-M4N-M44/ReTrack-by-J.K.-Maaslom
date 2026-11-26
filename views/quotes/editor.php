@@ -15,10 +15,16 @@ $deviceUrl = 'device.php?' . http_build_query(['id' => $id, 'return' => $returnQ
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= $error ? 'Error · ' : '' ?>Repair estimate | RepairTrack</title>
 <link rel="stylesheet" href="../css/base.css"><link rel="stylesheet" href="../css/dashboard.css"><link rel="stylesheet" href="../css/staff.css"><link rel="stylesheet" href="../css/console.css"><link rel="stylesheet" href="../css/workspace.css">
-</head><body class="dashboard-body">
-<a class="skip-link" href="#quote-main">Skip to estimate</a>
-<main class="staff-page workspace" id="quote-main">
-<header class="staff-heading"><div><p class="eyebrow"><?= h($device['branch_name']) ?> · <?= h(
+<link rel="stylesheet" href="../css/workspace-design.css">
+<script src="../js/workspace-design.js" defer></script>
+</head><body class="dashboard-body rt-layout">
+<?php
+$workspaceUser = $user;
+$currentSection = 'queue';
+require __DIR__ . '/../workspace/navigation.php';
+?>
+<main id="rt-main" class="staff-page workspace rt-content" tabindex="-1">
+<header class="staff-heading rt-page-head"><div><p class="eyebrow"><?= h($device['branch_name']) ?> · <?= h(
      $device['item_code'],
  ) ?></p><h1>Repair estimate</h1><p><?= h(dashboardDeviceLabel($device)) ?> · <?= h(
      $device['ticket_code'],

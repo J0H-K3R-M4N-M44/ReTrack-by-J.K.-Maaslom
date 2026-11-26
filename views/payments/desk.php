@@ -10,11 +10,17 @@
     <link rel="stylesheet" href="../css/console.css">
     <link rel="stylesheet" href="../css/workspace.css">
     <link rel="stylesheet" href="../css/payments.css">
+    <link rel="stylesheet" href="../css/workspace-design.css">
+    <script src="../js/workspace-design.js" defer></script>
 </head>
-<body class="dashboard-body">
-<a class="skip-link" href="#cash-content">Skip to cash record</a>
-<main id="cash-content" class="staff-page workspace payments-page">
-    <header class="staff-heading">
+<body class="dashboard-body rt-layout">
+<?php
+$workspaceUser = $user;
+$currentSection = 'cash';
+require __DIR__ . '/../workspace/navigation.php';
+?>
+<main id="rt-main" class="staff-page workspace payments-page rt-content" tabindex="-1">
+    <header class="staff-heading rt-page-head">
         <div>
             <p class="eyebrow">RepairTrack · <?= h(staffRoles()[$user['role']] ?? 'Cash desk') ?></p>
             <h1><?= $ticket ? 'Issue final bill' : 'Cash and handover' ?></h1>
@@ -22,14 +28,7 @@
         </div>
         <div class="staff-actions">
             <a class="secondary-btn" href="staff_home.php?view=cash">Back to cash desk</a>
-            <details class="console-account">
-                <summary><?= h($user['full_name']) ?> · Account</summary>
-                <p><?= h($user['email']) ?></p>
-                <form action="logout.php" method="post">
-                    <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
-                    <button class="secondary-btn">Log out</button>
-                </form>
-            </details>
+            
         </div>
     </header>
 

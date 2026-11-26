@@ -5,10 +5,17 @@
     <title><?= h($device['item_code']) ?> | RepairTrack</title>
     <link rel="stylesheet" href="../css/base.css"><link rel="stylesheet" href="../css/dashboard.css">
     <link rel="stylesheet" href="../css/staff.css"><link rel="stylesheet" href="../css/console.css"><link rel="stylesheet" href="../css/workspace.css">
+    <link rel="stylesheet" href="../css/workspace-design.css">
+    <script src="../js/workspace-design.js" defer></script>
 </head>
-<body class="dashboard-body">
-<main class="staff-page">
-    <header class="staff-heading">
+<body class="dashboard-body rt-layout">
+<?php
+$workspaceUser = $user;
+$currentSection = 'queue';
+require __DIR__ . '/../workspace/navigation.php';
+?>
+<main id="rt-main" class="staff-page workspace rt-content" tabindex="-1">
+    <header class="staff-heading rt-page-head">
         <div><div class="eyebrow"><?= h($device['branch_name']) ?></div><h1><?= h(
     $device['item_code'],
 ) ?></h1><p><?= h(dashboardDeviceLabel($device)) ?></p></div>

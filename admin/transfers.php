@@ -48,11 +48,21 @@ try {
     error_log('Transfer workspace: '.$problem->getMessage());
     unavailablePage('Transfers are temporarily unavailable. Refresh the manifest before retrying.');
 }
+$workspaceUser = $user;
+$currentSection = 'handovers';
 ?>
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Device handovers | RepairTrack</title><link rel="stylesheet" href="../css/base.css"><link rel="stylesheet" href="../css/dashboard.css"><link rel="stylesheet" href="../css/staff.css"></head>
-<body class="dashboard-body"><main class="staff-page">
-<a href="<?= h(accountHome()) ?>">Back to workspace</a><h1>Device handovers</h1>
+<title>Device handovers | RepairTrack</title><link rel="stylesheet" href="../css/base.css"><link rel="stylesheet" href="../css/dashboard.css"><link rel="stylesheet" href="../css/staff.css">
+<link rel="stylesheet" href="../css/workspace.css">
+<link rel="stylesheet" href="../css/workspace-design.css">
+<script src="../js/workspace-design.js" defer></script></head>
+<body class="dashboard-body rt-layout">
+<?php require __DIR__ . '/../views/workspace/navigation.php'; ?>
+<main id="rt-main" class="staff-page workspace rt-content" tabindex="-1">
+<header class="staff-heading rt-page-head">
+<div><p class="eyebrow">RepairTrack · Branch operations</p><h1>Device handovers</h1>
+<p>Dispatch devices between branches and record receipt or discrepancies.</p></div>
+</header>
 <?php if ($notice): ?><p role="status"><?= h($notice) ?></p><?php endif; ?>
 <?php if ($error): ?><p role="alert"><?= h($error) ?></p><?php endif; ?>
 <details class="dashboard-card" <?= requestText($_POST,'action')==='dispatch'?'open':'' ?>><summary>Dispatch devices</summary>
