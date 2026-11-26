@@ -1,6 +1,6 @@
 # Quote and approval workflow
 
-This branch builds on Staff-Workspace. Apply `database/staff_workspace.sql` if you have not already done so. This increment adds no tables or columns. Main and Simplified-System are unchanged.
+This branch builds on Staff-Workspace. Apply `database/migrations/staff_workspace.sql` if you have not already done so. This increment adds no tables or columns. Main and Simplified-System are unchanged.
 
 ## Daily use
 
