@@ -12,6 +12,7 @@ require_once __DIR__ . '/../app/payments/repository.php';
 require_once __DIR__ . '/../app/console/reports.php';
 require_once __DIR__ . '/../app/console/activity.php';
 require_once __DIR__ . '/../app/notifications.php';
+require_once __DIR__ . '/../app/password_reset.php';
 require_once __DIR__ . '/../tools/migration_support.php';
 require_once __DIR__ . '/../tools/simulation_data.php';
 
@@ -40,6 +41,75 @@ function testNotificationWorkflows(PDO $pdo): void
         'password_hash' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
         'role' => 'ADMIN',
     ]);
+
+    // Exercise the complete reset handoff without making an external HTTP request.
+    $resetPayload = null;
+    $resetConfig = [
+        'app_url' => 'https://example.test/repairtrack',
+        'emailjs_public_key' => 'public_reset_synthetic',
+        'emailjs_private_key' => 'private_reset_synthetic',
+        'emailjs_service_id' => 'service_reset_synthetic',
+        'emailjs_templates' => ['password_reset' => 'template_reset_synthetic'],
+    ];
+    requestAdminPasswordReset(
+        'notification-admin@example.test',
+        $resetConfig,
+        static function (array $payload) use (&$resetPayload): array {
+            $resetPayload = $payload;
+            return ['ok' => true, 'status' => 200];
+        },
+        $pdo,
+    );
+    checkWorkflow(
+        is_array($resetPayload) &&
+            ($resetPayload['service_id'] ?? '') === 'service_reset_synthetic' &&
+            ($resetPayload['template_id'] ?? '') === 'template_reset_synthetic' &&
+            ($resetPayload['accessToken'] ?? '') === 'private_reset_synthetic' &&
+            ($resetPayload['template_params']['to_email'] ?? '') === 'notification-admin@example.test',
+        'Password-reset EmailJS template was not called with the expected recipient/configuration.',
+    );
+    $resetQuery = (string) parse_url(
+        (string) ($resetPayload['template_params']['reset_url'] ?? ''),
+        PHP_URL_QUERY,
+    );
+    parse_str($resetQuery, $resetUrlParams);
+    $resetToken = (string) ($resetUrlParams['token'] ?? '');
+    checkWorkflow(
+        preg_match('/^[a-f0-9]{64}$/', $resetToken) === 1,
+        'Password-reset email did not include a valid 64-character token.',
+    );
+    $resetTokenHash = hash('sha256', $resetToken);
+    $storedReset = $pdo->prepare(
+        'SELECT token_hash, expires_at FROM password_reset_tokens
+         WHERE user_id = ? AND token_hash = ? LIMIT 1',
+    );
+    $storedReset->execute([$adminId, $resetTokenHash]);
+    $storedResetRow = $storedReset->fetch();
+    checkWorkflow(
+        (bool) $storedResetRow &&
+            hash_equals((string) $storedResetRow['token_hash'], $resetTokenHash) &&
+            !hash_equals((string) $storedResetRow['token_hash'], $resetToken) &&
+            (bool) $pdo->query(
+                'SELECT EXISTS(SELECT 1 FROM password_reset_tokens
+                 WHERE user_id = ' . $adminId . ' AND expires_at > UTC_TIMESTAMP())',
+            )->fetchColumn(),
+        'Password-reset token was not stored as an unexpired hash.',
+    );
+    $newResetPassword = 'Synthetic-Reset-Password-2026!';
+    checkWorkflow(
+        completeAdminPasswordReset($resetToken, $newResetPassword, $pdo),
+        'A valid EmailJS reset token did not reset the password.',
+    );
+    checkWorkflow(
+        !completeAdminPasswordReset($resetToken, $newResetPassword, $pdo),
+        'A password-reset token was reusable after completion.',
+    );
+    $updatedAdmin = $pdo->prepare('SELECT password_hash FROM users WHERE user_id = ?');
+    $updatedAdmin->execute([$adminId]);
+    checkWorkflow(
+        password_verify($newResetPassword, (string) $updatedAdmin->fetchColumn()),
+        'Password-reset completion did not persist the new password hash.',
+    );
     $otherTechnicianId = seedRow($pdo, 'users', [
         'full_name' => 'Other Branch Technician',
         'email' => 'notification-other-tech@example.test',
@@ -355,6 +425,6 @@ try {
     }
 }
 if ($result === 0) {
-    echo "PASS: migration, role-scoped notifications, customer consent, four staff logins, activity, reports, PIN, settlement and pickup.\n";
+    echo "PASS: migration, EmailJS password reset, role-scoped notifications, customer consent, four staff logins, activity, reports, PIN, settlement and pickup.\n";
 }
 exit($result);
