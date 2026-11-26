@@ -87,24 +87,27 @@ require __DIR__ . '/../workspace/navigation.php';
             <div class="workspace-empty"><h3>No matching records</h3><p>Try clearing your filters or searching with a shorter term.</p></div>
         <?php elseif ($view === 'board'): ?>
             <p>Cards show this page of filtered results. Active queue shows the same records as a table.</p>
-            <div class="status-board">
+            <div class="status-board" role="group" aria-label="Repair devices grouped by status">
             <?php foreach (consoleStatuses() as $status):
 
                 $cards = array_filter($page['rows'], fn($row) => $row['repair_status'] === $status);
                 if (!$cards) {
                     continue;
                 }
+                $laneHeadingId = 'board-lane-' . strtolower($status);
                 ?>
-                <section class="board-lane"><h3><span class="workspace-status status-<?= h(
+                <section class="board-lane" role="group" aria-labelledby="<?= h($laneHeadingId) ?>"><h3 id="<?= h(
+                    $laneHeadingId,
+                ) ?>"><span class="workspace-status status-<?= h(
                     strtolower($status),
                 ) ?>"><?= h(dashboardStatusLabel($status)) ?></span><small><?= count(
     $cards,
 ) ?> on this page</small></h3>
-                <?php foreach ($cards as $row): ?>
-                    <article class="board-card">
-                        <a href="device.php?id=<?= (int) $row['ticket_device_id'] ?>&amp;return=<?= h(urlencode($returnQuery)) ?>">
-                            <?= h($row['item_code']) ?>
-                        </a>
+                <?php foreach ($cards as $row):
+                    $cardHeadingId = 'board-device-' . (int) $row['ticket_device_id'];
+                ?>
+                    <article class="board-card" aria-labelledby="<?= h($cardHeadingId) ?>">
+                        <h4 id="<?= h($cardHeadingId) ?>"><a href="device.php?id=<?= (int) $row['ticket_device_id'] ?>&amp;return=<?= h(urlencode($returnQuery)) ?>"><?= h($row['item_code']) ?></a></h4>
                         <p><?= h(dashboardDeviceLabel($row)) ?></p>
                         <p><?= h($row['technician'] ?: 'Needs assignment') ?></p>
                         <details class="board-preview">
