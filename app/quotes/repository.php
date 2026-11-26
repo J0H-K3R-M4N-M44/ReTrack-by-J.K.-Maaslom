@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../console/repository.php';
 
 require_once __DIR__ . '/../inventory/reservations.php';
+require_once __DIR__ . '/../notifications.php';
 
 function quoteCanPrepare(array $user): bool
 {
@@ -179,6 +180,7 @@ function quoteSave(
             $pdo->prepare(
                 "INSERT INTO ticket_status_events (ticket_device_id, from_status, to_status, actor_type, actor_user_id, public_summary, is_customer_visible, created_at) VALUES (?, ?, 'AWAITING_CUSTOMER_APPROVAL', 'USER', ?, 'An estimate is awaiting your response. Please contact the branch.', 1, UTC_TIMESTAMP())",
             )->execute([$id, $device['repair_status'], $actorId]);
+            notificationAfterStatusEvent($pdo, $id, (int) $pdo->lastInsertId());
         } elseif ($action === 'decision' && quoteCanRecord($user)) {
             if (
                 !$latest ||
@@ -224,6 +226,7 @@ function quoteSave(
                 "INSERT INTO ticket_status_events (ticket_device_id, from_status, to_status, actor_type, actor_user_id, public_summary, is_customer_visible, created_at)
                 VALUES (?, ?, 'DIAGNOSING', 'USER', ?, ?, 1, UTC_TIMESTAMP())",
             )->execute([$id, $device['repair_status'], $actorId, $summary]);
+            notificationAfterStatusEvent($pdo, $id, (int) $pdo->lastInsertId());
         } else {
             throw new DomainException('Your role cannot perform this quote action.');
         }
