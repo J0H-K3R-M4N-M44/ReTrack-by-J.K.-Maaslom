@@ -137,25 +137,31 @@ try {
     await noOverflow(page, 'Overview at ' + width + 'px');
     assert(await page.getByRole('link', { name: 'New intake' }).isVisible());
     if (width <= 720) {
-      const mobileNavigation = await page.locator('.dashboard-nav .nav-item').evaluateAll(items =>
-        items.map(item => {
-          const label = item.querySelector(':scope > span:last-child');
-          const rect = item.getBoundingClientRect();
-          return {
-            label: label?.textContent.trim() || '',
-            ariaLabel: item.getAttribute('aria-label') || '',
-            hasIcon: Boolean(item.querySelector('.nav-icon')),
-            labelHidden: label ? getComputedStyle(label).display === 'none' : false,
-            width: rect.width,
-            height: rect.height,
-          };
-        })
+      const mobileNavigation = await page.locator('.rt-dock > a').evaluateAll(items =>
+        items.map(item => ({
+          label: item.innerText.trim(),
+          width: item.getBoundingClientRect().width,
+          height: item.getBoundingClientRect().height,
+        }))
       );
-      assert(mobileNavigation.length >= 8, 'Admin mobile navigation lost a destination');
+      assert.equal(mobileNavigation.length, 4,
+        'Admin mobile navigation must show three shortcuts and More');
       assert(mobileNavigation.every(item =>
-        item.label && item.ariaLabel === item.label && item.hasIcon &&
-        item.labelHidden && item.width >= 44 && item.height >= 44
-      ), 'Admin mobile navigation must use named icon targets: ' + JSON.stringify(mobileNavigation));
+        item.label && item.width >= 44 && item.height >= 44
+      ), 'Admin mobile shortcuts need visible labels and usable targets: ' +
+        JSON.stringify(mobileNavigation));
+
+      await page.locator('#rt-more').click();
+      const destinations = page.locator('#rt-menu nav[aria-label="All destinations"] a');
+      const names = await destinations.evaluateAll(items =>
+        items.map(item => item.textContent.trim())
+      );
+      assert(names.includes('Overview') && names.includes('Workbench') &&
+        names.includes('Customers') && names.includes('Staff accounts') &&
+        names.includes('Cash desk') && names.includes('Reports'),
+        'Admin More menu is missing a destination: ' + JSON.stringify(names));
+      assert(await destinations.count() >= 10,
+        'Admin More menu should expose the remaining authorized destinations');
     }
   }
   await page.setViewportSize({ width: 390, height: 844 });
