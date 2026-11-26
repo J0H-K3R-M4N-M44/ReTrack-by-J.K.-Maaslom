@@ -20,10 +20,10 @@
 | Intake Agent | Saved drafts, open issued repairs and received devices | New intake, saved drafts and repair queue |
 | Technician | Assigned workload, remaining capacity and assigned work waiting for parts or customer decisions | My repair queue, status board and repair history |
 | Courier | Open handovers and transfer history | Transfer manifest, device handovers and transfer history |
-| Cashier | Count of issued bill records, with an immediate bill lookup | Cash desk and ticket/bill search |
+| Cashier | Count of non-draft bill records on issued repairs, with an immediate bill lookup | Cash desk and ticket/bill search |
 | Viewer | Read-only branch repair totals and current stages | Repair queue, status board and history |
 
-Manager, intake, technician and viewer repair summaries use the existing branch-scoped `consoleDevices()` query. Technician results remain restricted to devices assigned to that technician. Draft counts use `consoleDrafts()`; cashier counts and lookup use `consoleCashDesk()`; courier summaries use the existing branch-assigned `consoleTransfers()` query. No customer contact details or private repair notes are added to the Viewer overview.
+Manager, intake, technician and viewer repair summaries use the existing branch-scoped `consoleDevices()` query. Technician results remain restricted to devices assigned to that technician. Draft counts use `consoleDrafts()` and are personal to the signed-in user; cashier counts and lookup use `consoleCashDesk()`, which counts non-draft bills attached to issued tickets; courier summaries use the existing branch-assigned `consoleTransfers()` query. No customer contact details or private repair notes are added to the Viewer overview.
 
 ## Icon and help behavior
 
