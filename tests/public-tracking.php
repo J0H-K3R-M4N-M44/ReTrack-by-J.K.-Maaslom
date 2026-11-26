@@ -240,10 +240,24 @@ $pdo->prepare(
     ) VALUES (?, 'RECEIVED', 'AWAITING_PARTS', 'USER', ?, ?, 1, UTC_TIMESTAMP())",
 )->execute([$secondDeviceId, $tech['user_id'], $longPublicMessage]);
 
+$historySequence = $secondSequence + 1;
+$historyItemCode = 'PORTAL-HISTORY-' . $ticketId . '-' . $historySequence;
+$insertHistoryDevice = $pdo->prepare(
+    "INSERT INTO ticket_devices (
+        ticket_id, child_sequence, item_code, device_type_snapshot, make_snapshot,
+        model_snapshot, alternative_identifiers, reported_symptoms, condition_notes,
+        accessory_checklist_completed, repair_status, public_summary, custody_state
+    ) VALUES (?, ?, ?, 'Laptop', 'RepairTrack Test', 'Archived portal device',
+        'SYNTHETIC-HISTORY-DEVICE', 'Synthetic completed repair fixture',
+        'Synthetic condition notes', 1, 'CANCELLED',
+        'Synthetic archived device for responsive history testing.', 'AT_LOCATION')",
+);
+$insertHistoryDevice->execute([$ticketId, $historySequence, $historyItemCode]);
+
 $multiDeviceView = publicRepair($pdo, $newCode);
 checkPublic(
-    count($multiDeviceView['devices']) === $initialDeviceCount + 1,
-    'Customer portal did not return the additional device',
+    count($multiDeviceView['devices']) === $initialDeviceCount + 2,
+    'Customer portal did not return both additional devices',
 );
 checkPublic(
     $multiDeviceView['devices'][$initialDeviceCount]['item_code'] === $secondItemCode,
@@ -257,6 +271,12 @@ checkPublic(
     ($multiDeviceView['events'][0]['item_code'] ?? '') === $secondItemCode,
     'Newest customer-visible event is not associated with its device',
 );
+$historyView = consoleDevices($pdo, $manager, ['view' => 'history', 'q' => $historyItemCode]);
+checkPublic(
+    $historyView['page']['total'] === 1 &&
+        $historyView['page']['rows'][0]['item_code'] === $historyItemCode,
+    'Synthetic cancelled device is missing from scoped repair history',
+);
 
 file_put_contents(
     __DIR__ . '/public-fixture.json',
@@ -264,6 +284,7 @@ file_put_contents(
         'ticket' => $ticketId,
         'code' => $newCode,
         'second_item_code' => $secondItemCode,
+        'history_item_code' => $historyItemCode,
         'device_count' => count($multiDeviceView['devices']),
     ]),
 );
