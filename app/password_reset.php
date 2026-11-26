@@ -21,7 +21,7 @@ function requestAdminPasswordReset(string $email): void
         throw new RuntimeException('Recovery configuration is missing.');
     }
 
-    $config = require $configFile;
+    $config = $configOverride ?? require $configFile;
     $appUrl = rtrim((string) ($config['app_url'] ?? ''), '/');
     if (
         !filter_var($appUrl, FILTER_VALIDATE_URL) ||
@@ -89,7 +89,7 @@ function requestAdminPasswordReset(string $email): void
             'subject' => 'RepairTrack account password reset',
             'reset_url' => $resetUrl,
             'expires_minutes' => 30,
-        ]);
+        ], $testTransport);
     } catch (Throwable $error) {
         // Keep the public response generic. An unsuccessful handoff invalidates
         // the token so no unusable reset credential remains active.
