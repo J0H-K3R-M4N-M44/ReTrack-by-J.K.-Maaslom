@@ -23,7 +23,10 @@ document.querySelectorAll('.trend-point, .rt-help-tip').forEach((point) => {
   // Hover already reveals the help text. Do not let the same mouse click
   // immediately toggle that disclosure closed; touch and keyboard stay native.
   summary.addEventListener('click', (event) => {
-    if (mouseHover && point.open && event.detail > 0) event.preventDefault();
+    if (mouseHover && point.open && event.detail > 0) {
+      event.preventDefault();
+      summary.focus({ preventScroll: true });
+    }
   });
 
   summary.addEventListener('focus', () => {
