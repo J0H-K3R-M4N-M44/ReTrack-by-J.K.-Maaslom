@@ -753,18 +753,18 @@
   margin: 0;
 }
 
-/* Labels remain visible when an optional icon font fails to load. */
+/* The compact admin rail uses icon-only links on phone screens.
+   Every destination retains its full accessible name and hover title. */
 @media (max-width: 720px) {
   .nav-item {
     flex-direction: column;
-    gap: 5px;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
     padding: 10px 2px;
   }
   .nav-item > span:last-child {
-    display: block;
-    font-size: 0.65rem;
-    text-align: center;
-    overflow-wrap: anywhere;
+    display: none;
   }
   .dashboard-content {
     padding: 16px 12px;
