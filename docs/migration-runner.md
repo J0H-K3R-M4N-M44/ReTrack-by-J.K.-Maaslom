@@ -19,11 +19,23 @@ This shows the configured database, server version and pending steps without cha
 
 Type the exact database name when prompted. If PHP is already in PATH, use `php` instead of `/c/xampp/php/php.exe`.
 
-The runner applies the supported pending migrations in order:
+The runner applies the supported pending migrations in dependency order from `database/migrations/`:
 
-1. `database/password_reset.sql` — password recovery token storage, if missing.
-2. `database/staff_workspace.sql` — repair start time/backfill, short-code/PIN fields, unique code index and CASHIER role.
-3. `database/payment_handover.sql` — counter-cash payment history for existing issued bills.
+1. `password_reset.sql` — password reset token storage.
+2. `staff_workspace.sql` — repair start time/backfill, tracking code/PIN fields and CASHIER role.
+3. `payment_handover.sql` — counter-cash payment history.
+4. `staff_activity.sql` — per-user activity read receipts.
+5. `bill_corrections.sql` — bill correction/refund records.
+6. `stock_reservations.sql` — quote-item stock reservations.
+7. `stock_quarantine.sql` — damaged/isolated stock records.
+8. `stock_approvals.sql` — quarantine disposition and stock-count reviews.
+9. `stock_transfer_losses.sql` — transfer loss cases and loss status values.
+10. `stock_transfer_recoveries.sql` — recovered transfer stock records.
+11. `stock_transfer_evidence.sql` — private evidence metadata.
+12. `stock_transfer_loss_valuations.sql` — historical loss valuation records.
+13. `part_acquisition_cost_records.sql` — reviewed acquisition-cost evidence and valuation link.
+14. `inventory_stocktaking.sql` — monthly physical stocktake records.
+15. `repair_part_requests.sql` — technician-to-manager parts requests.
 
 It checks the resulting schema and reports success. Already-applied steps are skipped; manual Workbench upgrades are recognized too. No new migration-history table is required. Quote-and-Approval uses existing tables.
 
