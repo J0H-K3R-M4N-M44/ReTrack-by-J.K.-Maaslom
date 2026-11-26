@@ -1,10 +1,10 @@
 # RepairTrack MVP — manual user acceptance checklist
 
-**Prepared:** 22 November 2026. **Updated:** 25 November 2026. **Status:** READY FOR HUMAN TESTING, **NOT** user-approved. These are test instructions, not claims that real customers or staff accepted the product.
+**Prepared:** 22 November 2026. **Updated:** 26 November 2026. **Status:** READY FOR HUMAN TESTING, **NOT** user-approved. These are test instructions, not claims that real customers or staff accepted the product.
 
 ## Environment and evidence
 
-Use a **fictional-only** clean XAMPP/PHP/MySQL environment based on `MVP-Stabilization`, with a database restored from a tested disposable seed, private intake evidence and stock evidence folders **outside** htdocs, and role-limited test accounts. Do not enter real customer contacts, passwords, signatures or payment details. Keep the approved requirements, version/commit, PHP/MySQL versions, device/browser, date and tester role in the run log.
+Use a **fictional-only** clean XAMPP/PHP/MySQL environment running the reviewed commit `5a750799522c594214c90ba2002ce71684b10761` from branch `MVP-Role-Overviews-2026-11-26` (PR #62), with a new database restored from a tested disposable seed, private intake evidence and stock evidence folders **outside** htdocs, and role-limited test accounts. Keep this installation separate from the working project and every production or real shop database. Do not enter real customer contacts, passwords, signatures or payment details. Keep the approved requirements, version/commit, PHP/MySQL versions, device/browser, date and tester role in the run log.
 
 **Mark each scenario:** Not run / Pass / Fail / Blocked / Not applicable. Capture observed result, any error, screenshot *without secrets*, bug link, and retest date. "Pass" requires observing the actual result, not merely reading a CI result.
 
@@ -42,6 +42,13 @@ Use a **fictional-only** clean XAMPP/PHP/MySQL environment based on `MVP-Stabili
 | UAT-28 | Cashier / Manager | Search a fictional bill and inspect Repair history and Cash desk results at 320px, 390px, 768px and desktop | At phone widths, each record becomes a labelled card with matching field names and actions; at wider widths, table columns remain readable; history remains newest-first and no page-level horizontal overflow occurs |
 | UAT-29 | Staff / Screen-reader tester | Navigate the Status board by headings and article names, then compare visual order at 320px and desktop | Board is announced as grouped by status; each lane is named by its status heading; every repair card is named by its device link; the spoken and visual order match |
 
+
+| UAT-30 | All staff roles | Sign in separately as Manager, Intake Agent, Technician, Courier, Cashier and Viewer; open the default landing page. Also sign in as Admin. | Each non-admin role opens its expected task-focused overview (Branch overview, Intake overview, My repair bench, Transfer overview, Cash desk overview, Branch snapshot). Admin retains the existing Operations overview. Role shell and theme remain consistent; no role sees another role's overview by using browser Back or a stale link. |
+| UAT-31 | Manager / Intake Agent / Technician / Courier / Cashier / Viewer | Compare the overview counts and preview records to the same role's authorized queue, drafts, transfer or cash-desk page. Use synthetic records across two branches and at least two technicians. | Manager and Viewer figures stay within assigned branch scope; Technician counts only devices assigned to that account; Intake Agent draft total is personal to the signed-in account; Courier totals use assigned-branch transfers; Cashier count is non-draft bills attached to issued repair tickets, not cash collected or total due. Viewer remains read-only and shows no private notes or customer contacts. |
+| UAT-32 | Staff / Keyboard tester | Collapse the desktop side rail; move the pointer over icons, then Tab to each icon link. Inspect the accessible name with a screen reader. Press Escape while a label is open. Expand the rail and repeat. | Icon labels appear without changing link destinations or role access. Keyboard focus can reach every link and its accessible name remains meaningful. Escape dismisses the floating label. The native title fallback returns after dismissal, and no duplicate tooltip bubbles obstruct the page. On touch screens, no destination depends on hover. |
+| UAT-33 | Staff / Keyboard and touch tester | On each overview, open at least two metric help tips using mouse, keyboard focus, click/tap and Escape; move focus/pointer away. Repeat at 320px and 390px and with one non-default theme. | Explanations match the metric's meaning and limitations. The tip opens through the input method used, stays within the viewport, closes on Escape or leaving its interaction area, and does not cover the metric value or primary action. Touch does not require hover. |
+| UAT-34 | Staff | Switch between Ember, Tide and Linen themes and the available spacing preference while visiting all six role overviews; reload and navigate to queue, cash desk or transfer pages. | New overview cards, metric help, action links and icons follow the selected workspace tokens and spacing. Text, borders and focus indicators remain distinguishable. Existing shell layout and navigation remain the baseline; no independent redesign or horizontal page overflow appears. |
+
 ## Run log (copy per scenario)
 
 | Field | Tester entry |
@@ -58,6 +65,6 @@ Use a **fictional-only** clean XAMPP/PHP/MySQL environment based on `MVP-Stabili
 
 A release candidate is **blocked** if customer privacy/access control, incorrect cash balances, partial issuance, stock integrity, private evidence exposure or premature device release fails. Layout/focus issues affecting task completion must also be repaired. No "accepted" status may be recorded until named testers actually execute and approve these scenarios.
 
-**Next operator instructions:** [Windows/XAMPP handoff](mvp-windows-acceptance-handoff.md). The UAT result cells above are intentionally blank.
+**Next operator instructions:** [Windows/XAMPP handoff](mvp-windows-acceptance-handoff.md). The UAT result cells above are intentionally blank. This checklist now contains 34 scenarios; do not mark any as passed until a human tester executes them on the stated build.
 
 **Automated support:** [MVP test report](mvp-test-report.md); [recovery rehearsal](mvp-recovery-rehearsal.md). Automated CI passing is supporting evidence only, not UAT sign-off. Defer optional partial-device branch transfers per [MVP scope](mvp-stabilization.md).
