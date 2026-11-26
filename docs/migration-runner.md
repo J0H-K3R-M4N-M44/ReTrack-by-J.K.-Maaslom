@@ -58,7 +58,7 @@ MySQL DDL commits immediately. The runner does not promise all-or-nothing rollba
 
 Only one runner can upgrade the same database at a time using a MySQL advisory lock. That lock does not pause normal application requests. The database account needs the privileges required by the supplied scripts, including CREATE/ALTER and CREATE ROUTINE/ALTER ROUTINE/EXECUTE for the workspace procedure. A missing core schema stops the runner; fresh installations still use `database/schema.sql`.
 
-The statement reader supports the three bundled SQL files, including their DELIMITER commands. It is not a general SQL importer. Future migrations need an explicit pending-state check and an entry in the ordered list. Status checks verify these supported upgrade markers, not every possible schema modification.
+The statement reader supports the 15 bundled migration files, including the DELIMITER commands used by the workspace migration. It is not a general SQL importer. Future migrations need an explicit pending-state check and an entry in the ordered list. Status checks verify these supported upgrade markers, not every possible schema modification.
 
 ## Regression test
 
