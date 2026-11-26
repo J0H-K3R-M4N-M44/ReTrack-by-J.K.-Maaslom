@@ -103,7 +103,7 @@ async function checkRole(role, destination) {
       }));
       assert(menuClearance.menuBottom <= menuClearance.dockTop + 1,
         'Workspace menu extends behind the fixed dock on a short screen');
-      await page.screenshot({ path: screenshots + '/' + role + '-dock-menu-' + width + '.png', fullPage: true });
+      await page.screenshot({ path: screenshots + '/' + role + '-dock-menu-' + width + '.png', fullPage: false });
       await page.keyboard.press('Escape');
       assert.equal(await page.locator('#rt-menu').evaluate(menu => menu.open), false);
       assert.equal(await page.locator('#rt-menu summary').evaluate(element => document.activeElement === element),
@@ -637,7 +637,29 @@ try {
     assert.equal(cashLayout.rowDisplay, 'grid', 'Cashier bill row did not become a stacked card');
     assert.equal(cashLayout.minWidth, '0px', 'Cashier bill table kept a desktop minimum width');
     if (width === 360) {
-      await cashier.screenshot({ path: screenshotDirectory + '/cashier-cash-list-360.png', fullPage: true });
+      const cashRow = cashierList.locator('tbody tr').first();
+      await cashRow.evaluate(row => {
+        window.scrollBy(0, row.getBoundingClientRect().top - 56);
+      });
+      await cashier.screenshot({
+        path: screenshotDirectory + '/cashier-cash-list-360-top.png',
+        fullPage: false,
+      });
+      const bottomClearance = await cashRow.evaluate(row => {
+        const dock = document.querySelector('.rt-dock');
+        window.scrollBy(0, row.getBoundingClientRect().bottom -
+          (dock.getBoundingClientRect().top - 12));
+        return {
+          rowBottom: row.getBoundingClientRect().bottom,
+          dockTop: dock.getBoundingClientRect().top,
+        };
+      });
+      assert(bottomClearance.rowBottom <= bottomClearance.dockTop - 8,
+        'Cashier bill card cannot be scrolled fully above the fixed dock');
+      await cashier.screenshot({
+        path: screenshotDirectory + '/cashier-cash-list-360-bottom.png',
+        fullPage: false,
+      });
     }
   }
   await cashier.setViewportSize({ width: 360, height: 900 });
