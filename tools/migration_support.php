@@ -122,7 +122,8 @@ function migrationPending(PDO $pdo): array
         $pending[] = 'inventory_stocktaking.sql';
     }
     if (!migrationHasTable($pdo, 'staff_notifications') ||
-        !migrationHasTable($pdo, 'customer_email_outbox')) {
+        !migrationHasTable($pdo, 'customer_email_outbox') ||
+        !migrationHasTable($pdo, 'staff_email_outbox')) {
         $pending[] = 'notifications_emailjs.sql';
     }
     return $pending;
