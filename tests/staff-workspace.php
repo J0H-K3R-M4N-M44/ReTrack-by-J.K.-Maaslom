@@ -47,6 +47,26 @@ workspaceCheck(
     'Unsafe return data accepted',
 );
 $manager = $f['accounts']['MANAGER'];
+foreach ($f['accounts'] as $roleName => $roleAccount) {
+    workspaceCheck(
+        consoleView($roleAccount, []) === 'overview',
+        $roleName . ' should land on its overview.',
+    );
+}
+$admin = ['user_id' => 1, 'role' => 'ADMIN'];
+workspaceCheck(consoleView($admin, []) === 'overview', 'Admin console fallback should remain an overview.');
+workspaceCheck(
+    consoleView($f['accounts']['COURIER'], ['view' => 'board']) === 'overview',
+    'Courier must not open the repair board.',
+);
+workspaceCheck(
+    consoleView($tech, ['view' => 'cash']) === 'overview',
+    'Technician must not open the cash desk.',
+);
+workspaceCheck(
+    consoleView($f['accounts']['INTAKE_AGENT'], ['view' => 'cash']) === 'overview',
+    'Intake agent must not open the cash desk.',
+);
 $device = consoleDevice($pdo, $tech, $f['device']);
 $ticket = (int) $device['ticket_id'];
 $pdo->prepare('UPDATE ticket_devices SET repair_started_at=NULL WHERE ticket_device_id=?')->execute(
@@ -173,6 +193,12 @@ $pdo->prepare(
     "INSERT INTO users(full_name,email,password_hash,role) VALUES('Cashier Test','cashier.workspace@example.test',?,'CASHIER')",
 )->execute([password_hash('WorkspaceDemo2026!', PASSWORD_DEFAULT)]);
 $cashier = ['user_id' => (int) $pdo->lastInsertId(), 'role' => 'CASHIER'];
+workspaceCheck(consoleView($cashier, []) === 'overview', 'Cashier should land on its overview.');
+workspaceCheck(
+    consoleView($cashier, ['view' => 'queue']) === 'overview',
+    'Cashier must not open the repair queue.',
+);
+workspaceCheck(consoleView($cashier, ['view' => 'cash']) === 'cash', 'Cashier cash desk is unavailable.');
 $pdo->prepare(
     'INSERT INTO user_branch_assignments(user_id,branch_id,is_default) VALUES(?,?,1)',
 )->execute([$cashier['user_id'], $device['accountable_branch_id']]);
