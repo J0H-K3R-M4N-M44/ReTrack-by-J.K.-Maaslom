@@ -21,7 +21,7 @@ if ($rtWorkspaceRole !== 'CASHIER') {
     if ($rtWorkspaceRole !== 'COURIER') {
         $rtNavigation['board'] = ['Status board', 'staff_home.php?view=board', 'board'];
     }
-    $rtNavigation['history'] = [$rtWorkspaceRole === 'COURIER' ? 'Transfer history' : 'History', 'staff_home.php?view=history', 'history'];
+    $rtNavigation['history'] = ['History', 'staff_home.php?view=history', 'history'];
 }
 if (in_array($rtWorkspaceRole, ['ADMIN', 'MANAGER', 'INTAKE_AGENT'], true)) {
     $rtNavigation['drafts'] = ['Saved drafts', 'staff_home.php?view=drafts', 'drafts'];
