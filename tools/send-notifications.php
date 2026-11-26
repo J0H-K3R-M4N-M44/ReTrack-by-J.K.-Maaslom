@@ -26,9 +26,12 @@ try {
         }
     }
 
-    $result = notificationSendDue($pdo, $config, $limit);
-    echo 'EmailJS customer emails sent: ' . $result['sent'] .
-        '; failed/retried: ' . $result['failed'] . PHP_EOL;
+    $customerResult = notificationSendDue($pdo, $config, $limit);
+    $staffResult = notificationSendStaffDue($pdo, $config, $limit);
+    echo 'Customer emails sent: ' . $customerResult['sent'] .
+        '; failed/retried: ' . $customerResult['failed'] . PHP_EOL;
+    echo 'Staff emails sent: ' . $staffResult['sent'] .
+        '; failed/retried: ' . $staffResult['failed'] . PHP_EOL;
 } catch (Throwable $error) {
     fwrite(STDERR, 'Notification worker stopped: ' . $error->getMessage() . PHP_EOL);
     exit(1);
