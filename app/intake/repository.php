@@ -135,14 +135,16 @@ function intakeFindOrCreateCustomer(PDO $pdo, array $values): int
             ($values['email_notifications_consent'] ?? '0') === '1';
         $contactInsert = $pdo->prepare(
             'INSERT INTO customer_contacts
-            (customer_id, contact_type, contact_value, normalized_value, is_primary, preferred_for_notifications)
-         VALUES (?, ?, ?, ?, 1, ?)',
+            (customer_id, contact_type, contact_value, normalized_value, is_primary,
+             preferred_for_notifications, email_updates_consent_at)
+         VALUES (?, ?, ?, ?, 1, ?, CASE WHEN ? = 1 THEN UTC_TIMESTAMP() ELSE NULL END)',
         );
         $contactInsert->execute([
             $customerId,
             $values['contact_type'],
             $contact,
             $normalizedContact,
+            (int) $emailUpdatesAllowed,
             (int) $emailUpdatesAllowed,
         ]);
     }
