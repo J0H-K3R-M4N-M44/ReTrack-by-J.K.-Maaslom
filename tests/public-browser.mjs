@@ -38,7 +38,7 @@ try {
   assert.equal(await secondDeviceCard.count(), 1,
     'Additional device is not shown as its own card');
   assert((await secondDeviceCard.locator('.public-device-label').innerText())
-    .includes('Device ' + fixture.device_count + ' of ' + fixture.device_count));
+    .includes('Device ' + fixture.second_device_number + ' of ' + fixture.device_count));
   const longMessage = secondDeviceCard.locator('.public-message');
   assert((await longMessage.innerText()).length > 500,
     'Long customer-visible update was truncated');
