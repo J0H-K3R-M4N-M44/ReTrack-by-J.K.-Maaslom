@@ -263,8 +263,16 @@ checkPublic(
     $multiDeviceView['devices'][$initialDeviceCount]['item_code'] === $secondItemCode,
     'Additional device is not grouped under its issued ticket',
 );
+$longDevice = null;
+foreach ($multiDeviceView['devices'] as $portalDevice) {
+    if ($portalDevice['item_code'] === $secondItemCode) {
+        $longDevice = $portalDevice;
+        break;
+    }
+}
 checkPublic(
-    str_contains($multiDeviceView['devices'][1]['public_summary'], 'intentionally long'),
+    is_array($longDevice) &&
+        str_contains((string) ($longDevice['public_summary'] ?? ''), 'intentionally long'),
     'Long customer-visible device update is missing',
 );
 checkPublic(
@@ -284,6 +292,7 @@ file_put_contents(
         'ticket' => $ticketId,
         'code' => $newCode,
         'second_item_code' => $secondItemCode,
+        'second_device_number' => $initialDeviceCount + 1,
         'history_item_code' => $historyItemCode,
         'device_count' => count($multiDeviceView['devices']),
     ]),
