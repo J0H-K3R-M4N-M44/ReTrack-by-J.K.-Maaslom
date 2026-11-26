@@ -27,7 +27,7 @@ When the draft is saved, the app writes a new customer and contact if needed, th
 ### Current PHP features
 
 - Administrator login with hashed-password verification, CSRF checks, session renewal, and idle-session expiry.
-- One-use password reset links that expire after 30 minutes. The password reset table is installed separately with `database/password_reset.sql`.
+- One-use password reset links that expire after 30 minutes. The password reset table is installed separately with `database/migrations/password_reset.sql`.
 - Dashboard counts, a short workbench queue, customer totals, and repair-status counts.
 - Three-step intake: customer matching, one device and reported problem, then a review before saving a draft.
 - Public landing page and responsive UI.
@@ -45,7 +45,7 @@ When the draft is saved, the app writes a new customer and contact if needed, th
 | `app/intake/repository.php` | Intake queries and the transaction that saves a draft. |
 | `views/intake/create.php` | Intake HTML template. |
 | `database/schema.sql` | Current 32-table starter schema. |
-| `database/password_reset.sql` | Optional password reset table for an existing database. |
+| `database/migrations/password_reset.sql` | Optional password reset table for an existing database. |
 | `demo-prototype/` | Separate browser-only simulation; it does not call the PHP app. |
 
 ### Current database
