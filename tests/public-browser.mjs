@@ -91,7 +91,7 @@ try {
     );
   }
   await page.setViewportSize({ width: 390, height: 900 });
-  const deviceSection = page.locator('section.public-card').filter({ has: page.locator('.public-device-card') }).first();
+  const deviceSection = page.locator('.public-device-card').first();
   await deviceSection.evaluate(element => {
     window.scrollBy(0, element.getBoundingClientRect().top - 128);
   });
