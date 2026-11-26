@@ -354,3 +354,11 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
 .rt-layout .evidence-previews img {
   background: var(--rt-soft);
 }
+
+
+/* Keep dashboard data-health feedback readable across Ember, Tide and Linen. */
+.rt-layout .system-status {
+  color: var(--rt-text);
+  border-color: var(--rt-line);
+  background: var(--rt-soft);
+}

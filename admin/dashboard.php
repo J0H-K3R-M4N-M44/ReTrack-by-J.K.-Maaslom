@@ -115,6 +115,11 @@ require __DIR__ . '/../views/workspace/navigation.php';
                 default => 'Operations overview',
             } ?></h1>
             <p>Review branch activity and continue your team's repair operations.</p>
+            <span class="system-status<?= $metricsAvailable ? '' : ' is-unavailable' ?>" role="status">
+                <span class="status-dot" aria-hidden="true"></span><?= $metricsAvailable
+                    ? 'Dashboard data loaded'
+                    : 'Dashboard data unavailable' ?>
+            </span>
         </div>
     </header>
 

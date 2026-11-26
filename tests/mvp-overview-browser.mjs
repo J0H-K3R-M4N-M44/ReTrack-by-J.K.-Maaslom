@@ -119,7 +119,7 @@ try {
   const session = await signedIn();
   await verifyLinenStatusContrast(session.page);
   const page = session.page;
-  assert.equal(await page.getByRole('heading', { name: 'Admin dashboard' }).count(), 1);
+  assert.equal(await page.getByRole('heading', { name: 'Operations overview' }).count(), 1);
   assert.equal(await page.getByText('Under construction', { exact: true }).count(), 0);
   assert.equal(await page.locator('.construction-mark').count(), 0);
   const quick = page.getByRole('navigation', { name: 'Quick actions' });
