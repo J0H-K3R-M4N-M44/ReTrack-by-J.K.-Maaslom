@@ -8,7 +8,12 @@ require_once __DIR__ . '/emailjs.php';
  * Send a generic recovery email when an active staff email is found.
  * The raw token only appears in the email; the database stores its SHA-256 hash.
  */
-function requestAdminPasswordReset(string $email): void
+function requestAdminPasswordReset(
+    string $email,
+    ?array $configOverride = null,
+    ?callable $testTransport = null,
+    ?PDO $pdoOverride = null,
+): void
 {
     $email = strtolower(trim($email));
 
@@ -17,7 +22,7 @@ function requestAdminPasswordReset(string $email): void
     }
 
     $configFile = __DIR__ . '/../config/config.php';
-    if (!is_file($configFile)) {
+    if ($configOverride === null && !is_file($configFile)) {
         throw new RuntimeException('Recovery configuration is missing.');
     }
 
@@ -102,7 +107,11 @@ function requestAdminPasswordReset(string $email): void
 }
 
 /** Change the password only when an unused, unexpired token is submitted. */
-function completeAdminPasswordReset(string $token, string $newPassword): bool
+function completeAdminPasswordReset(
+    string $token,
+    string $newPassword,
+    ?PDO $pdoOverride = null,
+): bool
 {
     if (!preg_match('/^[a-f0-9]{64}$/', $token) || !passwordIsAcceptable($newPassword)) {
         return false;
