@@ -1,6 +1,4 @@
 <?php
-declare(strict_types=1);
-
 $rtStatusTotals = [];
 foreach (($data['counts'] ?? []) as $rtCount) {
     $rtStatusTotals[(string) $rtCount['repair_status']] = (int) $rtCount['total'];
@@ -254,8 +252,8 @@ $rtSymbols = [
     <div class="rt-overview-intro">
         <div>
             <p class="eyebrow">Your work at a glance</p>
-            <h2><?= h($title) ?></h2>
-            <p><?= h($description) ?></p>
+            <h2>At a glance</h2>
+            <p>Counts and recent records reflect the access assigned to your account.</p>
         </div>
         <?php if (in_array($role, ['ADMIN', 'MANAGER', 'INTAKE_AGENT'], true)): ?>
             <a class="primary-btn" href="intake_create.php">
