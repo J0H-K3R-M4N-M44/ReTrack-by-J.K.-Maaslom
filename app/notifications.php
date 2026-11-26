@@ -191,7 +191,7 @@ function notificationStaffEvent(
     }
 
     $placeholders = implode(',', array_fill(0, count($roles), '?'));
-    $sql = "SELECT u.user_id FROM users u
+    $sql = "SELECT u.user_id, u.email, u.full_name FROM users u
         WHERE u.is_active = 1 AND u.role IN ($placeholders)";
     $params = $roles;
 
@@ -222,7 +222,34 @@ function notificationStaffEvent(
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())",
     );
 
-    foreach ($recipients->fetchAll(PDO::FETCH_COLUMN) as $recipientId) {
+    $staffEmailConfig = [];
+    $configPath = __DIR__ . '/../config/config.php';
+    if (is_file($configPath)) {
+        $loaded = require $configPath;
+        if (is_array($loaded)) {
+            $staffEmailConfig = $loaded;
+        }
+    }
+    $sendStaffEmail = ($staffEmailConfig['emailjs_staff_notifications_enabled'] ?? false) === true &&
+        emailJsTemplateReady($staffEmailConfig, 'staff_alert');
+    $branchQuery = $pdo->prepare('SELECT branch_name FROM branches WHERE branch_id = ?');
+    $branchQuery->execute([$branchId]);
+    $branchName = (string) ($branchQuery->fetchColumn() ?: 'RepairTrack branch');
+    $ticketQuery = $pdo->prepare('SELECT ticket_code FROM repair_tickets WHERE ticket_id = ?');
+    $ticketQuery->execute([$ticketId]);
+    $ticketCode = (string) ($ticketQuery->fetchColumn() ?: 'Repair ticket');
+
+    $insertEmail = $sendStaffEmail ? $pdo->prepare(
+        "INSERT IGNORE INTO staff_email_outbox
+         (user_id, staff_notification_id, branch_id, ticket_id, ticket_device_id,
+          event_type, recipient_email, template_key, template_params, dedupe_key,
+          delivery_status, next_attempt_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'staff_alert', ?, ?, 'QUEUED',
+                 UTC_TIMESTAMP(), UTC_TIMESTAMP(), UTC_TIMESTAMP())",
+    ) : null;
+
+    foreach ($recipients->fetchAll(PDO::FETCH_ASSOC) as $recipient) {
+        $recipientId = (int) $recipient['user_id'];
         $dedupe = hash('sha256', implode(':', [
             'staff',
             $eventType,
@@ -232,7 +259,7 @@ function notificationStaffEvent(
             $recipientId,
         ]));
         $insert->execute([
-            (int) $recipientId,
+            $recipientId,
             $branchId,
             $ticketId,
             $deviceId,
@@ -242,6 +269,38 @@ function notificationStaffEvent(
             $targetPath,
             $dedupe,
         ]);
+
+        if ($insertEmail) {
+            $notificationQuery = $pdo->prepare(
+                'SELECT staff_notification_id FROM staff_notifications WHERE dedupe_key = ? LIMIT 1',
+            );
+            $notificationQuery->execute([$dedupe]);
+            $notificationId = (int) $notificationQuery->fetchColumn();
+            $emailDedupe = hash('sha256', 'staff-email:' . $dedupe);
+            $emailParams = [
+                'to_email' => (string) $recipient['email'],
+                'to_name' => (string) $recipient['full_name'],
+                'subject' => 'RepairTrack: ' . $title,
+                'event_type' => $eventType,
+                'title' => $title,
+                'message' => $message,
+                'ticket_code' => $ticketCode,
+                'branch_name' => $branchName,
+                'target_url' => rtrim((string) ($staffEmailConfig['app_url'] ?? ''), '/') .
+                    '/admin/' . ltrim($targetPath, '/'),
+            ];
+            $insertEmail->execute([
+                $recipientId,
+                $notificationId > 0 ? $notificationId : null,
+                $branchId,
+                $ticketId,
+                $deviceId,
+                $eventType,
+                (string) $recipient['email'],
+                json_encode($emailParams, JSON_THROW_ON_ERROR),
+                $emailDedupe,
+            ]);
+        }
     }
 }
 
