@@ -52,7 +52,8 @@ async function checkRoleOverview(role, email, expectedHeading, expectedCard) {
   assert(await help.evaluate((element) => element.open), `${role} help tooltip did not open on hover`);
   await page.mouse.move(1200, 900);
   assert(!(await help.evaluate((element) => element.open)), `${role} help tooltip did not close on pointer leave`);
-  await helpSummary.focus();
+  await helpSummary.evaluate((element) => element.focus({ focusVisible: true }));
+  assert(await help.evaluate((element) => element.open), `${role} help tooltip did not open on keyboard focus`);
   await rolePage.keyboard.press('Escape');
   assert(!(await help.evaluate((element) => element.open)), `${role} help tooltip did not close on Escape`);
 
@@ -111,7 +112,8 @@ try {
   assert(await managerHelp.evaluate((element) => element.open));
   await page.mouse.move(1200, 900);
   assert(!(await managerHelp.evaluate((element) => element.open)));
-  await managerHelpSummary.focus();
+  await managerHelpSummary.evaluate((element) => element.focus({ focusVisible: true }));
+  assert(await managerHelp.evaluate((element) => element.open));
   await page.keyboard.press('Escape');
   assert(!(await managerHelp.evaluate((element) => element.open)));
 
@@ -148,6 +150,7 @@ try {
     );
   }
 
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole('link', { name: 'History', exact: true }).click();
   await page.locator('#queue-search').fill('WORK-0');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
