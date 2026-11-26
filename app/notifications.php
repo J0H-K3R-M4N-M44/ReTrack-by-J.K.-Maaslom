@@ -512,3 +512,87 @@ function notificationSendDue(PDO $pdo, array $config, int $limit = 10): array
 
     return ['sent' => $sent, 'failed' => $failed];
 }
+
+
+function notificationSendStaffDue(PDO $pdo, array $config, int $limit = 10): array
+{
+    if (($config['emailjs_staff_notifications_enabled'] ?? false) !== true ||
+        !emailJsTemplateReady($config, 'staff_alert')) {
+        return ['sent' => 0, 'failed' => 0];
+    }
+
+    $limit = max(1, min(20, $limit));
+    $sent = 0;
+    $failed = 0;
+
+    $pdo->exec(
+        "UPDATE staff_email_outbox SET delivery_status = 'QUEUED',
+            next_attempt_at = UTC_TIMESTAMP(), updated_at = UTC_TIMESTAMP()
+         WHERE delivery_status = 'SENDING'
+           AND updated_at < UTC_TIMESTAMP() - INTERVAL 15 MINUTE",
+    );
+
+    for ($i = 0; $i < $limit; $i++) {
+        $pdo->beginTransaction();
+        try {
+            $query = $pdo->query(
+                "SELECT staff_email_id, template_params, attempt_count
+                 FROM staff_email_outbox
+                 WHERE delivery_status = 'QUEUED' AND next_attempt_at <= UTC_TIMESTAMP()
+                 ORDER BY next_attempt_at, staff_email_id
+                 LIMIT 1 FOR UPDATE SKIP LOCKED",
+            );
+            $row = $query->fetch();
+            if (!$row) {
+                $pdo->commit();
+                break;
+            }
+
+            $attempt = (int) $row['attempt_count'] + 1;
+            $claim = $pdo->prepare(
+                "UPDATE staff_email_outbox SET delivery_status = 'SENDING',
+                    attempt_count = ?, updated_at = UTC_TIMESTAMP()
+                 WHERE staff_email_id = ?",
+            );
+            $claim->execute([$attempt, (int) $row['staff_email_id']]);
+            $pdo->commit();
+        } catch (Throwable $error) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $error;
+        }
+
+        try {
+            $params = json_decode((string) $row['template_params'], true, 32, JSON_THROW_ON_ERROR);
+            emailJsSendTemplate($config, 'staff_alert', $params);
+            $update = $pdo->prepare(
+                "UPDATE staff_email_outbox SET delivery_status = 'SENT',
+                    sent_at = UTC_TIMESTAMP(), last_error = NULL,
+                    updated_at = UTC_TIMESTAMP()
+                 WHERE staff_email_id = ? AND delivery_status = 'SENDING'",
+            );
+            $update->execute([(int) $row['staff_email_id']]);
+            $sent++;
+        } catch (Throwable $error) {
+            $delayMinutes = min(60, 2 ** min($attempt, 5));
+            $nextStatus = $attempt >= 5 ? 'FAILED' : 'QUEUED';
+            $update = $pdo->prepare(
+                "UPDATE staff_email_outbox SET delivery_status = ?,
+                    next_attempt_at = DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? MINUTE),
+                    last_error = ?, updated_at = UTC_TIMESTAMP()
+                 WHERE staff_email_id = ? AND delivery_status = 'SENDING'",
+            );
+            $update->execute([
+                $nextStatus,
+                $delayMinutes,
+                mb_substr($error->getMessage(), 0, 500),
+                (int) $row['staff_email_id'],
+            ]);
+            $failed++;
+            error_log('RepairTrack staff email delivery failed: ' . $error->getMessage());
+        }
+    }
+
+    return ['sent' => $sent, 'failed' => $failed];
+}
