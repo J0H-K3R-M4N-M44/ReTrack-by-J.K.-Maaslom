@@ -198,7 +198,7 @@ try {
     'CASHIER'
   );
   assert(await cash.getByRole('heading', { name: 'Cash desk overview', exact: true }).isVisible());
-  assert(await cash.locator('.rt-overview').getByText('Issued bill records').isVisible());
+  assert(await cash.locator('.rt-overview').getByText('Non-draft bill records').isVisible());
   await cash.screenshot({ path: site + '/workspace-overview-cashier.png', fullPage: true });
 
   await cash.locator('#overview-bill-search').fill(f.code);
