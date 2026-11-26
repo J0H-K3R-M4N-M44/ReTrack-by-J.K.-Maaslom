@@ -263,6 +263,7 @@ function consoleSave(PDO $pdo, int $actorId, int $id, string $version, array $in
                 'Ticket ' . $device['ticket_code'] . ' has been assigned to you.',
                 'device.php?id=' . $id,
                 (int) $details['assigned_technician_id'],
+                (string) $pdo->lastInsertId(),
             );
         }
         $pdo->commit();
