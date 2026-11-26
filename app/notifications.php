@@ -88,6 +88,70 @@ function notificationCustomerEvent(PDO $pdo, int $ticketId, int $deviceId, int $
     ]);
 }
 
+/**
+ * Queue a customer payment receipt notice. The payment data is read from the
+ * committed bill/payment records and is never copied into the staff inbox.
+ */
+function notificationCustomerPayment(
+    PDO $pdo,
+    int $ticketId,
+    int $paymentId,
+    string $amount,
+    string $remainingBalance,
+): void {
+    $query = $pdo->prepare(
+        "SELECT t.customer_id, t.ticket_code, c.full_name AS customer_name,
+            b.branch_name
+         FROM repair_tickets t
+         JOIN customers c ON c.customer_id = t.customer_id
+         JOIN branches b ON b.branch_id = t.accountable_branch_id
+         WHERE t.ticket_id = ? LIMIT 1",
+    );
+    $query->execute([$ticketId]);
+    $ticket = $query->fetch();
+    if (!$ticket) {
+        return;
+    }
+
+    $contactQuery = $pdo->prepare(
+        "SELECT contact_id, contact_value FROM customer_contacts
+         WHERE customer_id = ? AND contact_type = 'EMAIL'
+           AND preferred_for_notifications = 1
+         ORDER BY is_primary DESC, contact_id ASC LIMIT 1",
+    );
+    $contactQuery->execute([(int) $ticket['customer_id']]);
+    $contact = $contactQuery->fetch();
+    if (!$contact || !filter_var($contact['contact_value'], FILTER_VALIDATE_EMAIL)) {
+        return;
+    }
+
+    $params = [
+        'to_email' => (string) $contact['contact_value'],
+        'to_name' => (string) $ticket['customer_name'],
+        'subject' => 'RepairTrack payment received for ' . $ticket['ticket_code'],
+        'customer_name' => (string) $ticket['customer_name'],
+        'ticket_code' => (string) $ticket['ticket_code'],
+        'payment_amount' => $amount,
+        'remaining_balance' => $remainingBalance,
+        'branch_name' => (string) $ticket['branch_name'],
+    ];
+    $dedupe = hash('sha256', 'customer-payment:' . $paymentId . ':' . $contact['contact_id']);
+    $insert = $pdo->prepare(
+        "INSERT IGNORE INTO customer_email_outbox
+         (customer_id, ticket_id, recipient_email, template_key, template_params,
+          dedupe_key, delivery_status, next_attempt_at, created_at, updated_at)
+         VALUES (?, ?, ?, 'customer_payment', ?, ?, 'QUEUED',
+                 UTC_TIMESTAMP(), UTC_TIMESTAMP(), UTC_TIMESTAMP())",
+    );
+    $insert->execute([
+        (int) $ticket['customer_id'],
+        $ticketId,
+        (string) $contact['contact_value'],
+        json_encode($params, JSON_THROW_ON_ERROR),
+        $dedupe,
+    ]);
+}
+
 /** Explicit role policy for each staff alert category. VIEWER is intentionally read-only. */
 function notificationStaffRoles(string $eventType): array
 {
@@ -99,7 +163,7 @@ function notificationStaffRoles(string $eventType): array
         'READY_FOR_PICKUP' => ['ADMIN', 'MANAGER', 'CASHIER'],
         'REPAIR_CLOSED' => ['ADMIN', 'MANAGER', 'INTAKE_AGENT', 'CASHIER'],
         'DEVICE_ASSIGNED' => ['TECHNICIAN'],
-        'PAYMENT_RECORDED' => ['ADMIN', 'MANAGER', 'CASHIER'],
+        'PAYMENT_RECORDED', 'BILL_ISSUED' => ['ADMIN', 'MANAGER', 'CASHIER'],
         'DEVICE_TRANSFER' => ['ADMIN', 'MANAGER', 'COURIER'],
         default => [],
     };
