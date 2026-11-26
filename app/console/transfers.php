@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../inventory/reservations.php';
+require_once __DIR__ . '/../notifications.php';
 
 // Lock the operator's branch assignment before changing physical custody.
 function transferAuthorize(PDO $pdo, int $user, int $branch): void
@@ -47,8 +48,9 @@ function dispatchDevices(PDO $pdo, int $user, int $origin, int $destination, str
         $pdo->prepare("INSERT INTO device_transfers (transfer_code,from_branch_id,to_branch_id,initiated_by_user_id,dispatched_at)
             VALUES (?,?,?,?,UTC_TIMESTAMP())")->execute([$code,$origin,$to,$user]);
         $manifest = (int)$pdo->lastInsertId();
+        $notificationTickets = [];
         foreach ($codes as $item) {
-            $q = $pdo->prepare("SELECT d.ticket_device_id,d.ticket_id,d.physical_location_id FROM ticket_devices d
+            $q = $pdo->prepare("SELECT d.ticket_device_id,d.ticket_id,d.physical_location_id,t.ticket_code FROM ticket_devices d
                 JOIN repair_tickets t ON t.ticket_id=d.ticket_id JOIN storage_locations l ON l.location_id=d.physical_location_id
                 WHERE d.item_code=? AND t.record_stage='ISSUED' AND t.case_state='OPEN'
                 AND d.repair_status NOT IN ('COMPLETED','CANCELLED') AND d.custody_state='AT_LOCATION'
@@ -57,7 +59,9 @@ function dispatchDevices(PDO $pdo, int $user, int $origin, int $destination, str
             $row = $q->fetch();
             if (!$row) throw new DomainException('Each device must be open and physically present at the sending branch.');
             $id = (int)$row['ticket_device_id'];
+            $ticketId = (int)$row['ticket_id'];
             $from = (int)$row['physical_location_id'];
+            $notificationTickets[$ticketId] = ['device_id' => $id, 'ticket_code' => (string) $row['ticket_code']];
             // Reservations belong to the sending shelf. Never move a device while
             // its approved parts are still held there; a manager must release the hold first.
             $holds = $pdo->prepare("SELECT r.reservation_id FROM stock_reservations r
@@ -104,6 +108,17 @@ function dispatchDevices(PDO $pdo, int $user, int $origin, int $destination, str
             $pdo->prepare("UPDATE ticket_devices SET custody_state='IN_TRANSIT',physical_location_id=? WHERE ticket_device_id=?")->execute([$transit,$id]);
             transferEvent($pdo,$id,$manifest,$user,'TRANSFER_DISPATCHED',$from,$transit,'Dispatched');
         }
+
+        foreach ($notificationTickets as $ticketId => $ticketInfo) {
+            $notice = 'Transfer ' . $code . ' was dispatched for ticket ' . $ticketInfo['ticket_code'] . '.';
+            foreach ([$origin, $to] as $branchId) {
+                notificationStaffEvent(
+                    $pdo, (int) $ticketId, (int) $ticketInfo['device_id'], (int) $branchId,
+                    'DEVICE_TRANSFER', 'Device transfer dispatched', $notice,
+                    'transfers.php', null, 'dispatch:' . $manifest,
+                );
+            }
+        }
         $pdo->commit();
         return $code;
     } catch (Throwable $error) {
@@ -124,12 +139,19 @@ function confirmTransferItem(PDO $pdo, int $user, int $item, string $expected, s
         $q = $pdo->prepare('SELECT device_transfer_id FROM device_transfer_items WHERE device_transfer_item_id=?');
         $q->execute([$item]);
         $manifest = (int)$q->fetchColumn();
-        $q = $pdo->prepare('SELECT to_branch_id FROM device_transfers WHERE device_transfer_id=? FOR UPDATE');
+        $q = $pdo->prepare('SELECT from_branch_id, to_branch_id, transfer_code
+            FROM device_transfers WHERE device_transfer_id=? FOR UPDATE');
         $q->execute([$manifest]);
-        $branch = (int)$q->fetchColumn();
+        $route = $q->fetch();
+        $branch = (int) ($route['to_branch_id'] ?? 0);
+        $originBranch = (int) ($route['from_branch_id'] ?? 0);
+        $transferCode = (string) ($route['transfer_code'] ?? '');
         transferAuthorize($pdo,$user,$branch);
-        $q = $pdo->prepare('SELECT x.*,d.custody_state,d.physical_location_id,l.branch_id,l.is_active FROM device_transfer_items x
-            JOIN ticket_devices d ON d.ticket_device_id=x.ticket_device_id JOIN storage_locations l ON l.location_id=x.to_location_id
+        $q = $pdo->prepare('SELECT x.*,d.ticket_id,d.item_code,d.custody_state,d.physical_location_id,
+            l.branch_id,l.is_active,t.ticket_code FROM device_transfer_items x
+            JOIN ticket_devices d ON d.ticket_device_id=x.ticket_device_id
+            JOIN repair_tickets t ON t.ticket_id=d.ticket_id
+            JOIN storage_locations l ON l.location_id=x.to_location_id
             WHERE x.device_transfer_item_id=? FOR UPDATE');
         $q->execute([$item]);
         $r = $q->fetch();
@@ -149,6 +171,17 @@ function confirmTransferItem(PDO $pdo, int $user, int $item, string $expected, s
             ->execute([$received?'AT_LOCATION':'UNKNOWN',$location,$id]);
         transferEvent($pdo,$id,$manifest,$user,$received?'TRANSFER_RECEIVED':'CUSTODY_EXCEPTION',
             $expected==='IN_TRANSIT'?(int)$r['transit_location_id']:null,$location,$note);
+        $eventLabel = $received ? 'was received' : 'has a reported custody exception';
+        $notice = 'Transfer ' . $transferCode . ' ' . $eventLabel . ' for ticket ' .
+            $r['ticket_code'] . ' (device ' . $r['item_code'] . ').';
+        foreach (array_unique([$originBranch, $branch]) as $branchId) {
+            notificationStaffEvent(
+                $pdo, (int) $r['ticket_id'], $id, (int) $branchId,
+                'DEVICE_TRANSFER', $received ? 'Device transfer received' : 'Transfer exception reported',
+                $notice, 'transfers.php', null,
+                'transfer-item:' . $item . ':' . ($received ? 'received' : 'exception'),
+            );
+        }
         // Locking reads include receipts committed while this operator waited for the manifest.
         $q=$pdo->prepare('SELECT item_status FROM device_transfer_items WHERE device_transfer_id=? FOR UPDATE');
         $q->execute([$manifest]);
@@ -292,6 +325,15 @@ function acceptTransferredRepair(
                     'devices_received'=>count($devices),'technicians_cleared'=>count($oldAssignments)], JSON_THROW_ON_ERROR),
                 $reason,
             ]);
+        $ticketCode = (string) $pdo->query('SELECT ticket_code FROM repair_tickets WHERE ticket_id = ' . (int) $ticketId)->fetchColumn();
+        $notice = 'Repair responsibility for ticket ' . $ticketCode . ' was accepted at the receiving branch.';
+        foreach ([$expectedOrigin, $destination] as $branchId) {
+            notificationStaffEvent(
+                $pdo, $ticketId, null, (int) $branchId,
+                'DEVICE_TRANSFER', 'Repair responsibility accepted', $notice,
+                'transfers.php', null, 'accept-manifest:' . $manifestId,
+            );
+        }
         $pdo->commit();
     } catch (Throwable $error) {
         if ($pdo->inTransaction()) {
