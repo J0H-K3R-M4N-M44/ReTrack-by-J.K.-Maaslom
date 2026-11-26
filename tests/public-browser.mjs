@@ -200,8 +200,96 @@ try {
     cardText: 'rgb(20, 32, 43)',
     cardBorder: 'rgb(131, 145, 151)',
   }, 'Status-board lane and card surfaces must follow Linen theme tokens');
+
+  const boardReadingOrder = await page.locator('.status-board').evaluate(board => {
+    const lanes = [...board.querySelectorAll(':scope > .board-lane')];
+    return {
+      label: board.getAttribute('aria-label'),
+      lanes: lanes.map(lane => {
+        const heading = lane.querySelector(':scope > h3');
+        const cards = [...lane.querySelectorAll(':scope > .board-card')];
+        return {
+          role: lane.getAttribute('role'),
+          labelledBy: lane.getAttribute('aria-labelledby'),
+          headingId: heading?.id || '',
+          cards: cards.map(card => {
+            const cardHeading = card.querySelector(':scope > h4');
+            return {
+              labelledBy: card.getAttribute('aria-labelledby'),
+              headingId: cardHeading?.id || '',
+              headingTag: cardHeading?.tagName || '',
+              linkCount: cardHeading?.querySelectorAll(':scope > a').length || 0,
+              firstChildTag: card.firstElementChild?.tagName || '',
+            };
+          }),
+        };
+      }),
+    };
+  });
+  assert.equal(boardReadingOrder.label, 'Repair devices grouped by status');
+  assert(boardReadingOrder.lanes.length > 0, 'Status board has no labelled status groups');
+  for (const lane of boardReadingOrder.lanes) {
+    assert.equal(lane.role, 'group');
+    assert(lane.headingId && lane.labelledBy === lane.headingId,
+      'Status lane is not labelled by its heading');
+    assert(lane.cards.length > 0, 'Status lane has no repair cards');
+    for (const card of lane.cards) {
+      assert(card.headingId && card.labelledBy === card.headingId,
+        'Repair card is not labelled by its device heading');
+      assert.equal(card.headingTag, 'H4');
+      assert.equal(card.linkCount, 1);
+      assert.equal(card.firstChildTag, 'H4',
+        'Repair card reading order must start with its named device link');
+    }
+  }
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  const mobileLanePositions = await page.locator('.board-lane').evaluateAll(lanes =>
+    lanes.map(lane => lane.getBoundingClientRect().top)
+  );
+  assert(mobileLanePositions.every((top, index) =>
+    index === 0 || top >= mobileLanePositions[index - 1]),
+    'Mobile status lanes do not follow their document reading order');
+
   await page.setViewportSize({ width: 390, height: 900 });
   await page.screenshot({ path: site + '/mvp-board-mobile.png', fullPage: true });
+
+  await page.goto(url + '/admin/staff_home.php?view=history&q=' + encodeURIComponent(fixture.history_item_code));
+  await page.getByRole('heading', { name: 'Repair history' }).waitFor();
+  const historyTable = page.locator('#work-list .workspace-table');
+  assert.equal(await historyTable.count(), 1);
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      'History page overflows at ' + width + 'px');
+    const historyLayout = await historyTable.evaluate(table => {
+      const row = table.tBodies[0].rows[0];
+      const headers = [...table.tHead.rows[0].cells].map(cell => cell.textContent.trim());
+      const labels = [...row.cells].map(cell => cell.dataset.label || '');
+      return {
+        rowDisplay: getComputedStyle(row).display,
+        minWidth: getComputedStyle(table).minWidth,
+        role: table.getAttribute('role'),
+        headerRoles: [...table.tHead.rows[0].cells].every(cell => cell.getAttribute('role') === 'columnheader'),
+        rowRole: row.getAttribute('role'),
+        cellRoles: [...row.cells].every(cell => cell.getAttribute('role') === 'cell'),
+        labelsMatch: headers.length === labels.length && headers.every((header, index) => header === labels[index]),
+        wrapperFits: table.parentElement.scrollWidth <= table.parentElement.clientWidth + 1,
+      };
+    });
+    assert.equal(historyLayout.role, 'table');
+    assert.equal(historyLayout.rowRole, 'row');
+    assert(historyLayout.headerRoles && historyLayout.cellRoles && historyLayout.labelsMatch,
+      'Repair history cards do not preserve matching table labels and roles');
+    if (width <= 767) {
+      assert.equal(historyLayout.rowDisplay, 'grid');
+      assert.equal(historyLayout.minWidth, '0px');
+      assert(historyLayout.wrapperFits, 'Mobile repair history requires horizontal scrolling');
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.screenshot({ path: site + '/mvp-history-mobile.png', fullPage: true });
+
   await page.goto(url + '/admin/staff_home.php');
 
   await page.screenshot({ path: site + '/mvp-queue-mobile.png', fullPage: true });
