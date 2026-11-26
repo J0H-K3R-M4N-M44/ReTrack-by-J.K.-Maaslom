@@ -114,7 +114,7 @@ async function checkRole(role, destination) {
       nav = page.locator('.rt-side');
     }
     const cashLink = page.locator('#rt-menu nav a[href$="view=cash"]');
-    assert.equal(await cashLink.count(), role === 'admin' ? 1 : 0);
+    assert.equal(await cashLink.count(), ['admin', 'manager', 'cashier'].includes(role) ? 1 : 0);
     await nav.getByRole('link', { name: destination, exact: true }).click();
     await page.locator('#work-list').waitFor();
     await checkWidth(page);
@@ -585,7 +585,13 @@ try {
   await manager.goto(deviceUrl);
   await manager.getByRole('link', { name: 'Open billing and handover' }).click();
   await manager.locator('[name=confirm]').check();
+  const reviewScreens = process.env.RUNNER_TEMP + '/workspace-screens';
+  mkdirSync(reviewScreens, { recursive: true });
   await press(manager, 'Review bill issuance');
+  await manager.screenshot({
+    path: reviewScreens + '/manager-bill-issuance-review-1440.png',
+    fullPage: false,
+  });
   await press(manager, 'Issue final bill');
   await manager.getByRole('heading', { name: 'Record counter cash' }).waitFor();
 
@@ -675,17 +681,26 @@ try {
   );
   await cashier.locator('[name=confirm]').check();
   await press(cashier, 'Review payment');
+  await cashier.screenshot({
+    path: screenshotDirectory + '/cashier-payment-review-360.png',
+    fullPage: false,
+  });
   await press(cashier, 'Confirm cash received');
   await cashier.locator('#recipient').fill('Pickup Test');
   await cashier.locator('[name=condition_confirmed]').check();
   await press(cashier, 'Review handover');
+  await cashier.screenshot({
+    path: screenshotDirectory + '/cashier-handover-review-360.png',
+    fullPage: false,
+  });
   await press(cashier, 'Confirm handover and close ticket');
   await cashier.getByRole('heading', { name: 'Ticket closed' }).waitFor();
   await checkWidth(cashier);
   console.log('PASS: manager billing at 1440px, cashier search, payment and pickup at 360px.');
   for (const [role, destination] of Object.entries({
-    admin: 'Repair queue', intake_agent: 'Saved drafts', technician: 'Status board',
-    courier: 'History', viewer: 'Status board',
+    admin: 'Repair queue', manager: 'Repair queue', intake_agent: 'Saved drafts',
+    technician: 'Status board', courier: 'History', cashier: 'Cash desk',
+    viewer: 'Status board',
   })) {
     await checkRole(role, destination);
     console.log('PASS: desktop and mobile navigation for ' + role);
