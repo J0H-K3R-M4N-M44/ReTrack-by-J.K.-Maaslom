@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS customer_contacts (
   is_primary TINYINT(1) NOT NULL DEFAULT 0,
   preferred_for_notifications TINYINT(1) NOT NULL DEFAULT 0,
   verified_at DATETIME NULL,
+  email_updates_consent_at DATETIME NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (contact_id),
   UNIQUE KEY uq_customer_contact (customer_id, contact_type, normalized_value),
