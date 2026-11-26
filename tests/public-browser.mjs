@@ -118,6 +118,7 @@ try {
   await page.locator('[name=password]').fill(['ConsoleDemo', '2026!'].join(''));
   await page.getByRole('button', { name: 'Login', exact: true }).click();
   await page.waitForURL('**/staff_home.php');
+  await page.getByRole('link', { name: 'Repair queue', exact: true }).click();
   await page.locator('#queue-status').selectOption('DIAGNOSING');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   assert.equal(new URL(page.url()).searchParams.get('status'), 'DIAGNOSING');
