@@ -11,8 +11,189 @@ require_once __DIR__ . '/../app/public/tracking.php';
 require_once __DIR__ . '/../app/payments/repository.php';
 require_once __DIR__ . '/../app/console/reports.php';
 require_once __DIR__ . '/../app/console/activity.php';
+require_once __DIR__ . '/../app/notifications.php';
 require_once __DIR__ . '/../tools/migration_support.php';
 require_once __DIR__ . '/../tools/simulation_data.php';
+
+
+function testNotificationWorkflows(PDO $pdo): void
+{
+    $ticket = $pdo->query(
+        "SELECT t.ticket_id, t.customer_id, t.accountable_branch_id, t.ticket_code,
+            d.ticket_device_id, d.repair_status, d.assigned_technician_id
+         FROM repair_tickets t JOIN ticket_devices d ON d.ticket_id = t.ticket_id
+         WHERE t.ticket_code = 'SIM-RT-001' ORDER BY d.child_sequence LIMIT 1",
+    )->fetch();
+    checkWorkflow((bool) $ticket, 'Notification fixture ticket missing.');
+
+    $branchId = (int) $ticket['accountable_branch_id'];
+    $deviceId = (int) $ticket['ticket_device_id'];
+    $ticketId = (int) $ticket['ticket_id'];
+    $assignedTechId = (int) $ticket['assigned_technician_id'];
+    $managerId = (int) $pdo->query("SELECT user_id FROM users WHERE email='manager@sim.example.test'")->fetchColumn();
+    $intakeId = (int) $pdo->query("SELECT user_id FROM users WHERE email='intake_agent@sim.example.test'")->fetchColumn();
+    $cashierId = (int) $pdo->query("SELECT user_id FROM users WHERE email='cashier@sim.example.test'")->fetchColumn();
+
+    $adminId = seedRow($pdo, 'users', [
+        'full_name' => 'Notification Test Administrator',
+        'email' => 'notification-admin@example.test',
+        'password_hash' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+        'role' => 'ADMIN',
+    ]);
+    $otherTechnicianId = seedRow($pdo, 'users', [
+        'full_name' => 'Other Branch Technician',
+        'email' => 'notification-other-tech@example.test',
+        'password_hash' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+        'role' => 'TECHNICIAN',
+    ]);
+    seedRow($pdo, 'user_branch_assignments', [
+        'user_id' => $otherTechnicianId,
+        'branch_id' => $branchId,
+    ]);
+    $otherBranchId = seedRow($pdo, 'branches', [
+        'branch_code' => 'NOTIFY-OTHER',
+        'branch_name' => 'Notification Test Other Branch',
+    ]);
+    $otherManagerId = seedRow($pdo, 'users', [
+        'full_name' => 'Other Branch Manager',
+        'email' => 'notification-other-manager@example.test',
+        'password_hash' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+        'role' => 'MANAGER',
+    ]);
+    seedRow($pdo, 'user_branch_assignments', [
+        'user_id' => $otherManagerId,
+        'branch_id' => $otherBranchId,
+    ]);
+    $viewerId = seedRow($pdo, 'users', [
+        'full_name' => 'Read Only Viewer',
+        'email' => 'notification-viewer@example.test',
+        'password_hash' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+        'role' => 'VIEWER',
+    ]);
+    seedRow($pdo, 'user_branch_assignments', [
+        'user_id' => $viewerId,
+        'branch_id' => $branchId,
+    ]);
+
+    notificationStaffEvent(
+        $pdo,
+        $ticketId,
+        $deviceId,
+        $branchId,
+        'QUOTE_DECISION',
+        'Customer decision recorded',
+        'A synthetic customer decision was recorded.',
+        'device.php?id=' . $deviceId,
+        null,
+        'test-quote-decision-1',
+    );
+
+    $recipientsQuery = $pdo->prepare(
+        "SELECT user_id FROM staff_notifications
+         WHERE ticket_id = ? AND event_type = 'QUOTE_DECISION'
+         ORDER BY user_id",
+    );
+    $recipientsQuery->execute([$ticketId]);
+    $recipients = array_map('intval', $recipientsQuery->fetchAll(PDO::FETCH_COLUMN));
+    sort($recipients);
+    $expected = [$adminId, $managerId, $intakeId, $assignedTechId];
+    sort($expected);
+    checkWorkflow($recipients === $expected, 'Quote decision notification crossed a role or branch boundary.');
+    checkWorkflow(!in_array($otherTechnicianId, $recipients, true), 'Unassigned technician received a quote alert.');
+    checkWorkflow(!in_array($otherManagerId, $recipients, true), 'Other branch manager received a quote alert.');
+    checkWorkflow(!in_array($cashierId, $recipients, true), 'Cashier received a technician/customer decision alert.');
+    checkWorkflow(!in_array($viewerId, $recipients, true), 'Read-only viewer received an operational alert.');
+
+    $managerNoticeQuery = $pdo->prepare(
+        "SELECT staff_notification_id FROM staff_notifications
+         WHERE user_id = ? AND ticket_id = ? AND event_type = 'QUOTE_DECISION' LIMIT 1",
+    );
+    $managerNoticeQuery->execute([$managerId, $ticketId]);
+    $managerNoticeId = (int) $managerNoticeQuery->fetchColumn();
+    checkWorkflow(notificationUnreadCount($pdo, $managerId) === 1, 'Staff unread count is not recipient-specific.');
+    checkWorkflow(notificationUnreadCount($pdo, $otherTechnicianId) === 0, 'Other technician has an unrelated unread alert.');
+    notificationMarkRead($pdo, $cashierId, $managerNoticeId);
+    $stillUnread = $pdo->prepare('SELECT read_at FROM staff_notifications WHERE staff_notification_id = ?');
+    $stillUnread->execute([$managerNoticeId]);
+    checkWorkflow($stillUnread->fetchColumn() === null, 'Another staff member marked a notification read.');
+    notificationMarkRead($pdo, $managerId, $managerNoticeId);
+    checkWorkflow(notificationUnreadCount($pdo, $managerId) === 0, 'Recipient could not mark their notification read.');
+
+    // Existing preference flags are not enough: an explicit consent timestamp is required.
+    $contactId = seedRow($pdo, 'customer_contacts', [
+        'customer_id' => (int) $ticket['customer_id'],
+        'contact_type' => 'EMAIL',
+        'contact_value' => 'notification-customer@example.test',
+        'normalized_value' => 'notification-customer@example.test',
+        'is_primary' => 0,
+        'preferred_for_notifications' => 1,
+        'email_updates_consent_at' => null,
+    ]);
+    $insertEvent = $pdo->prepare(
+        "INSERT INTO ticket_status_events
+         (ticket_device_id, from_status, to_status, actor_type, actor_user_id,
+          internal_note, public_summary, is_customer_visible, created_at)
+         VALUES (?, ?, 'DIAGNOSING', 'USER', ?, ?, ?, ?, UTC_TIMESTAMP())",
+    );
+    $insertEvent->execute([
+        $deviceId,
+        $ticket['repair_status'],
+        $adminId,
+        'PRIVATE_NOTIFICATION_TEST_NOTE',
+        'Synthetic public repair update',
+        1,
+    ]);
+    $noConsentEventId = (int) $pdo->lastInsertId();
+    notificationCustomerEvent($pdo, $ticketId, $deviceId, $noConsentEventId);
+    $outboxCount = (int) $pdo->query(
+        'SELECT COUNT(*) FROM customer_email_outbox WHERE status_event_id = ' . $noConsentEventId,
+    )->fetchColumn();
+    checkWorkflow($outboxCount === 0, 'Customer email queued without explicit permission.');
+
+    $pdo->prepare(
+        'UPDATE customer_contacts SET email_updates_consent_at = UTC_TIMESTAMP() WHERE contact_id = ?',
+    )->execute([$contactId]);
+    $insertEvent->execute([
+        $deviceId,
+        'DIAGNOSING',
+        $adminId,
+        'PRIVATE_NOTIFICATION_TEST_NOTE',
+        'Synthetic public repair update after consent',
+        1,
+    ]);
+    $consentedEventId = (int) $pdo->lastInsertId();
+    notificationCustomerEvent($pdo, $ticketId, $deviceId, $consentedEventId);
+    $mailQuery = $pdo->prepare(
+        'SELECT recipient_email, template_params FROM customer_email_outbox WHERE status_event_id = ?',
+    );
+    $mailQuery->execute([$consentedEventId]);
+    $mail = $mailQuery->fetch();
+    checkWorkflow((bool) $mail, 'Customer email was not queued after explicit consent.');
+    checkWorkflow(
+        $mail['recipient_email'] === 'notification-customer@example.test',
+        'Customer email was routed to the wrong contact.',
+    );
+    checkWorkflow(
+        str_contains((string) $mail['template_params'], 'Synthetic public repair update after consent') &&
+            !str_contains((string) $mail['template_params'], 'PRIVATE_NOTIFICATION_TEST_NOTE'),
+        'Customer email template contains private notes or omits the public message.',
+    );
+
+    $insertEvent->execute([
+        $deviceId,
+        'DIAGNOSING',
+        $adminId,
+        'PRIVATE_NOTIFICATION_TEST_NOTE',
+        'This is not customer-visible',
+        0,
+    ]);
+    $privateEventId = (int) $pdo->lastInsertId();
+    notificationCustomerEvent($pdo, $ticketId, $deviceId, $privateEventId);
+    $privateOutboxCount = (int) $pdo->query(
+        'SELECT COUNT(*) FROM customer_email_outbox WHERE status_event_id = ' . $privateEventId,
+    )->fetchColumn();
+    checkWorkflow($privateOutboxCount === 0, 'Internal-only event created a customer email.');
+}
 
 function checkWorkflow(bool $passed, string $message): void
 {
@@ -69,6 +250,8 @@ try {
     $pdo->beginTransaction();
     $password = seedSimulation($pdo);
     $pdo->commit();
+
+    testNotificationWorkflows($pdo);
 
     foreach (['MANAGER', 'TECHNICIAN', 'INTAKE_AGENT', 'CASHIER'] as $role) {
         $email = strtolower($role) . '@sim.example.test';
@@ -140,6 +323,6 @@ try {
     }
 }
 if ($result === 0) {
-    echo "PASS: migration, four staff logins, activity, reports, PIN, settlement and pickup.\n";
+    echo "PASS: migration, role-scoped notifications, customer consent, four staff logins, activity, reports, PIN, settlement and pickup.\n";
 }
 exit($result);
