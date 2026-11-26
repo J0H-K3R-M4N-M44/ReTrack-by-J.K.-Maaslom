@@ -39,6 +39,9 @@ require __DIR__ . '/../workspace/navigation.php';
             $isCourier
         ): ?><p><a href="transfers.php">Open device handovers</a> to dispatch devices or confirm receipt.</p><?php endif; ?>
     </div>
+    <?php if ($view === 'overview'): ?>
+        <?php require __DIR__ . '/overview.php'; ?>
+    <?php else: ?>
     <section id="work-list" class="dashboard-card workspace-list rt-card">
         <?php $listTitle = match ($view) {
             'cash' => 'Cash desk bill lookup',
@@ -266,6 +269,7 @@ require __DIR__ . '/../workspace/navigation.php';
         <?php endforeach; ?>
         </div>
     </section>
+    <?php endif; ?>
     <?php endif; ?>
 </main><script src="../js/workspace.js"></script>
 </body></html>
