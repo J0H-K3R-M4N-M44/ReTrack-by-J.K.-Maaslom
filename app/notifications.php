@@ -400,6 +400,8 @@ function notificationAfterStatusEvent(PDO $pdo, int $deviceId, int $statusEventI
         'Repair status updated',
         'A repair stage changed for ticket ' . $event['ticket_code'] . '.',
         $target,
+        null,
+        $eventKey,
     );
 }
 
