@@ -91,11 +91,15 @@ try {
     );
   }
   await page.setViewportSize({ width: 390, height: 900 });
-  await page.locator('.public-device-card').first().evaluate(element => {
-    window.scrollBy(0, element.getBoundingClientRect().top - 56);
+  const deviceSection = page.locator('section.public-card').filter({ has: page.locator('.public-device-card') }).first();
+  await deviceSection.evaluate(element => {
+    window.scrollBy(0, element.getBoundingClientRect().top - 128);
   });
   await page.screenshot({ path: site + '/public-tracking-mobile.png', fullPage: false });
-  await page.locator('.public-timeline').scrollIntoViewIfNeeded();
+  const timelineSection = page.locator('section.public-card').filter({ has: page.locator('.public-timeline') }).first();
+  await timelineSection.evaluate(element => {
+    window.scrollBy(0, element.getBoundingClientRect().top - 128);
+  });
   await page.screenshot({ path: site + '/public-tracking-timeline-mobile.png', fullPage: false });
   await page.getByRole('button', { name: 'Close tracking' }).click();
   assert(await page.locator('#tracking-code').isVisible());
@@ -258,7 +262,9 @@ try {
     'Mobile status lanes do not follow their document reading order');
 
   await page.setViewportSize({ width: 390, height: 900 });
-  await page.locator('.status-board').scrollIntoViewIfNeeded();
+  await page.locator('.status-board').evaluate(element => {
+    window.scrollBy(0, element.getBoundingClientRect().top - 72);
+  });
   await page.screenshot({ path: site + '/mvp-board-mobile.png', fullPage: false });
 
   await page.goto(url + '/admin/staff_home.php?view=history&q=' + encodeURIComponent(fixture.history_item_code));
