@@ -308,7 +308,7 @@ try {
   });
   await page.screenshot({ path: site + '/mvp-history-mobile.png', fullPage: false });
 
-  await page.goto(url + '/admin/staff_home.php');
+  await page.goto(url + '/admin/staff_home.php?view=queue');
   await page.setViewportSize({ width: 390, height: 900 });
   const queueTable = page.locator('#work-list .workspace-table');
   const queueRow = queueTable.locator('tbody tr').first();
