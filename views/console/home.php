@@ -187,13 +187,13 @@ require __DIR__ . '/../workspace/navigation.php';
     $row['branch_name'],
 ) ?></td><td role="cell" data-label="Issued (PH time)"><?= h(workspaceDate($row['issued_at'])) ?></td><td role="cell" data-label="Status"><?= h(
     ucfirst(strtolower($row['bill_status'])),
-) ?></td><td class="numeric" data-label="Bill total"><?= h($row['currency']) ?> <?= number_format(
+) ?></td><td role="cell" class="numeric" data-label="Bill total"><?= h($row['currency']) ?> <?= number_format(
      (float) $row['total_amount'],
      2,
- ) ?></td><td class="numeric" data-label="Cash received"><?= h($row['currency']) ?> <?= number_format(
+ ) ?></td><td role="cell" class="numeric" data-label="Cash received"><?= h($row['currency']) ?> <?= number_format(
      (float) $row['amount_paid'],
      2,
- ) ?></td><td class="numeric" data-label="Balance"><?php $difference = (float) $row['total_amount'] - (float) $row['amount_paid']; ?>
+ ) ?></td><td role="cell" class="numeric" data-label="Balance"><?php $difference = (float) $row['total_amount'] - (float) $row['amount_paid']; ?>
     <?= $difference < 0 ? 'Refund due · ' : '' ?><?= h($row['currency']) ?> <?= number_format(abs($difference), 2) ?></td><td role="cell" data-label="Action"><a href="cash.php?bill_id=<?= (int) $row['bill_id'] ?>">Open cash record</a></td>
                     <?php elseif ($view === 'drafts'): ?>
                         <td role="cell" data-label="Draft">#<?= (int) $row['ticket_id'] ?></td><td role="cell" data-label="Customer"><?= h(
