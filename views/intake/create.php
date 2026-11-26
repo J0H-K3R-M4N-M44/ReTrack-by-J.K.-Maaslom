@@ -256,6 +256,20 @@ require __DIR__ . '/../workspace/navigation.php';
                                                 $values['contact_value'],
                                             ); ?>" placeholder="09xx xxx xxxx" data-new-customer-required>
                                         </label>
+                                        <div class="form-wide">
+                                            <input type="hidden" name="email_notifications_consent" value="0">
+                                            <label for="email-notifications-consent">
+                                                <input
+                                                    type="checkbox"
+                                                    id="email-notifications-consent"
+                                                    name="email_notifications_consent"
+                                                    value="1"
+                                                    <?= $values['email_notifications_consent'] === '1' ? 'checked' : '' ?>
+                                                >
+                                                I have the customer's permission to email repair updates to this address.
+                                            </label>
+                                            <p class="form-help">Optional. Applies only when the contact method is Email. This does not sign the customer up for marketing.</p>
+                                        </div>
                                     </div>
                                     <?php if (
                                         $duplicateFound ||
