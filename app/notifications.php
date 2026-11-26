@@ -184,6 +184,7 @@ function notificationStaffEvent(
     string $targetPath,
     ?int $onlyUserId = null,
     string $eventKey = '',
+    ?array $emailConfig = null,
 ): void {
     $roles = notificationStaffRoles($eventType);
     if (!$roles) {
@@ -222,12 +223,14 @@ function notificationStaffEvent(
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())",
     );
 
-    $staffEmailConfig = [];
-    $configPath = __DIR__ . '/../config/config.php';
-    if (is_file($configPath)) {
-        $loaded = require $configPath;
-        if (is_array($loaded)) {
-            $staffEmailConfig = $loaded;
+    $staffEmailConfig = $emailConfig ?? [];
+    if ($emailConfig === null) {
+        $configPath = __DIR__ . '/../config/config.php';
+        if (is_file($configPath)) {
+            $loaded = require $configPath;
+            if (is_array($loaded)) {
+                $staffEmailConfig = $loaded;
+            }
         }
     }
     $sendStaffEmail = ($staffEmailConfig['emailjs_staff_notifications_enabled'] ?? false) === true &&
