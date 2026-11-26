@@ -74,6 +74,7 @@ async function checkRoleOverview(role, email, expectedHeading, expectedCard) {
     `${role} help tooltip leaves 390px viewport`
   );
   await rolePage.keyboard.press('Escape');
+  assert(!(await help.evaluate((element) => element.open)), `${role} tap/click help tooltip did not close on Escape`);
   await rolePage.screenshot({
     path: site + '/workspace-overview-' + role.toLowerCase() + '.png',
     fullPage: true,
