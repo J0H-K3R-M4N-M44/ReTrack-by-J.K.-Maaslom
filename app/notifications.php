@@ -35,7 +35,7 @@ function notificationCustomerEvent(PDO $pdo, int $ticketId, int $deviceId, int $
         "SELECT contact_id, contact_value
          FROM customer_contacts
          WHERE customer_id = ? AND contact_type = 'EMAIL'
-           AND preferred_for_notifications = 1
+           AND preferred_for_notifications = 1 AND email_updates_consent_at IS NOT NULL
          ORDER BY is_primary DESC, contact_id ASC LIMIT 1",
     );
     $contactQuery->execute([(int) $event['customer_id']]);
@@ -116,7 +116,7 @@ function notificationCustomerPayment(
     $contactQuery = $pdo->prepare(
         "SELECT contact_id, contact_value FROM customer_contacts
          WHERE customer_id = ? AND contact_type = 'EMAIL'
-           AND preferred_for_notifications = 1
+           AND preferred_for_notifications = 1 AND email_updates_consent_at IS NOT NULL
          ORDER BY is_primary DESC, contact_id ASC LIMIT 1",
     );
     $contactQuery->execute([(int) $ticket['customer_id']]);
