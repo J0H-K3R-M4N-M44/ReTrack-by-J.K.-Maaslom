@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../quotes/repository.php';
+require_once __DIR__ . '/../notifications.php';
 
 function cashCanOpen(array $user): bool
 {
@@ -237,6 +238,7 @@ function cashCancelDevice(PDO $pdo, array $device, int $actorId, string $reason)
         (ticket_device_id, from_status, to_status, actor_type, actor_user_id, internal_note,
         public_summary, is_customer_visible, created_at) VALUES (?, ?, 'CANCELLED', 'USER', ?, ?,
         'Approved for as-is return.', 1, UTC_TIMESTAMP())")->execute([$id, $device['repair_status'], $actorId, $reason]);
+    notificationAfterStatusEvent($pdo, $id, (int) $pdo->lastInsertId());
 }
 
 function cashIssueFinalBill(
@@ -396,6 +398,12 @@ function cashIssueFinalBill(
             'bill_number' => $billNumber,
             'total_amount' => $amount,
         ]);
+        notificationStaffEvent(
+            $pdo, $ticketId, null, (int) $ticket['accountable_branch_id'],
+            'BILL_ISSUED', 'Final bill issued',
+            'A final bill is ready for ticket ' . $ticket['ticket_code'] . '.',
+            'staff_home.php?view=cash',
+        );
         $pdo->commit();
         return $billId;
     } catch (Throwable $error) {
@@ -480,6 +488,18 @@ function cashRecordPayment(
             (bill_id, payment_method, amount, request_key, received_by_user_id, received_at)
             VALUES (?, 'COUNTER_CASH', ?, ?, ?, UTC_TIMESTAMP())",
         )->execute([$billId, cashAmountText($amountCents), $requestKey, $actorId]);
+        $paymentId = (int) $pdo->lastInsertId();
+        $remaining = cashAmountText($balance - $amountCents);
+        notificationCustomerPayment(
+            $pdo, (int) $bill['ticket_id'], $paymentId,
+            cashAmountText($amountCents), $remaining,
+        );
+        notificationStaffEvent(
+            $pdo, (int) $bill['ticket_id'], null, (int) $bill['accountable_branch_id'],
+            'PAYMENT_RECORDED', 'Counter cash received',
+            'A counter-cash payment was recorded for ticket ' . $bill['ticket_code'] . '.',
+            'staff_home.php?view=cash',
+        );
         $pdo->prepare('UPDATE repair_bills SET updated_at = UTC_TIMESTAMP() WHERE bill_id = ?')->execute([
             $billId,
         ]);
@@ -667,6 +687,7 @@ function cashCompleteHandover(
                 VALUES (?, ?, ?, 'USER', ?, ?,
                     'Device returned to the customer.', 1, UTC_TIMESTAMP())",
             )->execute([$deviceId, $device['repair_status'], $returnedStatus, $actorId, $internalNote]);
+            notificationAfterStatusEvent($pdo, $deviceId, (int) $pdo->lastInsertId());
             $pdo->prepare(
                 "INSERT INTO device_custody_events
                 (ticket_device_id, event_type, from_location_id, performed_by_user_id, note, happened_at)
