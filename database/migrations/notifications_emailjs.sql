@@ -1,3 +1,17 @@
+-- Existing customers need an explicit recorded permission before email updates are queued.
+SET @email_consent_sql = IF(
+  EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customer_contacts'
+      AND COLUMN_NAME = 'email_updates_consent_at'
+  ),
+  'DO 0',
+  'ALTER TABLE customer_contacts ADD COLUMN email_updates_consent_at DATETIME NULL AFTER verified_at'
+);
+PREPARE email_consent_change FROM @email_consent_sql;
+EXECUTE email_consent_change;
+DEALLOCATE PREPARE email_consent_change;
+
 -- Separate staff inbox entries from customer email delivery.
 -- Staff notifications are recipient-specific; customer messages use a retryable outbox.
 CREATE TABLE IF NOT EXISTS staff_notifications (
