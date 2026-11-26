@@ -30,7 +30,7 @@ function requestAdminPasswordReset(string $email): void
         throw new RuntimeException('Recovery needs a valid app_url.');
     }
 
-    $pdo = getPDO();
+    $pdo = $pdoOverride ?? getPDO();
     $findUser = $pdo->prepare(
         "SELECT user_id, full_name FROM users
          WHERE email = ? AND is_active = 1
@@ -108,7 +108,7 @@ function completeAdminPasswordReset(string $token, string $newPassword): bool
         return false;
     }
 
-    $pdo = getPDO();
+    $pdo = $pdoOverride ?? getPDO();
     $tokenHash = hash('sha256', $token);
 
     $pdo->beginTransaction();
