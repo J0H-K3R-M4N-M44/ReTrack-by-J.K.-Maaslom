@@ -52,7 +52,7 @@ switch ($role) {
         ];
         $rtActions = [
             ['Repair queue', 'Review assignments and the oldest updates.', 'staff_home.php?view=queue', 'queue'],
-            ['Saved drafts', number_format($rtDraftTotal) . ' intake drafts not yet issued.', 'staff_home.php?view=drafts', 'drafts'],
+            ['Saved drafts', number_format($rtDraftTotal) . ' of your intake drafts are not yet issued.', 'staff_home.php?view=drafts', 'drafts'],
             ['Cash desk', number_format($rtCashTotal) . ' issued bill records in your branch scope.', 'staff_home.php?view=cash', 'cash'],
         ];
         $rtRows = $data['page']['rows'] ?? [];
@@ -64,10 +64,10 @@ switch ($role) {
     case 'INTAKE_AGENT':
         $rtCards = [
             [
-                'label' => 'Saved intake drafts',
+                'label' => 'My saved intake drafts',
                 'value' => $rtDraftTotal,
-                'note' => 'Not yet issued as repair tickets',
-                'tip' => 'Drafts are saved intake records. They do not appear in the customer repair portal until the ticket is issued.',
+                'note' => 'Created by your account; not yet issued',
+                'tip' => 'Counts intake drafts saved by your account. They remain private staff records and do not appear in the customer portal until a ticket is issued.',
                 'icon' => 'drafts',
             ],
             [
@@ -174,10 +174,10 @@ switch ($role) {
     case 'CASHIER':
         $rtCards = [
             [
-                'label' => 'Issued bill records',
+                'label' => 'Non-draft bill records',
                 'value' => (int) ($overviewCash['total'] ?? 0),
-                'note' => 'Available in your assigned branches',
-                'tip' => 'This is a count of non-draft issued bills, including paid and unpaid records. It is not the total amount due.',
+                'note' => 'For issued repairs in your branches',
+                'tip' => 'Counts bill records for issued repair tickets where the bill status is not Draft. It may include paid and unpaid records; it is not the amount due or cash collected.',
                 'icon' => 'cash',
             ],
         ];
