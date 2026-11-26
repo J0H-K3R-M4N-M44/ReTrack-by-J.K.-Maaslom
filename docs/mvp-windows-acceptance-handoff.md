@@ -8,7 +8,7 @@
 
 ## 1. Prepare an isolated fictional installation
 
-Use only a specifically authorized, disposable XAMPP setup with fictional device, contact and receipt records. Record the exact tested branch and commit (for this UX pass, the PR #61 head on `MVP-UX-Polish-2026-11-25`), PHP and MySQL/MariaDB versions, Windows version, browser, operator and test start time.
+Use only a specifically authorized, disposable XAMPP setup with fictional device, contact and receipt records. Record the exact tested branch and commit (`MVP-Role-Overviews-2026-11-26`, application/CI test checkpoint `5a750799522c594214c90ba2002ce71684b10761`), PHP and MySQL/MariaDB versions, Windows version, browser, operator and test start time. If the branch advances, test the exact reviewed PR #62 HEAD and record that SHA instead.
 
 1. Make a **new** web folder under `htdocs`, separate from any working project. Check out the exact candidate commit above into that new folder (or copy a clean export of that commit); do not test a moving branch head or reuse real customer data. Record the actual checked-out SHA with `git rev-parse HEAD`.
 2. Create writable private directories **outside** `htdocs`, e.g. `C:\repairtrack-private-test\intake` and `C:\repairtrack-private-test\inventory`. Keep access restricted to the test operator and PHP/Apache account. Confirm that browsing these paths by HTTP is impossible.
@@ -44,7 +44,7 @@ The completed Linux CI rehearsal verified **47 tables, two cash entries totaling
 | UAT sign-off | Actual UAT-01..25 results, named testers and retested blockers | **Not run** |
 | Staff/screen-reader accessibility | Keyboard and screen-reader test notes and screenshots | **Not run** |
 | Windows/XAMPP recovery | Operator log without secrets, SHA-256 comparison, SQL/finance/custody reconciliation, restore duration | **Not run** |
-| Merge into `main` | Independent review, current CI, explicit approval for PR #56 only | **Pending** |
+| Integrate PR #62 into its visual-baseline parent | Independent review, all 34 UAT cases dispositioned, Windows/XAMPP smoke + restore sign-off, real screen-reader review, current CI and explicit owner approval | **Pending — do not merge** |
 | Production deployment | Privacy/security, restore policy and maintenance approval | **Not approved** |
 
-See [MVP test report](mvp-test-report.md), [accessibility review](mvp-accessibility-review.md), [recovery evidence](mvp-recovery-rehearsal.md), and [PR #56](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/pull/56). The optional partial-device transfer [PR #55](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/pull/55) remains deferred.
+See [MVP test report](mvp-test-report.md), [accessibility review](mvp-accessibility-review.md), [recovery evidence](mvp-recovery-rehearsal.md), [role-overview and tooltip phase](role-overviews-and-tooltip-interactions.md), and [draft PR #62](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/pull/62). The optional partial-device transfer [PR #55](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/pull/55) remains deferred.
