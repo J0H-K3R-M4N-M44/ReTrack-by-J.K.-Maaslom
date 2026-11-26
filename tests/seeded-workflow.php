@@ -86,6 +86,13 @@ function testNotificationWorkflows(PDO $pdo): void
         'device.php?id=' . $deviceId,
         null,
         'test-quote-decision-1',
+        [
+            'emailjs_staff_notifications_enabled' => true,
+            'emailjs_public_key' => 'public_synthetic',
+            'emailjs_service_id' => 'service_synthetic',
+            'emailjs_templates' => ['staff_alert' => 'template_staff_synthetic'],
+            'app_url' => 'https://example.test/repairtrack',
+        ],
     );
 
     $recipientsQuery = $pdo->prepare(
@@ -103,6 +110,25 @@ function testNotificationWorkflows(PDO $pdo): void
     checkWorkflow(!in_array($otherManagerId, $recipients, true), 'Other branch manager received a quote alert.');
     checkWorkflow(!in_array($cashierId, $recipients, true), 'Cashier received a technician/customer decision alert.');
     checkWorkflow(!in_array($viewerId, $recipients, true), 'Read-only viewer received an operational alert.');
+    $emailRecipientsQuery = $pdo->prepare(
+        "SELECT user_id FROM staff_email_outbox
+         WHERE ticket_id = ? AND event_type = 'QUOTE_DECISION'
+         ORDER BY user_id",
+    );
+    $emailRecipientsQuery->execute([$ticketId]);
+    $emailRecipients = array_map('intval', $emailRecipientsQuery->fetchAll(PDO::FETCH_COLUMN));
+    sort($emailRecipients);
+    checkWorkflow($emailRecipients === $expected, 'Staff email outbox recipients differ from the scoped staff inbox.');
+    checkWorkflow(!in_array($viewerId, $emailRecipients, true), 'Read-only viewer received a staff email.');
+    $emailRow = $pdo->query(
+        "SELECT recipient_email, template_params FROM staff_email_outbox
+         WHERE user_id = " . $assignedTechId . " AND event_type = 'QUOTE_DECISION' LIMIT 1",
+    )->fetch();
+    checkWorkflow(
+        (bool) $emailRow && $emailRow['recipient_email'] !== '' &&
+            str_contains((string) $emailRow['template_params'], 'device.php?id=' . $deviceId),
+        'Assigned technician staff email was not queued with its local work link.',
+    );
 
     $managerNoticeQuery = $pdo->prepare(
         "SELECT staff_notification_id FROM staff_notifications
@@ -111,6 +137,12 @@ function testNotificationWorkflows(PDO $pdo): void
     $managerNoticeQuery->execute([$managerId, $ticketId]);
     $managerNoticeId = (int) $managerNoticeQuery->fetchColumn();
     checkWorkflow(notificationUnreadCount($pdo, $managerId) === 1, 'Staff unread count is not recipient-specific.');
+    $managerPage = notificationPage($pdo, $managerId, '1');
+    checkWorkflow(
+        $managerPage['total'] === 1 &&
+            (int) $managerPage['rows'][0]['staff_notification_id'] === $managerNoticeId,
+        'Staff notification page did not return only the signed-in recipient records.',
+    );
     checkWorkflow(notificationUnreadCount($pdo, $otherTechnicianId) === 0, 'Other technician has an unrelated unread alert.');
     notificationMarkRead($pdo, $cashierId, $managerNoticeId);
     $stillUnread = $pdo->prepare('SELECT read_at FROM staff_notifications WHERE staff_notification_id = ?');
