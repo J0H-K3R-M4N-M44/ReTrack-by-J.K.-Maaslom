@@ -40,6 +40,7 @@ function intakeDefaults(array $branches): array
         'customer_name' => '',
         'contact_type' => 'PHONE',
         'contact_value' => '',
+        'email_notifications_consent' => '0',
         'device_type' => '',
         'make' => '',
         'model' => '',
