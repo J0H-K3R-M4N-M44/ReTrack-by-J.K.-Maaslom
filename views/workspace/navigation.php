@@ -46,6 +46,16 @@ if (activityGroups($rtWorkspaceRole)) {
 if (in_array($rtWorkspaceRole, ['ADMIN', 'MANAGER', 'COURIER'], true)) {
     $rtNavigation['handovers'] = ['Device handovers', 'transfers.php', 'handovers'];
 }
+require_once __DIR__ . '/../../app/notifications.php';
+$rtNotificationCount = 0;
+if (in_array($rtWorkspaceRole, ['ADMIN', 'MANAGER', 'INTAKE_AGENT', 'TECHNICIAN', 'COURIER', 'CASHIER'], true)) {
+    try {
+        $rtNotificationCount = notificationUnreadCount(getPDO(), (int) $workspaceUser['user_id']);
+    } catch (RuntimeException $rtNotificationError) {
+        error_log('Staff notifications unavailable: ' . $rtNotificationError->getCode());
+    }
+    $rtNavigation['notifications'] = ['Notifications', 'notifications.php', 'notifications'];
+}
 if (in_array($rtWorkspaceRole, ['ADMIN', 'MANAGER'], true)) {
     $rtNavigation['locations'] = ['Storage locations', 'locations.php', 'locations'];
     $rtNavigation['inventory'] = ['Branch inventory', 'inventory.php', 'inventory'];
@@ -65,6 +75,7 @@ $rtSymbols = [
     'drafts' => 'M5 3h10l4 4v14H5z M8 12h8 M8 16h6 M15 3v5h4',
     'cash' => 'M2 5h20v14H2z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
     'activity' => 'M3 12h4l3-8 4 16 3-8h4',
+    'notifications' => 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9 M10 21h4',
     'transfers' => 'M4 7h15l-3-3 M20 17H5l3 3',
     'handovers' => 'M3 7h18v13H3z M8 7V4h8v3 M8 13h8 M12 10v6',
     'locations' => 'M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0 M12 10a2 2 0 1 0 0 .01',
@@ -101,6 +112,12 @@ $rtInMore = !in_array($currentSection, $rtShortcuts, true);
 </aside>
 <header class="rt-top">
     <span>Workspace <b>/ <?= h($rtNavigation[$currentSection][0] ?? 'Repair operations') ?></b></span>
+    <?php if ($rtNotificationCount > 0): ?>
+        <a class="rt-unread" href="notifications.php"
+            aria-label="<?= (int) $rtNotificationCount ?> unread staff notifications">
+            Notifications · <?= (int) $rtNotificationCount ?>
+        </a>
+    <?php endif; ?>
     <?php if (array_sum($rtActivityCounts) > 0): ?>
         <a class="rt-unread" href="activity.php"
             aria-label="Open staff activity. Unread counts are available by category.">
