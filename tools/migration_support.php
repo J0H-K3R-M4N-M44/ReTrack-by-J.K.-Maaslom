@@ -24,7 +24,7 @@ function migrationHasColumn(PDO $pdo, string $table, string $column): bool
 function migrationPreflight(PDO $pdo): void
 {
     foreach (
-        ['users', 'repair_tickets', 'ticket_devices', 'ticket_status_events', 'repair_bills']
+        ['users', 'customers', 'customer_contacts', 'repair_tickets', 'ticket_devices', 'ticket_status_events', 'repair_bills']
         as $table
     ) {
         if (!migrationHasTable($pdo, $table)) {
