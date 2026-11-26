@@ -403,6 +403,8 @@ function cashIssueFinalBill(
             'BILL_ISSUED', 'Final bill issued',
             'A final bill is ready for ticket ' . $ticket['ticket_code'] . '.',
             'staff_home.php?view=cash',
+            null,
+            (string) $billId,
         );
         $pdo->commit();
         return $billId;
@@ -499,6 +501,8 @@ function cashRecordPayment(
             'PAYMENT_RECORDED', 'Counter cash received',
             'A counter-cash payment was recorded for ticket ' . $bill['ticket_code'] . '.',
             'staff_home.php?view=cash',
+            null,
+            (string) $paymentId,
         );
         $pdo->prepare('UPDATE repair_bills SET updated_at = UTC_TIMESTAMP() WHERE bill_id = ?')->execute([
             $billId,
