@@ -51,7 +51,6 @@ switch ($role) {
             ],
         ];
         $rtActions = [
-            ['New intake', 'Create a draft repair intake.', 'intake_create.php', 'intake'],
             ['Repair queue', 'Review assignments and the oldest updates.', 'staff_home.php?view=queue', 'queue'],
             ['Saved drafts', number_format($rtDraftTotal) . ' intake drafts not yet issued.', 'staff_home.php?view=drafts', 'drafts'],
             ['Cash desk', number_format($rtCashTotal) . ' issued bill records in your branch scope.', 'staff_home.php?view=cash', 'cash'],
@@ -87,7 +86,6 @@ switch ($role) {
             ],
         ];
         $rtActions = [
-            ['New intake', 'Register a device and capture its condition.', 'intake_create.php', 'intake'],
             ['Saved drafts', 'Reopen an incomplete intake record.', 'staff_home.php?view=drafts', 'drafts'],
             ['Repair queue', 'Check the current stage of issued devices.', 'staff_home.php?view=queue', 'queue'],
         ];
@@ -255,11 +253,6 @@ $rtSymbols = [
             <h2>At a glance</h2>
             <p>Counts and recent records reflect the access assigned to your account.</p>
         </div>
-        <?php if (in_array($role, ['ADMIN', 'MANAGER', 'INTAKE_AGENT'], true)): ?>
-            <a class="primary-btn" href="intake_create.php">
-                <span aria-hidden="true">+</span> New intake
-            </a>
-        <?php endif; ?>
     </div>
 
     <section class="rt-overview-cards" aria-label="<?= h($title) ?> metrics">
