@@ -35,6 +35,7 @@ on:
       - 'app/console/workspace.php'
       - 'js/workspace.js'
       - 'tests/workspace-browser.mjs'
+      - 'tests/consoles-browser.mjs'
       - 'tests/staff-workspace.php'
       - 'tests/staff-consoles.php'
       - '.github/workflows/mvp-stabilization.yml'
@@ -201,7 +202,7 @@ jobs:
           curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
           node tests/workspace-browser.mjs
           case "${{ matrix.suite }}" in
-            quotes) node tests/quotes-browser.mjs && node tests/storage-locations-browser.mjs ;;
+            quotes) node tests/quotes-browser.mjs && node tests/storage-locations-browser.mjs && node tests/consoles-browser.mjs ;;
             public) php tests/public-tracking.php && node tests/mvp-accessibility-browser.mjs && node tests/public-browser.mjs ;;
             *) exit 2 ;;
           esac
@@ -220,5 +221,9 @@ jobs:
             workspace-overview-*.png
             workspace-board-desktop.png
             workspace-cash-mobile.png
+            technician-console.png
+            technician-mobile.png
+            courier-console.png
+            quick-intake-mobile.png
           retention-days: 7
           if-no-files-found: ignore
