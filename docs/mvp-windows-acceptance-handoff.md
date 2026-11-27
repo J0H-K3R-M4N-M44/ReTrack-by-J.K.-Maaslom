@@ -31,7 +31,7 @@ Before backing up, stop fictional shop activity for a maintenance window: a MySQ
 - Compare source and restored table names/counts, issued and closed tickets, paid bill totals, ticket status events and custody, referenced signature/condition-photo paths, inventory evidence references and SHA-256 hashes. Test HTTP denial of direct private file access.
 - Re-run a customer tracking code/PIN check and role-isolated staff access against only the restored environment, then record the actual elapsed time, errors and approved recovery objectives.
 
-The completed Linux CI rehearsal verified **47 tables, two cash entries totaling PHP 375, customer custody and byte-identical private file directories**. It does not prove that an arbitrary real Windows machine or actively used production database can be restored.
+The first passing Linux CI rehearsal verified **47 tables**. The latest branch-head run [45591077274](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45591077274) verified **48 base tables with matching row counts**, two cash entries totaling PHP 375, customer custody, database-linked intake evidence and byte-identical private-file manifests. These are disposable CI results; they do not prove that an arbitrary real Windows machine or actively used production database can be restored.
 
 ## 4. Human decision register
 
