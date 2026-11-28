@@ -25,6 +25,13 @@ try {
     }
 
     $config = databaseConfig();
+    $configuredHost = strtolower(trim((string) ($config['host'] ?? 'localhost')));
+    if (!in_array($configuredHost, ['localhost', '127.0.0.1', '::1'], true)) {
+        throw new RuntimeException(
+            'Refusing to seed a remote database. Use a local MySQL host for this test-only command.',
+        );
+    }
+
     $configuredDatabase = (string) ($config['database'] ?? '');
     if (!preg_match('/^repairtrack_test_[a-zA-Z0-9_]+$/', $configuredDatabase)) {
         throw new RuntimeException(
