@@ -40,6 +40,7 @@ on:
       - 'admin/staff_home.php'
       - 'app/console/workspace.php'
       - 'js/workspace.js'
+      - 'js/workspace-design.js'
       - 'tests/workspace-browser.mjs'
       - 'tests/consoles-browser.mjs'
       - 'tests/staff-workspace.php'
@@ -230,7 +231,11 @@ jobs:
             mvp-history-mobile.png
             workspace-overview-*.png
             workspace-board-desktop.png
-            workspace-cash-mobile.png
+            workspace-board-mobile-*.png
+            workspace-history-desktop.png
+            workspace-history-mobile-*.png
+            workspace-mobile-dock-more-*.png
+            workspace-cash-mobile-*.png
             technician-console.png
             technician-mobile.png
             courier-console.png

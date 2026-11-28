@@ -37,13 +37,25 @@
       links.forEach(link => { link.hidden = !link.textContent.toLowerCase().includes(query); });
       document.querySelector('#rt-no-results').hidden = links.some(link => !link.hidden);
     };
-    function openMenu() { menu.open = true; search.focus(); }
-    document.querySelector('#rt-more').onclick = event => { event.preventDefault(); openMenu(); };
+    let menuTrigger = null;
+    function openMenu(trigger) {
+      menuTrigger = trigger;
+      menu.open = true;
+      search.focus();
+    }
+    const more = document.querySelector('#rt-more');
+    more.onclick = event => { event.preventDefault(); openMenu(more); };
+    menu.addEventListener('toggle', () => {
+      if (!menu.open) menuTrigger = null;
+    });
     document.addEventListener('keydown', event => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault(); openMenu();
+        event.preventDefault(); openMenu(menu.querySelector('summary'));
       } else if (event.key === 'Escape' && menu.open) {
-        menu.open = false; menu.querySelector('summary').focus();
+        const trigger = menuTrigger || menu.querySelector('summary');
+        menu.open = false;
+        menuTrigger = null;
+        trigger.focus();
       }
     });
     document.addEventListener('click', event => {
