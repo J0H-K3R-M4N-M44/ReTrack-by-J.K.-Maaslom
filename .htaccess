@@ -1,0 +1,15 @@
+# RepairTrack Apache web-root defense in depth.
+# Keep the preferred deployment docroot public-only, with config/evidence outside it.
+# This file only controls direct HTTP access; PHP require/include still works.
+# Requires Apache 2.4 with mod_rewrite and AllowOverride permitted.
+Options -Indexes
+RewriteEngine On
+
+# Direct HTTP access to application internals is never needed by the UI.
+RewriteRule ^(?:app|config|database|docs|tests|tools|views|storage|\.git|\.github)(?:/|$) - [F,L,NC]
+
+# Reject dotfiles such as .env/.gitignore while permitting ACME challenges.
+RewriteRule (^|/)\.(?!well-known(?:/|$)) - [F,L,NC]
+
+# Reject common source, backup, and operational files anywhere in the site.
+RewriteRule \.(?:sql|env|ini|log|bak|backup|old|zip|tar|gz|tgz|key|pem|yml|yaml|md|txt|sh|ps1|json|lock)$ - [F,L,NC]
