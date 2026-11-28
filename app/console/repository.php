@@ -44,7 +44,7 @@ function consoleDevices(PDO $pdo, array $user, array $input): array
     }
     // Only the active repair queue needs an oldest-update-first attention order.
     $view = consoleView($user, $input);
-    $order = $view === 'queue'
+    $order = in_array($view, ['overview', 'queue'], true)
         ? 'updated_at ASC, ticket_device_id ASC'
         : 'updated_at DESC, ticket_device_id DESC';
     $page = dashboardPage(

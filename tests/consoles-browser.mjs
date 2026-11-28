@@ -28,7 +28,7 @@ async function staff(role) {
 }
 try {
   const manager = await staff('MANAGER');
-  assert(await manager.getByRole('heading', { name: 'Manager console' }).isVisible());
+  assert(await manager.getByRole('heading', { name: 'Branch overview' }).isVisible());
   assert.equal((await manager.request.get(url + '/admin/staff.php')).status(), 403);
   assert.equal(
     (await manager.request.get(url + '/admin/device.php?id=' + fixture.outside)).status(),
@@ -68,7 +68,7 @@ try {
   assert.equal(await viewer.getByRole('button', { name: 'Review progress' }).count(), 0);
   assert.equal((await viewer.request.get(url + '/admin/intake_create.php')).status(), 403);
   const courier = await staff('COURIER');
-  assert(await courier.getByRole('heading', { name: 'Courier console' }).isVisible());
+  assert(await courier.getByRole('heading', { name: 'Transfer overview' }).isVisible());
   assert.equal(
     (await courier.request.get(url + '/admin/device.php?id=' + fixture.device)).status(),
     403
@@ -76,7 +76,7 @@ try {
   await courier.screenshot({ path: site + '/courier-console.png', fullPage: true });
 
   const intake = await staff('INTAKE_AGENT');
-  await intake.getByRole('link', { name: 'New device intake' }).click();
+  await intake.getByRole('link', { name: 'New intake' }).click();
   await intake.locator('[name=customer_name]').fill('Menu Browser Customer');
   await intake.locator('[name=contact_value]').fill('09178889999');
   await intake.locator('[name=device_type]').selectOption('Other');

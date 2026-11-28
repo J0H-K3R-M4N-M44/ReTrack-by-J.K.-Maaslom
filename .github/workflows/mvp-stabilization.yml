@@ -2,7 +2,7 @@ name: MVP dashboard usability regression
 
 on:
   push:
-    branches: [MVP-Stabilization, MVP-UX-Polish-2026-11-25]
+    branches: [MVP-Stabilization, MVP-UX-Polish-2026-11-25, MVP-Role-Overviews-2026-11-26]
     paths:
       - 'admin/dashboard.php'
       - 'css/dashboard.css'
@@ -29,7 +29,13 @@ on:
       - 'app/console/repository.php'
       - 'app/public/tracking.php'
       - 'views/console/home.php'
+      - 'views/console/overview.php'
       - 'views/console/device.php'
+      - 'admin/staff_home.php'
+      - 'app/console/workspace.php'
+      - 'js/workspace.js'
+      - 'tests/workspace-browser.mjs'
+      - 'tests/consoles-browser.mjs'
       - 'tests/staff-workspace.php'
       - 'tests/staff-consoles.php'
       - '.github/workflows/mvp-stabilization.yml'
@@ -180,7 +186,7 @@ jobs:
           php tests/storage-locations.php
           case "${{ matrix.suite }}" in
             quotes) php tests/quotes.php ;;
-            public) php tests/public-tracking.php ;;
+            public) : ;; # Public tracking mutates its fixture; run it after the workspace overview check.
             *) exit 2 ;;
           esac
       - name: Exercise real quote or tracking HTTP views in Chrome
@@ -189,13 +195,15 @@ jobs:
           npm install --no-save --package-lock=false playwright-core@1.56.1
           export REPAIRTRACK_TEST_SITE="$GITHUB_WORKSPACE"
           export CHROME_PATH="$(command -v google-chrome)"
+          export REPAIRTRACK_TEST_URL="http://127.0.0.1:8742"
           php -S 127.0.0.1:8742 > "$RUNNER_TEMP/portal-server.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
+          node tests/workspace-browser.mjs
           case "${{ matrix.suite }}" in
-            quotes) node tests/quotes-browser.mjs && node tests/storage-locations-browser.mjs ;;
-            public) node tests/mvp-accessibility-browser.mjs && node tests/public-browser.mjs ;;
+            quotes) node tests/quotes-browser.mjs && node tests/storage-locations-browser.mjs && node tests/consoles-browser.mjs ;;
+            public) php tests/public-tracking.php && node tests/mvp-accessibility-browser.mjs && node tests/public-browser.mjs ;;
             *) exit 2 ;;
           esac
       - name: Upload fictional quote/customer tracking screenshots
@@ -210,5 +218,12 @@ jobs:
             mvp-queue-mobile.png
             mvp-board-mobile.png
             mvp-history-mobile.png
+            workspace-overview-*.png
+            workspace-board-desktop.png
+            workspace-cash-mobile.png
+            technician-console.png
+            technician-mobile.png
+            courier-console.png
+            quick-intake-mobile.png
           retention-days: 7
           if-no-files-found: ignore

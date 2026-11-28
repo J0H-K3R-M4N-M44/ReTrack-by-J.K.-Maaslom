@@ -118,6 +118,7 @@ try {
   await page.locator('[name=password]').fill(['ConsoleDemo', '2026!'].join(''));
   await page.getByRole('button', { name: 'Login', exact: true }).click();
   await page.waitForURL('**/staff_home.php');
+  await page.getByRole('link', { name: 'Repair queue', exact: true }).click();
   await page.locator('#queue-status').selectOption('DIAGNOSING');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   assert.equal(new URL(page.url()).searchParams.get('status'), 'DIAGNOSING');
@@ -307,7 +308,7 @@ try {
   });
   await page.screenshot({ path: site + '/mvp-history-mobile.png', fullPage: false });
 
-  await page.goto(url + '/admin/staff_home.php');
+  await page.goto(url + '/admin/staff_home.php?view=queue');
   await page.setViewportSize({ width: 390, height: 900 });
   const queueTable = page.locator('#work-list .workspace-table');
   const queueRow = queueTable.locator('tbody tr').first();
