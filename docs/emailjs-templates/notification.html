@@ -9,8 +9,6 @@
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
     <tr><td style="padding:24px 28px;background:#0b1f3f;color:#ffffff;font-size:20px;font-weight:bold;">RepairTrack</td></tr>
     <tr><td style="padding:30px 28px;">
-      <p style="margin:0 0 18px;">Hello {{to_name}},</p>
-
       {{#show_customer_update}}
       <h1 style="margin:0 0 16px;font-size:23px;color:#0b1f3f;">Your repair has an update</h1>
       <p style="line-height:1.6;">Hello {{customer_name}}, here is the latest customer-visible update for your device.</p>
@@ -40,6 +38,7 @@
       {{/show_customer_payment}}
 
       {{#show_staff_alert}}
+      <p style="margin:0 0 18px;">Hello {{to_name}},</p>
       <h1 style="margin:0 0 12px;font-size:23px;color:#0b1f3f;">{{title}}</h1>
       <p style="display:inline-block;margin:0 0 18px;padding:6px 10px;background:#fff3e6;color:#8a4b08;border-radius:5px;font-size:12px;font-weight:bold;">{{event_type}}</p>
       <p style="line-height:1.6;white-space:pre-line;">{{message}}</p>
