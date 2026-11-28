@@ -12,6 +12,7 @@
 - The command requires the exact `--confirm` argument.
 - It verifies that the configured database matches the connected database.
 - It checks for the tables used by the fixture before starting a transaction.
+- It verifies that every table used by the fixture uses InnoDB, so transaction rollback is meaningful.
 - The shared simulation fixture refuses to create a second `SIM-SOGOD` branch.
 - A seeding error rolls back the transaction.
 - The generated password is printed once to the local terminal. Store it only in a safe local note if needed; never commit it or reuse it outside the disposable database.
