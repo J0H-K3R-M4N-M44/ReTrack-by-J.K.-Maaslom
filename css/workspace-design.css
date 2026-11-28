@@ -713,3 +713,36 @@ body.rt-layout { min-height:100vh; color:var(--rt-text); background:linear-gradi
     text-align: start;
   }
 }
+
+
+/* Keep the mobile workspace title, unread links and menu within the viewport.
+   Unread links are separate grid rows so long labels never push the menu off-screen. */
+@media (max-width: 767px) {
+  .rt-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 4px 8px;
+  }
+  .rt-top > span {
+    grid-column: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .rt-top > .rt-unread {
+    grid-column: 1;
+    justify-self: start;
+    min-width: 0;
+    max-width: 100%;
+    margin-inline-start: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+  #rt-menu {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    justify-self: end;
+    min-width: 0;
+  }
+}

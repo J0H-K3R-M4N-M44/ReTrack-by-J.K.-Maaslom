@@ -1,10 +1,31 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../quotes/repository.php';
+require_once __DIR__ . '/../notifications.php';
 
 function cashCanOpen(array $user): bool
 {
     return in_array($user['role'] ?? '', ['ADMIN', 'MANAGER', 'CASHIER'], true);
+}
+
+// MySQL can deadlock when a transaction writes per-recipient notifications
+// while another request holds that recipient's user row. Retry only the whole
+// idempotent cash operation; never retry an individual statement in-place.
+function cashRetryDeadlock(callable $operation): mixed
+{
+    for ($attempt = 0; ; $attempt++) {
+        try {
+            return $operation();
+        } catch (PDOException $error) {
+            $driverCode = (int) ($error->errorInfo[1] ?? 0);
+            $sqlState = (string) $error->getCode();
+            $retryable = in_array($driverCode, [1205, 1213], true) || $sqlState === '40001';
+            if (!$retryable || $attempt >= 2) {
+                throw $error;
+            }
+            usleep(random_int(25000, 75000) * ($attempt + 1));
+        }
+    }
 }
 
 function cashAmountCents(string $value): int
@@ -237,9 +258,22 @@ function cashCancelDevice(PDO $pdo, array $device, int $actorId, string $reason)
         (ticket_device_id, from_status, to_status, actor_type, actor_user_id, internal_note,
         public_summary, is_customer_visible, created_at) VALUES (?, ?, 'CANCELLED', 'USER', ?, ?,
         'Approved for as-is return.', 1, UTC_TIMESTAMP())")->execute([$id, $device['repair_status'], $actorId, $reason]);
+    notificationAfterStatusEvent($pdo, $id, (int) $pdo->lastInsertId());
 }
 
 function cashIssueFinalBill(
+    PDO $pdo,
+    int $actorId,
+    int $ticketId,
+    string $expectedVersion,
+    ?array $cancellation = null,
+): int {
+    return cashRetryDeadlock(
+        static fn(): int => cashIssueFinalBillAttempt($pdo, $actorId, $ticketId, $expectedVersion, $cancellation),
+    );
+}
+
+function cashIssueFinalBillAttempt(
     PDO $pdo,
     int $actorId,
     int $ticketId,
@@ -396,6 +430,14 @@ function cashIssueFinalBill(
             'bill_number' => $billNumber,
             'total_amount' => $amount,
         ]);
+        notificationStaffEvent(
+            $pdo, $ticketId, null, (int) $ticket['accountable_branch_id'],
+            'BILL_ISSUED', 'Final bill issued',
+            'A final bill is ready for ticket ' . $ticket['ticket_code'] . '.',
+            'staff_home.php?view=cash',
+            null,
+            (string) $billId,
+        );
         $pdo->commit();
         return $billId;
     } catch (Throwable $error) {
@@ -452,6 +494,19 @@ function cashRecordPayment(
     string $amountText,
     string $requestKey,
 ): void {
+    cashRetryDeadlock(
+        static fn(): mixed => cashRecordPaymentAttempt($pdo, $actorId, $billId, $expectedVersion, $amountText, $requestKey),
+    );
+}
+
+function cashRecordPaymentAttempt(
+    PDO $pdo,
+    int $actorId,
+    int $billId,
+    string $expectedVersion,
+    string $amountText,
+    string $requestKey,
+): void {
     $amountCents = cashAmountCents($amountText);
     if ($amountCents <= 0 || !preg_match('/^[a-f0-9]{64}$/D', $requestKey)) {
         throw new DomainException('Enter a valid amount and reopen the payment form.');
@@ -480,6 +535,20 @@ function cashRecordPayment(
             (bill_id, payment_method, amount, request_key, received_by_user_id, received_at)
             VALUES (?, 'COUNTER_CASH', ?, ?, ?, UTC_TIMESTAMP())",
         )->execute([$billId, cashAmountText($amountCents), $requestKey, $actorId]);
+        $paymentId = (int) $pdo->lastInsertId();
+        $remaining = cashAmountText($balance - $amountCents);
+        notificationCustomerPayment(
+            $pdo, (int) $bill['ticket_id'], $paymentId,
+            cashAmountText($amountCents), $remaining,
+        );
+        notificationStaffEvent(
+            $pdo, (int) $bill['ticket_id'], null, (int) $bill['accountable_branch_id'],
+            'PAYMENT_RECORDED', 'Counter cash received',
+            'A counter-cash payment was recorded for ticket ' . $bill['ticket_code'] . '.',
+            'staff_home.php?view=cash',
+            null,
+            (string) $paymentId,
+        );
         $pdo->prepare('UPDATE repair_bills SET updated_at = UTC_TIMESTAMP() WHERE bill_id = ?')->execute([
             $billId,
         ]);
@@ -615,6 +684,22 @@ function cashCompleteHandover(
     string $relationship,
     string $conditionConfirmed,
 ): void {
+    cashRetryDeadlock(
+        static fn(): mixed => cashCompleteHandoverAttempt(
+            $pdo, $actorId, $billId, $expectedVersion, $recipient, $relationship, $conditionConfirmed,
+        ),
+    );
+}
+
+function cashCompleteHandoverAttempt(
+    PDO $pdo,
+    int $actorId,
+    int $billId,
+    string $expectedVersion,
+    string $recipient,
+    string $relationship,
+    string $conditionConfirmed,
+): void {
     $recipient = trim($recipient);
     if (
         $recipient === '' ||
@@ -667,6 +752,7 @@ function cashCompleteHandover(
                 VALUES (?, ?, ?, 'USER', ?, ?,
                     'Device returned to the customer.', 1, UTC_TIMESTAMP())",
             )->execute([$deviceId, $device['repair_status'], $returnedStatus, $actorId, $internalNote]);
+            notificationAfterStatusEvent($pdo, $deviceId, (int) $pdo->lastInsertId());
             $pdo->prepare(
                 "INSERT INTO device_custody_events
                 (ticket_device_id, event_type, from_location_id, performed_by_user_id, note, happened_at)

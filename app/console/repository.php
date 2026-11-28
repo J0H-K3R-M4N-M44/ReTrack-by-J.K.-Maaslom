@@ -6,6 +6,7 @@ require_once __DIR__ . '/../intake/repository.php';
 
 // Ticket scope is shared by lists, details and writes.
 require_once __DIR__ . '/../inventory/reservations.php';
+require_once __DIR__ . '/../notifications.php';
 
 function consoleScope(array $user): array
 {
@@ -231,6 +232,7 @@ function consoleSave(PDO $pdo, int $actorId, int $id, string $version, array $in
                 $publicMessage ?: null,
                 (int) ($status !== $device['repair_status'] || $publicMessage !== ''),
             ]);
+            notificationAfterStatusEvent($pdo, $id, (int) $pdo->lastInsertId());
             if ($publicMessage !== '') {
                 $pdo->prepare(
                     'UPDATE ticket_devices SET public_summary = ? WHERE ticket_device_id = ?',
@@ -250,6 +252,20 @@ function consoleSave(PDO $pdo, int $actorId, int $id, string $version, array $in
             $action === 'assign' ? 'TECHNICIAN_ASSIGNED' : 'TECHNICIAN_PROGRESS',
             json_encode($details, JSON_THROW_ON_ERROR),
         ]);
+        if ($action === 'assign') {
+            notificationStaffEvent(
+                $pdo,
+                (int) $device['ticket_id'],
+                $id,
+                (int) $device['accountable_branch_id'],
+                'DEVICE_ASSIGNED',
+                'New repair assigned',
+                'Ticket ' . $device['ticket_code'] . ' has been assigned to you.',
+                'device.php?id=' . $id,
+                (int) $details['assigned_technician_id'],
+                (string) $pdo->lastInsertId(),
+            );
+        }
         $pdo->commit();
     } catch (Throwable $error) {
         if ($pdo->inTransaction()) {

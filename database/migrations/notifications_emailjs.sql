@@ -1,0 +1,97 @@
+-- Existing customers need an explicit recorded permission before email updates are queued.
+SET @email_consent_sql = IF(
+  EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customer_contacts'
+      AND COLUMN_NAME = 'email_updates_consent_at'
+  ),
+  'DO 0',
+  'ALTER TABLE customer_contacts ADD COLUMN email_updates_consent_at DATETIME NULL AFTER verified_at'
+);
+PREPARE email_consent_change FROM @email_consent_sql;
+EXECUTE email_consent_change;
+DEALLOCATE PREPARE email_consent_change;
+
+-- Separate staff inbox entries from customer email delivery.
+-- Staff notifications are recipient-specific; customer messages use a retryable outbox.
+CREATE TABLE IF NOT EXISTS staff_notifications (
+  staff_notification_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  branch_id BIGINT UNSIGNED NULL,
+  ticket_id BIGINT UNSIGNED NULL,
+  ticket_device_id BIGINT UNSIGNED NULL,
+  event_type VARCHAR(60) NOT NULL,
+  title VARCHAR(160) NOT NULL,
+  message VARCHAR(500) NOT NULL,
+  target_path VARCHAR(255) NOT NULL,
+  dedupe_key CHAR(64) NOT NULL,
+  read_at DATETIME NULL,
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (staff_notification_id),
+  UNIQUE KEY uq_staff_notification_dedupe (dedupe_key),
+  KEY idx_staff_notification_inbox (user_id, read_at, created_at),
+  KEY idx_staff_notification_branch (branch_id, created_at),
+  CONSTRAINT fk_staff_notification_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_staff_notification_branch FOREIGN KEY (branch_id) REFERENCES branches(branch_id),
+  CONSTRAINT fk_staff_notification_ticket FOREIGN KEY (ticket_id) REFERENCES repair_tickets(ticket_id),
+  CONSTRAINT fk_staff_notification_device FOREIGN KEY (ticket_device_id) REFERENCES ticket_devices(ticket_device_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS customer_email_outbox (
+  customer_email_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  customer_id BIGINT UNSIGNED NOT NULL,
+  ticket_id BIGINT UNSIGNED NOT NULL,
+  ticket_device_id BIGINT UNSIGNED NULL,
+  status_event_id BIGINT UNSIGNED NULL,
+  recipient_email VARCHAR(190) NOT NULL,
+  template_key VARCHAR(60) NOT NULL,
+  template_params JSON NOT NULL,
+  dedupe_key CHAR(64) NOT NULL,
+  delivery_status ENUM('QUEUED','SENDING','SENT','FAILED') NOT NULL DEFAULT 'QUEUED',
+  attempt_count TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  next_attempt_at DATETIME NOT NULL,
+  sent_at DATETIME NULL,
+  provider_message_id VARCHAR(190) NULL,
+  last_error VARCHAR(500) NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  PRIMARY KEY (customer_email_id),
+  UNIQUE KEY uq_customer_email_dedupe (dedupe_key),
+  KEY idx_customer_email_due (delivery_status, next_attempt_at, customer_email_id),
+  KEY idx_customer_email_ticket (ticket_id, created_at),
+  CONSTRAINT fk_customer_email_customer FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
+  CONSTRAINT fk_customer_email_ticket FOREIGN KEY (ticket_id) REFERENCES repair_tickets(ticket_id),
+  CONSTRAINT fk_customer_email_device FOREIGN KEY (ticket_device_id) REFERENCES ticket_devices(ticket_device_id),
+  CONSTRAINT fk_customer_email_event FOREIGN KEY (status_event_id) REFERENCES ticket_status_events(status_event_id)
+) ENGINE=InnoDB;
+
+-- A separate outbox keeps staff recipients and event routing independent from customers.
+CREATE TABLE IF NOT EXISTS staff_email_outbox (
+  staff_email_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id BIGINT UNSIGNED NOT NULL,
+  staff_notification_id BIGINT UNSIGNED NULL,
+  branch_id BIGINT UNSIGNED NULL,
+  ticket_id BIGINT UNSIGNED NULL,
+  ticket_device_id BIGINT UNSIGNED NULL,
+  event_type VARCHAR(60) NOT NULL,
+  recipient_email VARCHAR(190) NOT NULL,
+  template_key VARCHAR(60) NOT NULL DEFAULT 'staff_alert',
+  template_params JSON NOT NULL,
+  dedupe_key CHAR(64) NOT NULL,
+  delivery_status ENUM('QUEUED','SENDING','SENT','FAILED') NOT NULL DEFAULT 'QUEUED',
+  attempt_count TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  next_attempt_at DATETIME NOT NULL,
+  sent_at DATETIME NULL,
+  last_error VARCHAR(500) NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  PRIMARY KEY (staff_email_id),
+  UNIQUE KEY uq_staff_email_dedupe (dedupe_key),
+  KEY idx_staff_email_due (delivery_status, next_attempt_at, staff_email_id),
+  KEY idx_staff_email_user (user_id, created_at),
+  CONSTRAINT fk_staff_email_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_staff_email_notification FOREIGN KEY (staff_notification_id) REFERENCES staff_notifications(staff_notification_id),
+  CONSTRAINT fk_staff_email_branch FOREIGN KEY (branch_id) REFERENCES branches(branch_id),
+  CONSTRAINT fk_staff_email_ticket FOREIGN KEY (ticket_id) REFERENCES repair_tickets(ticket_id),
+  CONSTRAINT fk_staff_email_device FOREIGN KEY (ticket_device_id) REFERENCES ticket_devices(ticket_device_id)
+) ENGINE=InnoDB;

@@ -36,6 +36,7 @@ The runner applies the supported pending migrations in dependency order from `da
 13. `part_acquisition_cost_records.sql` — reviewed acquisition-cost evidence and valuation link.
 14. `inventory_stocktaking.sql` — monthly physical stocktake records.
 15. `repair_part_requests.sql` — technician-to-manager parts requests.
+16. `notifications_emailjs.sql` — customer email consent timestamp, separate staff inbox and customer/staff email outboxes.
 
 It checks the resulting schema and reports success. Already-applied steps are skipped; manual Workbench upgrades are recognized too. No new migration-history table is required. Quote-and-Approval uses existing tables.
 
@@ -58,7 +59,7 @@ MySQL DDL commits immediately. The runner does not promise all-or-nothing rollba
 
 Only one runner can upgrade the same database at a time using a MySQL advisory lock. That lock does not pause normal application requests. The database account needs the privileges required by the supplied scripts, including CREATE/ALTER and CREATE ROUTINE/ALTER ROUTINE/EXECUTE for the workspace procedure. A missing core schema stops the runner; fresh installations still use `database/schema.sql`.
 
-The statement reader supports the 15 bundled migration files, including the DELIMITER commands used by the workspace migration. It is not a general SQL importer. Future migrations need an explicit pending-state check and an entry in the ordered list. Status checks verify these supported upgrade markers, not every possible schema modification.
+The statement reader supports the 16 bundled migration files, including the DELIMITER commands used by the workspace migration. It is not a general SQL importer. Future migrations need an explicit pending-state check and an entry in the ordered list. Status checks verify these supported upgrade markers, not every possible schema modification.
 
 ## Regression test
 

@@ -5,6 +5,7 @@ require_once __DIR__ . '/rules.php';
 require_once __DIR__ . '/repository.php';
 require_once __DIR__ . '/drafts.php';
 require_once __DIR__ . '/evidence.php';
+require_once __DIR__ . '/../notifications.php';
 
 function intakeIssueDraft(PDO $pdo, int $ticketId, int $userId, bool $lock = false): array
 {
@@ -199,6 +200,8 @@ function intakeIssueTicket(
             $evidence['signed_form']['name'],
             $ticketId,
         ]);
+        $firstStatusEventId = 0;
+        $firstDeviceId = 0;
         foreach (intakeIssueEntries($draft, $values) as $index => [$entry, $details]) {
             $deviceId = (int) $entry['ticket_device_id'];
             $photoKey = $index === 0 ? 'photo' : 'photo_' . ($index + 1);
@@ -314,6 +317,10 @@ function intakeIssueTicket(
                 "INSERT INTO ticket_status_events (ticket_device_id, from_status, to_status, actor_type, actor_user_id, reason_code, public_summary, is_customer_visible, created_at) VALUES (?, 'DRAFT', 'RECEIVED', 'USER', ?, 'INTAKE_ISSUED', 'Received for assessment.', 1, UTC_TIMESTAMP())",
             );
             $event->execute([$deviceId, $userId]);
+            if ($firstStatusEventId === 0) {
+                $firstStatusEventId = (int) $pdo->lastInsertId();
+                $firstDeviceId = $deviceId;
+            }
         }
         $audit = $pdo->prepare(
             "INSERT INTO audit_events (actor_type, actor_user_id, entity_type, entity_id, action, after_data, created_at) VALUES ('USER', ?, 'repair_ticket', ?, 'TICKET_ISSUED', ?, UTC_TIMESTAMP())",
@@ -331,6 +338,10 @@ function intakeIssueTicket(
                 JSON_THROW_ON_ERROR,
             ),
         ]);
+        if ($firstStatusEventId > 0 && $firstDeviceId > 0) {
+            // A single ticket-level customer email is enough for a multi-device intake.
+            notificationAfterStatusEvent($pdo, $firstDeviceId, $firstStatusEventId);
+        }
         $pdo->commit();
         return $ticketCode;
     } catch (Throwable $error) {

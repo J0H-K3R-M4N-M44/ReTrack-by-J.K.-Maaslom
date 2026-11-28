@@ -1,13 +1,14 @@
 name: Staff activity isolation
 on:
   push:
-    branches: [Tracking-And-Activity-UX, Intake-Evidence-Checks, Intake-Customer-Search, Device-Handovers, Loss-Status-Schema-Hotfix, Inventory-Evidence-Attachments, Inventory-Loss-Valuation, Verified-Parts-Cost-Register, Periodic-Stocktaking-Signoff, main, MVP-Stabilization, MVP-UX-Polish-2026-11-25, MVP-Role-Overviews-2026-11-26]
+    branches: [Tracking-And-Activity-UX, Intake-Evidence-Checks, Intake-Customer-Search, Device-Handovers, Loss-Status-Schema-Hotfix, Inventory-Evidence-Attachments, Inventory-Loss-Valuation, Verified-Parts-Cost-Register, Periodic-Stocktaking-Signoff, main, MVP-Stabilization, MVP-UX-Polish-2026-11-25, MVP-Role-Overviews-2026-11-26, MVP-EmailJS-Notifications-2026-11-26]
     paths:
       - '.github/workflows/staff-activity.yml'
       - 'tests/*.php'
       - 'tools/*.php'
       - 'admin/*.php'
       - 'database/*.sql'
+      - 'database/migrations/**'
       - 'track.php'
       - 'tests/activity-browser.mjs'
       - 'tests/mvp-staff-accessibility.mjs'
@@ -41,6 +42,7 @@ jobs:
           return ['host' => '127.0.0.1', 'database' => 'repairtrack_test_activity',
               'username' => 'root', 'password' => getenv('MYSQL_PWD')];
           PHP
+          php tests/emailjs.php
           php tests/staff-activity.php
       - name: Verify signed-in desktop and mobile inboxes
         env:

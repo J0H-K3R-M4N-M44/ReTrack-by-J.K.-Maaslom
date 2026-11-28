@@ -36,6 +36,10 @@ function runMigrationTest(array $args, string $input = ''): array
 $users = $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
 $tickets = $pdo->query('SELECT COUNT(*) FROM repair_tickets')->fetchColumn();
 // Simulate the pre-workspace schema only inside the disposable fixture database.
+$pdo->exec('DROP TABLE IF EXISTS staff_email_outbox');
+$pdo->exec('DROP TABLE IF EXISTS customer_email_outbox');
+$pdo->exec('DROP TABLE IF EXISTS staff_notifications');
+$pdo->exec('ALTER TABLE customer_contacts DROP COLUMN email_updates_consent_at');
 $pdo->exec('DROP TABLE IF EXISTS password_reset_tokens');
 $pdo->exec('DROP TABLE IF EXISTS repair_bill_payments');
 $pdo->exec(
@@ -67,6 +71,11 @@ migrationAssert(
     'Upgrade failed: ' . $output,
 );
 migrationAssert(migrationPending($pdo) === [], 'Upgrade still pending');
+migrationAssert(migrationHasColumn($pdo, 'customer_contacts', 'email_updates_consent_at'),
+    'Customer email consent migration missing.');
+migrationAssert(migrationHasTable($pdo, 'staff_notifications'), 'Staff inbox migration missing.');
+migrationAssert(migrationHasTable($pdo, 'customer_email_outbox'), 'Customer email outbox migration missing.');
+migrationAssert(migrationHasTable($pdo, 'staff_email_outbox'), 'Staff email outbox migration missing.');
 [$code, $output] = runMigrationTest(['--apply', '--yes']);
 migrationAssert(
     $code === 0 && str_contains($output, 'No changes needed'),
