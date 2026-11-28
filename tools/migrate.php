@@ -69,7 +69,7 @@ try {
     // Recheck after acquiring the lock, since another runner may have completed.
     foreach (migrationPending($pdo) as $filename) {
         echo "Applying $filename ... ";
-        migrationRunFile($pdo, __DIR__ . '/../database/' . $filename);
+        migrationRunFile($pdo, __DIR__ . '/../database/migrations/' . $filename);
         echo "done\n";
     }
     if (migrationPending($pdo)) {
