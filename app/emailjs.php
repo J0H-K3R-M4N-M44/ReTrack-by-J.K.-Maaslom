@@ -21,6 +21,25 @@ function emailJsTemplateConfigKey(string $templateKey): ?string
     };
 }
 
+function emailJsTemplateParamsForMode(string $templateKey, array $templateParams): array
+{
+    $renderFlags = [
+        'customer_update' => 'show_customer_update',
+        'customer_payment' => 'show_customer_payment',
+        'staff_alert' => 'show_staff_alert',
+    ];
+
+    if (!isset($renderFlags[$templateKey])) {
+        return $templateParams;
+    }
+
+    foreach ($renderFlags as $logicalKey => $flag) {
+        $templateParams[$flag] = $logicalKey === $templateKey;
+    }
+
+    return $templateParams;
+}
+
 function emailJsTemplateReady(array $config, string $templateKey): bool
 {
     $configKey = emailJsTemplateConfigKey($templateKey);
@@ -117,6 +136,7 @@ function emailJsSendTemplate(
 
     $configKey = emailJsTemplateConfigKey($templateKey);
     $templates = $config['emailjs_templates'];
+    $templateParams = emailJsTemplateParamsForMode($templateKey, $templateParams);
     $payload = [
         'service_id' => trim((string) $config['emailjs_service_id']),
         'template_id' => trim((string) $templates[$configKey]),
