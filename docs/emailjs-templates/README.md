@@ -1,40 +1,48 @@
 # EmailJS template source files
 
-These files are ready-to-paste HTML bodies for the four EmailJS templates documented in [emailjs-notifications.md](../emailjs-notifications.md).
+These are the two HTML bodies to paste into the EmailJS dashboard. They cover all RepairTrack email use cases while staying within a two-template account limit.
 
-## Create the templates in EmailJS
+## Templates
+
+1. **[password-reset.html](password-reset.html)** — password recovery only.
+2. **[notification.html](notification.html)** — customer repair updates, customer payment notices, and optional staff alerts.
+
+## Dashboard setup
 
 For each template:
+
 1. Open EmailJS Dashboard → Email Templates → Create New Template.
 2. Set **To Email** to `{{to_email}}`.
 3. Set **To Name** to `{{to_name}}`.
-4. Set **Subject** to `{{subject}}` (or use a fixed subject listed below).
-5. Open the HTML/code editor and paste the matching file's complete contents.
-6. Save and send a test using synthetic data before connecting it to RepairTrack.
+4. Set **Subject** to `{{subject}}`.
+5. Paste the complete matching HTML file into the template body and save.
+6. Send a test with synthetic data before connecting it to RepairTrack.
 7. Copy the generated template ID into the matching local `emailjs_templates` config value.
 
-| File | Suggested subject | Required template ID config |
+| File | Suggested subject | Config key |
 |---|---|---|
-| [password-reset.html](password-reset.html) | RepairTrack password reset | `password_reset` |
-| [customer-update.html](customer-update.html) | Repair update for {{ticket_code}} | `customer_update` |
-| [customer-payment.html](customer-payment.html) | Payment information for {{ticket_code}} | `customer_payment` |
-| [staff-alert.html](staff-alert.html) | RepairTrack staff alert: {{event_type}} | `staff_alert` |
+| [password-reset.html](password-reset.html) | RepairTrack account password reset | `password_reset` |
+| [notification.html](notification.html) | Dynamic: `{{subject}}` | `notification` |
 
-## Variable names
+## Notification template modes
 
-All templates expect `to_email`, `to_name`, and `subject` for recipient configuration.
+The PHP sender continues to identify the logical message type in the outbox, then maps all notification types to the one `notification` template ID.
 
-- Password reset: `reset_url`, `expires_minutes`.
-- Customer update: `customer_name`, `ticket_code`, `device_label`, `status`, `message`, `branch_name`, `branch_phone`.
-- Customer payment: `customer_name`, `ticket_code`, `payment_amount`, `remaining_balance`, `branch_name`.
-- Staff alert: `event_type`, `title`, `message`, `ticket_code`, `branch_name`, `target_url`.
+| Mode | Rendering flag | Main fields |
+|---|---|---|
+| Customer update | `show_customer_update` | `customer_name`, `ticket_code`, `device_label`, `status`, `message`, `branch_name`, `branch_phone` |
+| Customer payment | `show_customer_payment` | `customer_name`, `ticket_code`, `payment_amount`, `remaining_balance`, `branch_name` |
+| Staff alert | `show_staff_alert` | `event_type`, `title`, `message`, `ticket_code`, `branch_name`, `target_url` |
 
-The HTML is template source only; creating files in GitHub does not create templates inside your EmailJS account. You must paste and save them in the dashboard and copy the resulting template IDs into local configuration. Do not paste private keys into template code or commit them.
+EmailJS conditional sections show only the active mode. All three modes also receive `to_email`, `to_name`, and `subject`.
 
 ## Security and test data
 
-- Use the EmailJS public key only where the EmailJS client library requires it. Keep the private key server-side in ignored local config, if used.
-- The password reset link is a one-time PHP-generated URL. Do not substitute an arbitrary token or use a static link.
-- Customer templates must receive only customer-safe fields. Never pass technician internal notes, customer portal PINs, passwords, reset tokens outside the reset URL, or private evidence.
-- Staff template recipients must be selected by RepairTrack's server-side role/branch routing, not by a user-editable template variable.
-- Test with synthetic names, ticket codes, and email addresses first.
+- Keep the EmailJS private key server-side in the ignored local `config/config.php`, if used. Never put it in a template, browser code, screenshot, or commit.
+- The password reset link is a one-time PHP-generated URL. Never substitute a static token or send it through the notification template.
+- Customer email is queued only when the customer has an explicit email-update consent timestamp.
+- Customer messages must contain only customer-safe fields. Never pass a portal PIN, internal notes, passwords, reset tokens outside the reset URL, private evidence, or staff-only information.
+- Staff recipients are selected by RepairTrack's server-side role/branch routing, not by a user-editable template variable.
+- Use synthetic names, ticket codes, and email addresses for all tests.
+
+The HTML files are source only. Adding them to GitHub does not create or update templates inside your EmailJS account. You must paste and save both templates in the dashboard and copy their IDs into local configuration.
