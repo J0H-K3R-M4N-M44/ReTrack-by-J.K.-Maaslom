@@ -12,13 +12,25 @@ function emailJsIsEnabled(array $config): bool
         !empty($config['emailjs_templates']);
 }
 
+function emailJsTemplateConfigKey(string $templateKey): ?string
+{
+    return match ($templateKey) {
+        'password_reset' => 'password_reset',
+        'customer_update', 'customer_payment', 'staff_alert' => 'notification',
+        default => null,
+    };
+}
+
 function emailJsTemplateReady(array $config, string $templateKey): bool
 {
+    $configKey = emailJsTemplateConfigKey($templateKey);
     $templates = $config['emailjs_templates'] ?? [];
-    return trim((string) ($config['emailjs_public_key'] ?? '')) !== '' &&
+
+    return $configKey !== null &&
+        trim((string) ($config['emailjs_public_key'] ?? '')) !== '' &&
         trim((string) ($config['emailjs_service_id'] ?? '')) !== '' &&
         is_array($templates) &&
-        trim((string) ($templates[$templateKey] ?? '')) !== '';
+        trim((string) ($templates[$configKey] ?? '')) !== '';
 }
 
 /** Return only the HTTP result; provider response bodies are not logged. */
@@ -103,10 +115,11 @@ function emailJsSendTemplate(
         throw new RuntimeException('EmailJS service or template is not configured.');
     }
 
+    $configKey = emailJsTemplateConfigKey($templateKey);
     $templates = $config['emailjs_templates'];
     $payload = [
         'service_id' => trim((string) $config['emailjs_service_id']),
-        'template_id' => trim((string) $templates[$templateKey]),
+        'template_id' => trim((string) $templates[$configKey]),
         'user_id' => trim((string) $config['emailjs_public_key']),
         'template_params' => $templateParams,
     ];
