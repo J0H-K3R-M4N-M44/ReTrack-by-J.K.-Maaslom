@@ -17,7 +17,6 @@ require_once __DIR__ . '/../app/db.php';
 require_once __DIR__ . '/simulation_data.php';
 
 $pdo = null;
-$password = null;
 
 try {
     if (!extension_loaded('pdo_mysql')) {
@@ -45,7 +44,8 @@ try {
         throw new RuntimeException('Configured and connected database names do not match.');
     }
 
-    // Check the complete set of tables used by the simulation fixture before writing.
+    // Check every table used by the fixture before writing. InnoDB is required
+    // so a failed seed can be rolled back as one transaction.
     $requiredTables = [
         'branches',
         'storage_locations',
@@ -64,14 +64,14 @@ try {
         'repair_bill_payments',
     ];
     $tableCheck = $pdo->prepare(
-        'SELECT COUNT(*) FROM information_schema.TABLES
+        'SELECT ENGINE FROM information_schema.TABLES
          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
     );
     foreach ($requiredTables as $table) {
         $tableCheck->execute([$table]);
-        if ((int) $tableCheck->fetchColumn() !== 1) {
+        if ($tableCheck->fetchColumn() !== 'InnoDB') {
             throw new RuntimeException(
-                "Required table $table is missing. Import the current schema and migrations into the disposable test database first.",
+                "Required table $table is missing or is not using InnoDB. Import the current schema and migrations into the disposable test database first.",
             );
         }
     }
