@@ -18,13 +18,12 @@ return [
     'emailjs_public_key' => '',
     'emailjs_private_key' => '',
     'emailjs_service_id' => '',
-    // Enable staff email only after staff_alert template and recipient rules are reviewed.
+    // Enable staff email only after the shared notification template and recipient rules are reviewed.
     'emailjs_staff_notifications_enabled' => false,
+    // Two EmailJS templates total: password recovery and all other notifications.
     'emailjs_templates' => [
         'password_reset' => '',
-        'customer_update' => '',
-        'customer_payment' => '',
-        'staff_alert' => '',
+        'notification' => '',
     ],
 
     // Issuance only: create this private folder outside htdocs and this project.
