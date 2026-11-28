@@ -22,8 +22,8 @@ return [
     'emailjs_staff_notifications_enabled' => false,
     // Two EmailJS templates total: password recovery and all other notifications.
     'emailjs_templates' => [
-        'password_reset' => '',
-        'notification' => '',
+        'password_reset' => 'r3tr4ck_resetpassword',
+        'notification' => 'r3tr4ck_notification',
     ],
 
     // Issuance only: create this private folder outside htdocs and this project.
