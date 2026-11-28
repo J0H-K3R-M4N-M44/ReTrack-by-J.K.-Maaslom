@@ -1,0 +1,75 @@
+name: Primary seed safety test
+
+on:
+  push:
+    branches: [Primary-Seed-Test-Only]
+    paths:
+      - 'tools/seed_primary_test.php'
+      - 'tools/simulation_data.php'
+      - 'tests/seeded-workflow.php'
+      - 'database/schema.sql'
+      - 'app/db.php'
+      - '.github/workflows/primary-seed-test-only.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  disposable-seed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      MYSQL_PWD: root
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: Primary-Seed-Test-Only
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, mbstring, fileinfo
+      - name: Lint test seeder and fixture
+        run: |
+          set -euo pipefail
+          php -l tools/seed_primary_test.php
+          php -l tools/simulation_data.php
+          php -l tests/seeded-workflow.php
+      - name: Provision disposable MySQL database
+        run: |
+          set -euo pipefail
+          sudo systemctl start mysql
+          mysql -h 127.0.0.1 -u root -e "CREATE DATABASE repairtrack_test_primary_seed CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+          sed -e 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_primary_seed/' \
+              -e 's/^USE repairtrack;$/USE repairtrack_test_primary_seed;/' database/schema.sql \
+              | mysql -h 127.0.0.1 -u root
+          mkdir -p config
+          cat > config/config.php <<'PHP'
+          <?php
+          return [
+              'host' => '127.0.0.1',
+              'database' => 'repairtrack_test_primary_seed',
+              'username' => 'root',
+              'password' => getenv('MYSQL_PWD'),
+          ];
+          PHP
+      - name: Verify confirmation and duplicate-seed guards
+        run: |
+          set -euo pipefail
+          set +e
+          php tools/seed_primary_test.php > "$RUNNER_TEMP/no-confirm.out" 2>&1
+          no_confirm_status=$?
+          set -e
+          test "$no_confirm_status" -eq 2
+          grep -q 'No changes made' "$RUNNER_TEMP/no-confirm.out"
+          php tools/seed_primary_test.php --confirm > "$RUNNER_TEMP/seed.out"
+          grep -q 'SIM-SOGOD' "$RUNNER_TEMP/seed.out"
+          grep -q 'manager@sim.example.test' "$RUNNER_TEMP/seed.out"
+          set +e
+          php tools/seed_primary_test.php --confirm > "$RUNNER_TEMP/duplicate.out" 2>&1
+          duplicate_status=$?
+          set -e
+          test "$duplicate_status" -eq 1
+          grep -q 'SIM-SOGOD already exists' "$RUNNER_TEMP/duplicate.out"
+      - name: Run seeded workflow regression
+        run: php tests/seeded-workflow.php
