@@ -23,6 +23,12 @@ on:
       - 'views/staff/locations.php'
       - 'tests/storage-locations.php'
       - 'tests/storage-locations-browser.mjs'
+      - 'app/parts/requests.php'
+      - 'admin/part_requests.php'
+      - 'views/parts/requests.php'
+      - 'tests/repair-part-requests.php'
+      - 'tests/repair-part-requests-browser.mjs'
+      - 'views/console/device.php'
       - 'views/workspace/navigation.php'
       - 'views/intake/issue.php'
       - 'views/staff/manage.php'
@@ -184,6 +190,10 @@ jobs:
           php -l views/staff/locations.php
           php -l tests/storage-locations.php
           php tests/storage-locations.php
+          php -l app/parts/requests.php
+          php -l admin/part_requests.php
+          php -l views/parts/requests.php
+          php -l tests/repair-part-requests.php
           case "${{ matrix.suite }}" in
             quotes) php tests/quotes.php ;;
             public) : ;; # Public tracking mutates its fixture; run it after the workspace overview check.

@@ -41,7 +41,19 @@ if (activityGroups($rtWorkspaceRole)) {
         // A missing activity migration should not interrupt unrelated staff work.
         error_log('Staff unread counts unavailable: ' . $rtActivityError->getCode());
     }
-    $rtNavigation['activity'] = ['Staff activity', 'activity.php', 'activity'];
+    $navigation['activity'] = ['Staff activity', 'activity.php', 'clock'];
+}
+if (in_array($workspaceRole, ['ADMIN', 'MANAGER', 'COURIER'], true)) {
+    $navigation['handovers'] = ['Device handovers', 'transfers.php', 'bench'];
+}
+if (in_array($workspaceRole, ['ADMIN', 'MANAGER'], true)) {
+    $navigation['locations'] = ['Storage locations', 'locations.php', 'board'];
+}
+if (in_array($workspaceRole, ['ADMIN', 'MANAGER', 'TECHNICIAN'], true)) {
+    $navigation['part-requests'] = ['Repair part requests', 'part_requests.php', 'file'];
+}
+if (in_array($workspaceRole, ['ADMIN', 'MANAGER'], true)) {
+    $navigation['inventory'] = ['Branch inventory', 'inventory.php', 'board'];
 }
 if (in_array($rtWorkspaceRole, ['ADMIN', 'MANAGER', 'COURIER'], true)) {
     $rtNavigation['handovers'] = ['Device handovers', 'transfers.php', 'handovers'];
