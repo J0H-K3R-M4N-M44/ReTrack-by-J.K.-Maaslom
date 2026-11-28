@@ -51,8 +51,8 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#rt-menu').evaluate(el => el.open), false,
     'Escape did not dismiss menu.');
-  assert.equal(await page.locator('#rt-menu summary').evaluate(el => document.activeElement === el), true,
-    'Escape must restore focus to menu summary.');
+  assert.equal(await more.evaluate(el => document.activeElement === el), true,
+    'Escape must restore focus to the More trigger.');
   await active.context.close();
 
   const nojs = await signedIn(false);

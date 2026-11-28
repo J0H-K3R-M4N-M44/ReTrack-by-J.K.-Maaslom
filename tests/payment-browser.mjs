@@ -108,8 +108,8 @@ async function checkRole(role, destination) {
       await page.screenshot({ path: screenshots + '/' + role + '-dock-menu-' + width + '.png', fullPage: false });
       await page.keyboard.press('Escape');
       assert.equal(await page.locator('#rt-menu').evaluate(menu => menu.open), false);
-      assert.equal(await page.locator('#rt-menu summary').evaluate(element => document.activeElement === element),
-        true, 'Escape did not restore focus to the workspace menu trigger');
+      assert.equal(await page.locator('#rt-more').evaluate(element => document.activeElement === element),
+        true, 'Escape did not restore focus to the More trigger');
       await page.locator('#rt-more').click();
       nav = page.locator('#rt-menu nav');
     } else {
