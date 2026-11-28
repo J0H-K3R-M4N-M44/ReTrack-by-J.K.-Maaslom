@@ -7,10 +7,17 @@
     <link rel="stylesheet" href="../css/base.css">
     <link rel="stylesheet" href="../css/dashboard.css">
     <link rel="stylesheet" href="../css/issuance.css">
+    <link rel="stylesheet" href="../css/workspace-design.css">
+    <script src="../js/workspace-design.js" defer></script>
 </head>
-<body class="dashboard-body">
-<main class="issuance-page">
-    <header class="issuance-heading">
+<body class="dashboard-body rt-layout">
+<?php
+$workspaceUser = $admin;
+$currentSection = 'drafts';
+require __DIR__ . '/../workspace/navigation.php';
+?>
+<main id="rt-main" class="issuance-page rt-content" tabindex="-1">
+    <header class="issuance-heading rt-page-head">
         <div><div class="eyebrow">Staff · Intake</div><h1><?= $review
             ? 'Confirm ticket issuance'
             : 'Complete intake checks' ?></h1><p>Draft #<?= $ticketId ?> · <?= h(

@@ -7,11 +7,18 @@
     <link rel="stylesheet" href="../css/base.css">
     <link rel="stylesheet" href="../css/dashboard.css">
     <link rel="stylesheet" href="../css/staff.css">
+    <link rel="stylesheet" href="../css/workspace.css">
+    <link rel="stylesheet" href="../css/workspace-design.css">
+    <script src="../js/workspace-design.js" defer></script>
 </head>
-<body class="dashboard-body">
-<a class="skip-link" href="#locations-main">Skip to storage locations</a>
-<main class="staff-page" id="locations-main" tabindex="-1">
-    <header class="staff-heading">
+<body class="dashboard-body rt-layout">
+<?php
+$workspaceUser = $user;
+$currentSection = 'locations';
+require __DIR__ . '/../workspace/navigation.php';
+?>
+<main id="rt-main" class="staff-page rt-content" tabindex="-1">
+    <header class="staff-heading rt-page-head">
         <div><p class="eyebrow">Administration · Branch readiness</p>
             <h1>Storage locations</h1>
             <p>Add a physical branch bin or workbench so intake staff can issue a repair into a known location.</p>

@@ -15,7 +15,7 @@ The job `single-ticket-journey` in `.github/workflows/mvp-stabilization.yml` cre
 5. Computes and compares SHA-256 manifests of the original and restored private files. The stock directory includes a valid **unlinked fictional** image fixture; the DB association of inventory investigation evidence is tested separately by the stock evidence regression.
 6. Removes the restored disposable database, temporary backup and inventory fixture. Source data is never overwritten. **No database dump or private image is uploaded as a CI artifact.**
 
-**Observed pass:** [GitHub Actions 44996590305](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996590305), on code checkpoint `edf7f462`: source-to-restored 47 base tables, customer custody, settled bill, DB-linked intake files and byte-identical private directories. The exact latest branch-head CI must be checked separately after later changes.
+**Observed pass:** [GitHub Actions 44996590305](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/44996590305), on code checkpoint `edf7f462`: source-to-restored 47 base tables, customer custody, settled bill, DB-linked intake files and byte-identical private directories. This first run is historical. The latest branch-head verification is recorded below.
 
 ## What this does not prove
 
@@ -41,3 +41,6 @@ The job `single-ticket-journey` in `.github/workflows/mvp-stabilization.yml` cre
 **Never** paste real credentials into CI or reuse the test script's disposable database names for a production installation. This CI script intentionally refuses to run outside its controlled environment.
 
 Related: [Manual user acceptance](mvp-uat-checklist.md) · [End-to-end test report](mvp-test-report.md) · [MVP scope](mvp-stabilization.md).
+
+
+**Latest branch-head verification:** [GitHub Actions run 45591077274](https://github.com/J0H-K3R-M4N-M44/ReTrack-by-J.K.-Maaslom/actions/runs/45591077274) at commit `f315b419b251681623f48887adc947a88a5ed92e` passed all four MVP jobs. Its `single-ticket-journey` job independently restored **48 base tables** with matching names and row counts, a closed ticket, two counter-cash entries totaling PHP 375, customer custody, database-linked intake evidence and matching private-file SHA-256 manifests. This supersedes the earlier 47-table count for the latest branch head. It remains a disposable Linux CI rehearsal, not a Windows/XAMPP or production restore.

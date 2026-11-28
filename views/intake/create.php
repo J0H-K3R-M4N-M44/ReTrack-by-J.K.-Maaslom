@@ -12,43 +12,25 @@
     <link rel="stylesheet" href="../css/base.css">
     <link rel="stylesheet" href="../css/dashboard.css">
     <link rel="stylesheet" href="../css/intake-wizard.css">
+    <link rel="stylesheet" href="../css/workspace-design.css">
+    <script src="../js/workspace-design.js" defer></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
-<body class="dashboard-body page-fade">
-    <div class="dashboard-shell">
-        <aside class="dashboard-sidebar" aria-label="Staff navigation">
-            <div>
-                <a class="dashboard-brand" href="<?= h(accountHome()) ?>" >
-                    <span class="brand-mark"><i class="fa-solid fa-microchip" aria-hidden="true"></i></span>
-                    <span>RepairTrack <strong>Intake</strong></span>
-                </a>
-                <nav class="dashboard-nav">
-                    <a class="nav-item" href="<?= h(workbenchHome()) ?>">
-                        <i class="nav-icon fa-solid fa-arrow-left" aria-hidden="true"></i>
-                        <span>Workbench</span>
-                    </a>
-                </nav>
-            </div>
-            <div class="sidebar-footer"><span class="status-dot" aria-hidden="true"></span><span>New intake</span></div>
-        </aside>
-
-        <main class="dashboard-main">
-            <header class="dashboard-topbar">
-                <div>
-                    <div class="eyebrow">Device intake</div>
-                    <h1><?= $draftId
-                        ? 'Edit intake draft #' . $draftId
-                        : 'New repair intake' ?></h1>
-                </div>
-                <div class="dashboard-user">
-                    <span class="welcome-seal" aria-hidden="true"><i class="fa-solid fa-user-shield"></i></span>
-                    <span><strong><?php echo h($admin['full_name']); ?></strong><small><?= h(
-    ucwords(strtolower(str_replace('_', ' ', $admin['role']))),
-) ?></small></span>
-                </div>
-            </header>
-
-            <div class="dashboard-content">
+<body class="dashboard-body rt-layout page-fade">
+    <?php
+$workspaceUser = $admin;
+$currentSection = 'drafts';
+require __DIR__ . '/../workspace/navigation.php';
+?>
+<main id="rt-main" class="staff-page rt-content intake-page" tabindex="-1">
+    <header class="staff-heading rt-page-head">
+        <div>
+            <p class="eyebrow">Device intake</p>
+            <h1><?= $draftId ? 'Edit intake draft #' . $draftId : 'New repair intake' ?></h1>
+            <p>Record the customer, device condition and intake details.</p>
+        </div>
+    </header>
+    <div class="intake-content">
                 <?php if (
                     $draftId > 0
                 ): ?><p><a class="secondary-btn" href="intake_issue.php?id=<?= $draftId ?>">Complete checks and issue ticket</a> Save any draft edits first.</p><?php endif; ?>
@@ -338,8 +320,7 @@
                     <?php endif; ?>
                 </section>
             </div>
-        </main>
-    </div>
+</main>
     <script src="../js/intake-wizard.js"></script>
     <script src="../js/trans.js"></script>
 </body>

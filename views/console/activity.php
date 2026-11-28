@@ -23,7 +23,7 @@ require __DIR__ . '/../workspace/navigation.php';
   <form class="report-filters" method="get">
     <label><span id="activity-category-label">Category</span><select name="group" aria-labelledby="activity-category-label">
       <?php foreach ($groups as $option): ?>
-        <option <?= $group === $option ? 'selected' : '' ?> value="<?= h($option) ?>"><?= h(ucfirst($option)) ?><?= isset($activityCounts[$option]) ? ' · ' . (int) $activityCounts[$option] . ' unread' : '' ?></option>
+        <option <?= $group === $option ? 'selected' : '' ?> value="<?= h($option) ?>"><?= h(ucfirst($option)) ?><?= isset($rtActivityCounts[$option]) ? ' · ' . (int) $rtActivityCounts[$option] . ' unread' : '' ?></option>
       <?php endforeach; ?>
     </select></label>
     <label><span id="activity-view-label">Activity view</span><select name="view" aria-labelledby="activity-view-label">
