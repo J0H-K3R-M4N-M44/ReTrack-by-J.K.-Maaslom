@@ -5,6 +5,7 @@
 ## Safety rules
 
 - Use a database whose name begins with `repairtrack_test_`.
+- Use a local MySQL host only: `localhost`, `127.0.0.1`, or `::1`. Remote hosts are rejected.
 - Set that database in the local, ignored `config/config.php` before running the command.
 - Import the current `database/schema.sql` and apply required migrations first.
 - The command does not create, migrate, truncate, or drop databases.
