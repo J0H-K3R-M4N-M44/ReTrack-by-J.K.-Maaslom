@@ -50,20 +50,21 @@ emailJsTestAssert(
 );
 
 $notificationCases = [
-    'customer_update' => ['show_customer_update' => true],
-    'customer_payment' => ['show_customer_payment' => true],
-    'staff_alert' => ['show_staff_alert' => true],
+    'customer_update' => 'show_customer_update',
+    'customer_payment' => 'show_customer_payment',
+    'staff_alert' => 'show_staff_alert',
 ];
-foreach ($notificationCases as $logicalKey => $flag) {
+foreach ($notificationCases as $logicalKey => $activeFlag) {
     $captured = null;
     emailJsSendTemplate(
         $config,
         $logicalKey,
         [
+            // Deliberately omit render flags to simulate an email queued by an older build.
             'to_email' => 'synthetic@example.test',
             'to_name' => 'Synthetic Recipient',
             'subject' => 'Synthetic RepairTrack notice',
-        ] + $flag,
+        ],
         static function (array $payload) use (&$captured): array {
             $captured = $payload;
             return ['ok' => true, 'status' => 200];
@@ -74,11 +75,12 @@ foreach ($notificationCases as $logicalKey => $flag) {
         ($captured['template_id'] ?? '') === 'template_notification_synthetic',
         $logicalKey . ' did not resolve to the shared notification template.',
     );
-    $flagName = array_key_first($flag);
-    emailJsTestAssert(
-        ($captured['template_params'][$flagName] ?? false) === true,
-        $logicalKey . ' did not pass its conditional rendering flag.',
-    );
+    foreach ($notificationCases as $caseKey => $flagName) {
+        emailJsTestAssert(
+            ($captured['template_params'][$flagName] ?? null) === ($caseKey === $logicalKey),
+            $logicalKey . ' did not set the correct conditional rendering flags.',
+        );
+    }
     emailJsTestAssert(
         emailJsTemplateReady($config, $logicalKey),
         $logicalKey . ' should be ready when the shared template is configured.',
@@ -118,4 +120,4 @@ foreach (array_keys($expectedRoles) as $event) {
     );
 }
 
-echo "PASS: two-template EmailJS mapping, conditional notification modes, private-key payload and staff role policy.\n";
+echo "PASS: two-template EmailJS mapping, legacy outbox compatibility, conditional modes, private-key payload and staff role policy.\n";
