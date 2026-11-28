@@ -1,0 +1,244 @@
+name: MVP dashboard usability regression
+
+on:
+  push:
+    branches: [MVP-Stabilization, MVP-UX-Polish-2026-11-25, MVP-Role-Overviews-2026-11-26]
+    paths:
+      - 'admin/dashboard.php'
+      - 'css/dashboard.css'
+      - 'css/workspace.css'
+      - 'css/workspace-design.css'
+      - 'tests/mvp-overview-browser.mjs'
+      - 'tests/mvp-single-ticket-journey.php'
+      - 'tests/mvp-backup-restore.sh'
+      - 'tests/mvp-accessibility-browser.mjs'
+      - 'views/public/tracking.php'
+      - 'css/public.css'
+      - 'tests/quotes-browser.mjs'
+      - 'tests/public-browser.mjs'
+      - 'tests/quotes.php'
+      - 'tests/public-tracking.php'
+      - 'app/staff/locations.php'
+      - 'admin/locations.php'
+      - 'views/staff/locations.php'
+      - 'tests/storage-locations.php'
+      - 'tests/storage-locations-browser.mjs'
+      - 'app/parts/requests.php'
+      - 'admin/part_requests.php'
+      - 'views/parts/requests.php'
+      - 'tests/repair-part-requests.php'
+      - 'tests/repair-part-requests-browser.mjs'
+      - 'views/console/device.php'
+      - 'views/workspace/navigation.php'
+      - 'views/intake/issue.php'
+      - 'views/staff/manage.php'
+      - 'app/console/repository.php'
+      - 'app/public/tracking.php'
+      - 'views/console/home.php'
+      - 'views/console/overview.php'
+      - 'views/console/device.php'
+      - 'admin/staff_home.php'
+      - 'app/console/workspace.php'
+      - 'js/workspace.js'
+      - 'js/workspace-design.js'
+      - 'tests/workspace-browser.mjs'
+      - 'tests/consoles-browser.mjs'
+      - 'tests/staff-workspace.php'
+      - 'tests/staff-consoles.php'
+      - '.github/workflows/mvp-stabilization.yml'
+      - 'app/dashboard_data.php'
+      - 'database/schema.sql'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dashboard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      MYSQL_PWD: root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check source and initialize disposable MySQL
+        run: |
+          set -euo pipefail
+          php -l admin/dashboard.php
+          php -l app/dashboard_data.php
+          node --check tests/mvp-overview-browser.mjs
+          sudo systemctl start mysql
+          sed -e 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_pickup/' \
+              -e 's/^USE repairtrack;$/USE repairtrack_test_pickup;/' database/schema.sql \
+              | mysql -h 127.0.0.1 -u root
+          mkdir -p "$RUNNER_TEMP/repairtrack-evidence" "$RUNNER_TEMP/repairtrack-inventory-evidence"
+          cat > config/config.php <<'PHP'
+          <?php
+          return [
+              'host' => '127.0.0.1',
+              'database' => 'repairtrack_test_pickup',
+              'username' => 'root',
+              'password' => getenv('MYSQL_PWD'),
+              'intake_storage_path' => getenv('RUNNER_TEMP') . '/repairtrack-evidence',
+              'inventory_evidence_path' => getenv('RUNNER_TEMP') . '/repairtrack-inventory-evidence',
+              'intake_hmac_key' => str_repeat('ab', 32),
+          ];
+          PHP
+      - name: Verify admin overview in Chrome
+        run: |
+          set -euo pipefail
+          npm install --no-save --package-lock=false playwright-core@1.56.1
+          umask 077
+          export PICKUP_FIXTURE="$RUNNER_TEMP/mvp-fixture.json"
+          php tests/payment-pickup.php --browser-fixture > "$PICKUP_FIXTURE"
+          php -d opcache.enable_cli=0 -d opcache.validate_timestamps=1 -d opcache.revalidate_freq=0 -S 127.0.0.1:8742 > "$RUNNER_TEMP/mvp-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; rm -f "$PICKUP_FIXTURE"' EXIT
+          curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
+          node tests/mvp-overview-browser.mjs
+      - name: Upload fictional screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mvp-dashboard-mobile
+          path: mvp-overview-mobile.png
+          retention-days: 7
+          if-no-files-found: ignore
+
+  single-ticket-journey:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      MYSQL_PWD: root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Provision isolated disposable full-journey MySQL database
+        run: |
+          set -euo pipefail
+          php -l tests/mvp-single-ticket-journey.php
+          sudo systemctl start mysql
+          sed -e 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_journey/' \
+              -e 's/^USE repairtrack;$/USE repairtrack_test_journey;/' database/schema.sql \
+              | mysql -h 127.0.0.1 -u root
+          mkdir -p "$RUNNER_TEMP/journey-evidence" "$RUNNER_TEMP/journey-stock"
+          cat > config/config.php <<'PHP'
+          <?php
+          return [
+              'host' => '127.0.0.1',
+              'database' => 'repairtrack_test_journey',
+              'username' => 'root',
+              'password' => getenv('MYSQL_PWD'),
+              'intake_storage_path' => getenv('RUNNER_TEMP') . '/journey-evidence',
+              'inventory_evidence_path' => getenv('RUNNER_TEMP') . '/journey-stock',
+              'intake_hmac_key' => str_repeat('ab', 32),
+          ];
+          PHP
+      - name: Exercise one ticket through full service lifecycle
+        run: |
+          set -euo pipefail
+          JOURNEY_KEEP_EVIDENCE=1 php tests/mvp-single-ticket-journey.php
+          # Verify real issued attachments still exist for the backup job.
+          mysql -N -h 127.0.0.1 -u root repairtrack_test_journey \
+            -e "SELECT COUNT(*) FROM repair_tickets WHERE record_stage='ISSUED' AND case_state='OPEN'" | grep -Fxq 0
+      - name: Rehearse SQL + private evidence restore into a separate disposable schema
+        run: |
+          set -euo pipefail
+          REPAIRTRACK_DISPOSABLE_RESTORE=I_CONFIRM_DISPOSABLE_CI bash tests/mvp-backup-restore.sh
+
+  quote-and-tracking-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [quotes, public]
+    env:
+      MYSQL_PWD: root
+      REPAIRTRACK_TEST_URL: http://127.0.0.1:8742
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare independent PHP/Chrome test fixture
+        run: |
+          set -euo pipefail
+          sudo systemctl start mysql
+          sed -e 's/^CREATE DATABASE IF NOT EXISTS repairtrack$/CREATE DATABASE IF NOT EXISTS repairtrack_test_portal/' \
+              -e 's/^USE repairtrack;$/USE repairtrack_test_portal;/' database/schema.sql \
+              | mysql -h 127.0.0.1 -u root
+          sed 's/repairtrack_demo/repairtrack_test_portal/g' tests/fixtures/demo/seed_demo.sql \
+              | mysql -h 127.0.0.1 -u root
+          mkdir -p "$RUNNER_TEMP/portal-evidence" "$RUNNER_TEMP/portal-stock"
+          cat > config/config.php <<'PHP'
+          <?php
+          return [
+              'host' => '127.0.0.1',
+              'database' => 'repairtrack_test_portal',
+              'username' => 'root',
+              'password' => getenv('MYSQL_PWD'),
+              'intake_storage_path' => getenv('RUNNER_TEMP') . '/portal-evidence',
+              'inventory_evidence_path' => getenv('RUNNER_TEMP') . '/portal-stock',
+              'intake_hmac_key' => str_repeat('ab', 32),
+          ];
+          PHP
+      - name: Seed role-isolated repair fixture and verify server behavior
+        run: |
+          set -euo pipefail
+          php tests/staff-consoles.php
+          php tests/staff-workspace.php
+          php -l app/staff/locations.php
+          php -l admin/locations.php
+          php -l views/staff/locations.php
+          php -l tests/storage-locations.php
+          php tests/storage-locations.php
+          php -l app/parts/requests.php
+          php -l admin/part_requests.php
+          php -l views/parts/requests.php
+          php -l tests/repair-part-requests.php
+          case "${{ matrix.suite }}" in
+            quotes) php tests/quotes.php ;;
+            public) : ;; # Public tracking mutates its fixture; run it after the workspace overview check.
+            *) exit 2 ;;
+          esac
+      - name: Exercise real quote or tracking HTTP views in Chrome
+        run: |
+          set -euo pipefail
+          npm install --no-save --package-lock=false playwright-core@1.56.1
+          export REPAIRTRACK_TEST_SITE="$GITHUB_WORKSPACE"
+          export CHROME_PATH="$(command -v google-chrome)"
+          export REPAIRTRACK_TEST_URL="http://127.0.0.1:8742"
+          php -S 127.0.0.1:8742 > "$RUNNER_TEMP/portal-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          curl --retry 8 --retry-connrefused --retry-delay 1 -fsS -o /dev/null http://127.0.0.1:8742/admin/login.php
+          node tests/workspace-browser.mjs
+          case "${{ matrix.suite }}" in
+            quotes) node tests/quotes-browser.mjs && node tests/storage-locations-browser.mjs && node tests/consoles-browser.mjs ;;
+            public) php tests/public-tracking.php && node tests/mvp-accessibility-browser.mjs && node tests/public-browser.mjs ;;
+            *) exit 2 ;;
+          esac
+      - name: Upload fictional quote/customer tracking screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mvp-${{ matrix.suite }}-browser-screens
+          path: |
+            quote-*.png
+            public-tracking-mobile.png
+            public-tracking-timeline-mobile.png
+            mvp-queue-mobile.png
+            mvp-board-mobile.png
+            mvp-history-mobile.png
+            workspace-overview-*.png
+            workspace-board-desktop.png
+            workspace-board-mobile-*.png
+            workspace-history-desktop.png
+            workspace-history-mobile-*.png
+            workspace-mobile-dock-more-*.png
+            workspace-cash-mobile-*.png
+            technician-console.png
+            technician-mobile.png
+            courier-console.png
+            quick-intake-mobile.png
+          retention-days: 7
+          if-no-files-found: ignore

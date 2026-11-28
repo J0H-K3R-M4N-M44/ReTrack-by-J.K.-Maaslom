@@ -64,7 +64,7 @@ try {
 
     $pdo->exec('DROP TABLE staff_activity_reads');
     checkWorkflow(migrationPending($pdo) === ['staff_activity.sql'], 'Unexpected migration status.');
-    migrationRunFile($pdo, __DIR__ . '/../database/staff_activity.sql');
+    migrationRunFile($pdo, __DIR__ . '/../database/migrations/staff_activity.sql');
     checkWorkflow(migrationPending($pdo) === [], 'Activity migration remains pending.');
     $pdo->beginTransaction();
     $password = seedSimulation($pdo);

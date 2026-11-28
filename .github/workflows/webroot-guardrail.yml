@@ -1,0 +1,27 @@
+name: Release webroot guardrail (synthetic Apache)
+
+on:
+  push:
+    branches: [Release-Webroot-Guardrails]
+    paths:
+      - '.htaccess'
+      - 'tests/webroot-guardrail.sh'
+      - '.github/workflows/webroot-guardrail.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apache-sandbox:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate guardrail against disposable synthetic web root
+        run: |
+          set -euo pipefail
+          command -v apache2
+          command -v curl
+          bash -n tests/webroot-guardrail.sh
+          bash tests/webroot-guardrail.sh

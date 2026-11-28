@@ -7,10 +7,17 @@
     <link rel="stylesheet" href="../css/base.css">
     <link rel="stylesheet" href="../css/dashboard.css">
     <link rel="stylesheet" href="../css/issuance.css">
+    <link rel="stylesheet" href="../css/workspace-design.css">
+    <script src="../js/workspace-design.js" defer></script>
 </head>
-<body class="dashboard-body">
-<main class="issuance-page">
-    <header class="issuance-heading">
+<body class="dashboard-body rt-layout">
+<?php
+$workspaceUser = $admin;
+$currentSection = 'drafts';
+require __DIR__ . '/../workspace/navigation.php';
+?>
+<main id="rt-main" class="issuance-page rt-content" tabindex="-1">
+    <header class="issuance-heading rt-page-head">
         <div><div class="eyebrow">Staff · Intake</div><h1><?= $review
             ? 'Confirm ticket issuance'
             : 'Complete intake checks' ?></h1><p>Draft #<?= $ticketId ?> · <?= h(
@@ -107,7 +114,11 @@
                 <h2>Remaining checks</h2>
                 <?php if (
                     !$locations
-                ): ?><p role="alert">No active storage location is available at this branch. Configure a branch bin or workbench before issuing.</p><?php else: ?>
+                ): ?><p role="alert">No active storage location is available at this branch. Configure a branch bin or workbench before issuing.
+<?php if (in_array($admin['role'], ['ADMIN','MANAGER'], true)): ?>
+<a href="locations.php">Set up a branch location</a>
+<?php else: ?>Ask your branch manager to create an active storage location.<?php endif; ?>
+</p><?php else: ?>
                 <form class="issuance-form" method="post" enctype="multipart/form-data" action="intake_issue.php">
                     <input type="hidden" name="csrf_token" value="<?= h(csrfToken()) ?>">
                     <input type="hidden" name="form_key" value="<?= h($formKey) ?>">

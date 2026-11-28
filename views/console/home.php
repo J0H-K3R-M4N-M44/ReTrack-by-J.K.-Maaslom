@@ -39,6 +39,9 @@ require __DIR__ . '/../workspace/navigation.php';
             $isCourier
         ): ?><p><a href="transfers.php">Open device handovers</a> to dispatch devices or confirm receipt.</p><?php endif; ?>
     </div>
+    <?php if ($view === 'overview'): ?>
+        <?php require __DIR__ . '/overview.php'; ?>
+    <?php else: ?>
     <section id="work-list" class="dashboard-card workspace-list rt-card">
         <?php $listTitle = match ($view) {
             'cash' => 'Cash desk bill lookup',
@@ -82,28 +85,32 @@ require __DIR__ . '/../workspace/navigation.php';
         <p class="workspace-count">Showing <?= $page['from'] ?>–<?= $page['to'] ?> of <?= $page[
      'total'
  ] ?> · maximum 10 per page</p>
+        <?php if ($view === 'queue' && !$isCourier): ?><p class="workspace-queue-guidance">Oldest last update appears first to help staff find repairs that may need attention. No automatic deadline or ETA is implied.</p><?php endif; ?>
         <?php if (!$page['rows']): ?>
             <div class="workspace-empty"><h3>No matching records</h3><p>Try clearing your filters or searching with a shorter term.</p></div>
         <?php elseif ($view === 'board'): ?>
             <p>Cards show this page of filtered results. Active queue shows the same records as a table.</p>
-            <div class="status-board">
+            <div class="status-board" role="group" aria-label="Repair devices grouped by status">
             <?php foreach (consoleStatuses() as $status):
 
                 $cards = array_filter($page['rows'], fn($row) => $row['repair_status'] === $status);
                 if (!$cards) {
                     continue;
                 }
+                $laneHeadingId = 'board-lane-' . strtolower($status);
                 ?>
-                <section class="board-lane"><h3><span class="workspace-status status-<?= h(
+                <section class="board-lane" role="group" aria-labelledby="<?= h($laneHeadingId) ?>"><h3 id="<?= h(
+                    $laneHeadingId,
+                ) ?>"><span class="workspace-status status-<?= h(
                     strtolower($status),
                 ) ?>"><?= h(dashboardStatusLabel($status)) ?></span><small><?= count(
     $cards,
 ) ?> on this page</small></h3>
-                <?php foreach ($cards as $row): ?>
-                    <article class="board-card">
-                        <a href="device.php?id=<?= (int) $row['ticket_device_id'] ?>&amp;return=<?= h(urlencode($returnQuery)) ?>">
-                            <?= h($row['item_code']) ?>
-                        </a>
+                <?php foreach ($cards as $row):
+                    $cardHeadingId = 'board-device-' . (int) $row['ticket_device_id'];
+                ?>
+                    <article class="board-card" aria-labelledby="<?= h($cardHeadingId) ?>">
+                        <h4 id="<?= h($cardHeadingId) ?>"><a href="device.php?id=<?= (int) $row['ticket_device_id'] ?>&amp;return=<?= h(urlencode($returnQuery)) ?>"><?= h($row['item_code']) ?></a></h4>
                         <p><?= h(dashboardDeviceLabel($row)) ?></p>
                         <p><?= h($row['technician'] ?: 'Needs assignment') ?></p>
                         <details class="board-preview">
@@ -123,14 +130,12 @@ require __DIR__ . '/../workspace/navigation.php';
             </div>
         <?php else: ?>
             <?php if ($view === 'drafts'): ?><div id="drafts"><?php endif; ?>
-            <p class="table-scroll-hint">Swipe or scroll sideways to see all columns.</p>
-            <div class="staff-table-wrap" tabindex="0" aria-label="<?= h(
-                $listTitle,
-            ) ?>, scroll sideways for more columns">
-            <table class="staff-table workspace-table"><caption class="sr-only"><?= h(
+            <p class="table-scroll-hint">On smaller screens, each record is shown as a stacked card.</p>
+            <div class="staff-table-wrap" tabindex="0" aria-label="<?= h($listTitle) ?> records">
+            <table class="staff-table workspace-table" role="table"><caption class="sr-only"><?= h(
                 $listTitle,
             ) ?></caption>
-                <thead><tr>
+                <thead role="rowgroup"><tr role="row">
                     <?php
                     $columns = match (true) {
                         $view === 'cash' => [
@@ -164,10 +169,11 @@ require __DIR__ . '/../workspace/navigation.php';
                             'Technician',
                             'Status',
                             'Repair started (PH time)',
+                            'Last updated (PH time)',
                             'Action',
                         ],
                     };
-                    foreach ($columns as $column): ?><th scope="col" class="<?= in_array($column, [
+                    foreach ($columns as $column): ?><th scope="col" role="columnheader" class="<?= in_array($column, [
     'Bill total',
     'Cash received',
     'Balance',
@@ -175,47 +181,49 @@ require __DIR__ . '/../workspace/navigation.php';
     ? 'numeric'
     : '' ?>"><?= h($column) ?></th><?php endforeach;
                     ?>
-                </tr></thead><tbody>
-                <?php foreach ($page['rows'] as $row): ?><tr>
+                </tr></thead><tbody role="rowgroup">
+                <?php foreach ($page['rows'] as $row): ?><tr role="row">
                     <?php if ($view === 'cash'): ?>
-                        <td><?= h($row['ticket_code']) ?><small><?= h(
+                        <td role="cell" data-label="Ticket / tracking code"><?= h($row['ticket_code']) ?><small><?= h(
     $row['portal_code'] ?: 'No short tracking code',
-) ?></small></td><td><?= h($row['bill_number']) ?></td><td><?= h(
+) ?></small></td><td role="cell" data-label="Bill"><?= h($row['bill_number']) ?></td><td role="cell" data-label="Branch"><?= h(
     $row['branch_name'],
-) ?></td><td><?= h(workspaceDate($row['issued_at'])) ?></td><td><?= h(
+) ?></td><td role="cell" data-label="Issued (PH time)"><?= h(workspaceDate($row['issued_at'])) ?></td><td role="cell" data-label="Status"><?= h(
     ucfirst(strtolower($row['bill_status'])),
-) ?></td><td class="numeric"><?= h($row['currency']) ?> <?= number_format(
+) ?></td><td role="cell" class="numeric" data-label="Bill total"><?= h($row['currency']) ?> <?= number_format(
      (float) $row['total_amount'],
      2,
- ) ?></td><td class="numeric"><?= h($row['currency']) ?> <?= number_format(
+ ) ?></td><td role="cell" class="numeric" data-label="Cash received"><?= h($row['currency']) ?> <?= number_format(
      (float) $row['amount_paid'],
      2,
- ) ?></td><td class="numeric"><?php $difference = (float) $row['total_amount'] - (float) $row['amount_paid']; ?>
-    <?= $difference < 0 ? 'Refund due · ' : '' ?><?= h($row['currency']) ?> <?= number_format(abs($difference), 2) ?></td><td><a href="cash.php?bill_id=<?= (int) $row['bill_id'] ?>">Open cash record</a></td>
+ ) ?></td><td role="cell" class="numeric" data-label="Balance"><?php $difference = (float) $row['total_amount'] - (float) $row['amount_paid']; ?>
+    <?= $difference < 0 ? 'Refund due · ' : '' ?><?= h($row['currency']) ?> <?= number_format(abs($difference), 2) ?></td><td role="cell" data-label="Action"><a href="cash.php?bill_id=<?= (int) $row['bill_id'] ?>">Open cash record</a></td>
                     <?php elseif ($view === 'drafts'): ?>
-                        <td>#<?= (int) $row['ticket_id'] ?></td><td><?= h(
+                        <td role="cell" data-label="Draft">#<?= (int) $row['ticket_id'] ?></td><td role="cell" data-label="Customer"><?= h(
     $row['customer_name'] ?? 'Not recorded',
-) ?></td><td><?= h($row['branch_name']) ?></td><td><?= h(
+) ?></td><td role="cell" data-label="Branch"><?= h($row['branch_name']) ?></td><td role="cell" data-label="Created (PH time)"><?= h(
     workspaceDate($row['created_at']),
-) ?></td><td><a href="intake_create.php?id=<?= (int) $row['ticket_id'] ?>">Open draft</a></td>
+) ?></td><td role="cell" data-label="Action"><a href="intake_create.php?id=<?= (int) $row['ticket_id'] ?>">Open draft</a></td>
                     <?php elseif ($isCourier): ?>
-                        <td><?= h($row['transfer_code']) ?><small><?= h(
+                        <td role="cell" data-label="Transfer / item"><?= h($row['transfer_code']) ?><small><?= h(
     $row['item_code'],
-) ?></small></td><td><?= h($row['origin'] . ' → ' . $row['destination']) ?></td><td><?= h(
+) ?></small></td><td role="cell" data-label="Route"><?= h($row['origin'] . ' → ' . $row['destination']) ?></td><td role="cell" data-label="Destination"><?= h(
     $row['destination_location'],
-) ?></td><td><span class="workspace-status"><?= h(
+) ?></td><td role="cell" data-label="Status"><span class="workspace-status"><?= h(
     str_replace('_', ' ', $row['item_status']),
-) ?></span></td><td><?= h(workspaceDate($row['dispatched_at'])) ?></td>
+) ?></span></td><td role="cell" data-label="Dispatched (PH time)"><?= h(workspaceDate($row['dispatched_at'])) ?></td>
                     <?php else: ?>
-                        <td><?= h($row['item_code']) ?><small><?= h(
+                        <td role="cell" data-label="Item / device"><?= h($row['item_code']) ?><small><?= h(
     dashboardDeviceLabel($row),
-) ?></small></td><td><?= h($row['branch_name']) ?></td><td><?= h(
+) ?></small></td><td role="cell" data-label="Branch"><?= h($row['branch_name']) ?></td><td role="cell" data-label="Technician"><?= h(
     $row['technician'] ?: 'Unassigned',
-) ?></td><td><span class="workspace-status status-<?= h(
+) ?></td><td role="cell" data-label="Status"><span class="workspace-status status-<?= h(
     strtolower($row['repair_status']),
-) ?>"><?= h(dashboardStatusLabel($row['repair_status'])) ?></span></td><td><?= h(
+) ?>"><?= h(dashboardStatusLabel($row['repair_status'])) ?></span></td><td role="cell" data-label="Repair started (PH time)"><?= h(
     workspaceDate($row['repair_started_at']),
-) ?></td><td><a href="device.php?id=<?= (int) $row['ticket_device_id'] ?>&amp;return=<?= h(
+) ?></td><td role="cell" data-label="Last updated (PH time)"><?= h(
+    workspaceDate($row['updated_at']),
+) ?></td><td role="cell" data-label="Action"><a href="device.php?id=<?= (int) $row['ticket_device_id'] ?>&amp;return=<?= h(
     urlencode($returnQuery),
 ) ?>">Open device</a></td>
                     <?php endif; ?>
@@ -261,6 +269,7 @@ require __DIR__ . '/../workspace/navigation.php';
         <?php endforeach; ?>
         </div>
     </section>
+    <?php endif; ?>
     <?php endif; ?>
 </main><script src="../js/workspace.js"></script>
 </body></html>

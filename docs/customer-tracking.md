@@ -1,6 +1,6 @@
 # Customer tracking and console workflow
 
-This increment is based on Simplified-System. It brings the prototype's customer entry point, service overview, repair status, custody and timeline into the PHP application. Data comes from MySQL, not browser demo storage. The staff workspace update requires `database/staff_workspace.sql`; see `staff-workspace.md`.
+This increment is based on Simplified-System. It brings the prototype's customer entry point, service overview, repair status, custody and timeline into the PHP application. Data comes from MySQL, not browser demo storage. The staff workspace update requires `database/migrations/staff_workspace.sql`; see `staff-workspace.md`.
 
 ## Staff → customer → technician
 

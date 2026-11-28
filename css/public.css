@@ -117,16 +117,215 @@
   overflow: hidden;
   clip-path: inset(50%);
 }
-@media (prefers-reduced-motion: no-preference) {
-  .public-card {
-    animation: customer-entry 240ms ease-out;
+/* Tracking forms are deliberately stationary. Decorative entry motion can
+   interfere with form activation on slower devices and is not needed for status. */
+
+/* Customer accessibility: sufficient target height and predictable keyboard skip. */
+.public-header > a,
+.public-header nav a,
+.public-toolbar a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+}
+.public-card details summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+.public-button { min-height: 44px; }
+.skip-link:focus {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 40;
+  padding: 12px 16px;
+  background: var(--gold-300);
+  color: var(--steel-900);
+  border-radius: 8px;
+}
+
+/* Keep customer estimate details readable without implying a payable invoice. */
+.public-estimate {
+  border-top: 1px solid var(--steel-600);
+  margin-top: 20px;
+  padding-top: 12px;
+}
+.public-estimate-total {
+  overflow-wrap: anywhere;
+}
+.public-estimate-total strong {
+  font-size: 1.2rem;
+}
+
+
+/* Separate a factual repair stage from the action the customer should take. */
+.public-stage-label {
+  margin: 18px 0 4px;
+  color: #c0ced4;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.public-status {
+  margin-top: 4px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.public-card a[href^="tel:"] {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 700;
+}
+
+
+/* Keep the customer links in one compact, horizontally scrollable row on phones. */
+@media (max-width: 600px) {
+  .public-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    padding: 10px 16px;
   }
-  @keyframes customer-entry {
-    from {
-      transform: translateX(-12px);
-    }
-    to {
-      transform: translateX(0);
-    }
+  .public-header > a {
+    min-height: 44px;
+    font-weight: 700;
   }
+  .public-header nav {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 10px;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    padding-bottom: 2px;
+  }
+  .public-header nav a {
+    flex: 0 0 auto;
+    min-height: 44px;
+    white-space: nowrap;
+    font-size: 0.82rem;
+  }
+}
+
+
+/* Batch 3: keep each device's details together without repeating the ticket header. */
+.public-devices {
+  margin-bottom: 24px;
+}
+.public-section-heading {
+  margin: 0 0 14px;
+}
+.public-section-heading h2 {
+  margin: 0;
+}
+.public-section-heading p {
+  margin: 4px 0 0;
+  color: #c0ced4;
+}
+.public-device-card {
+  margin-bottom: 0;
+}
+.public-device-heading h3 {
+  margin: 4px 0 0;
+  font-size: 1.2rem;
+  overflow-wrap: anywhere;
+}
+.public-device-label {
+  margin: 0;
+}
+.public-device-status {
+  margin: 14px 0 18px;
+}
+.public-device-card h4 {
+  margin: 18px 0 4px;
+  font-size: 1rem;
+}
+.public-estimate {
+  border: 1px solid var(--steel-600);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--steel-900);
+}
+.public-estimate h4 {
+  margin-top: 0;
+}
+.public-estimate-status {
+  margin: 4px 0 10px;
+  color: #c0ced4;
+  font-size: 0.92rem;
+}
+.public-estimate-total {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 8px 0;
+}
+.public-estimate-total strong {
+  font-size: 1.25rem;
+}
+.public-estimate-note {
+  margin-bottom: 0;
+}
+.public-empty-estimate,
+.public-empty-history {
+  color: #c0ced4;
+}
+.public-message {
+  max-width: 72ch;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  hyphens: auto;
+}
+.public-timeline {
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 20px 0 8px;
+  padding: 0;
+}
+.public-timeline li {
+  position: relative;
+  margin-left: 7px;
+  padding: 4px 0 24px 22px;
+  border-left: 2px solid var(--steel-600);
+}
+.public-timeline li::before {
+  position: absolute;
+  top: 10px;
+  left: -7px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--gold-300);
+  border-radius: 50%;
+  background: var(--steel-800);
+  content: "";
+}
+.public-timeline-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+.public-timeline-device {
+  color: #c0ced4;
+  font-size: 0.84rem;
+  font-weight: 400;
+}
+.public-timeline time {
+  display: block;
+  margin-top: 8px;
+  color: #c0ced4;
+  font-size: 0.9rem;
+}
+.public-branch-phone {
+  margin: 8px 0;
 }

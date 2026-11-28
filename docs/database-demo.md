@@ -13,7 +13,7 @@ This fixture inserts **963 fictional rows into all 33 existing tables**: the 32-
 | `docs/seed-counts.json` | Expected row counts immediately after a successful seed. |
 | `assets/demo/` | Two clearly marked SVG placeholders referenced by photo and acknowledgment records. |
 
-The schema snapshot excludes the source schema's three minimal demo-branch inserts so the seed can check for empty tables. Refresh it when `database/schema.sql` or `database/password_reset.sql` changes. The seed matches the current broad schema, not the proposed smaller rebuild.
+The schema snapshot excludes the source schema's three minimal demo-branch inserts so the seed can check for empty tables. Refresh it when `database/schema.sql` or `database/migrations/password_reset.sql` changes. The seed matches the current broad schema, not the proposed smaller rebuild.
 
 ## Run with XAMPP and Git Bash
 

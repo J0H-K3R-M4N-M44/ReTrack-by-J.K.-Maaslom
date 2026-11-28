@@ -29,9 +29,9 @@ function redirectToStaffReport(array $input): never
 function consoleView(array $user, array $input): string
 {
     $allowed = match ($user['role']) {
-        'CASHIER' => ['cash'],
-        'COURIER' => ['queue', 'history'],
-        default => ['queue', 'board', 'history'],
+        'CASHIER' => ['overview', 'cash'],
+        'COURIER' => ['overview', 'queue', 'history'],
+        default => ['overview', 'queue', 'board', 'history'],
     };
     if (in_array($user['role'], ['ADMIN', 'MANAGER', 'INTAKE_AGENT'], true)) {
         $allowed[] = 'drafts';

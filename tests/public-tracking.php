@@ -50,6 +50,7 @@ $query->execute([$ticketId]);
 $code = replaceTrackingCode($pdo, $manager['user_id'], $ticketId, $query->fetchColumn());
 $repair = publicRepair($pdo, $code);
 checkPublic($repair !== null, 'Private code opens issued repair');
+$initialDeviceCount = count($repair['devices']);
 checkPublic(
     publicRepair($pdo, $repair['ticket_code']) === null,
     'Receipt numbers do not grant access',
@@ -110,8 +111,190 @@ checkPublic(
         str_contains($url, 'status=DIAGNOSING'),
     'Pagination lost state',
 );
+// Customer estimates are read-only and resolve to the newest revision only.
+// Create fictional versions in the disposable fixture; never expose staff fields.
+// Seeded demo devices may already have quote history. Append new versions instead
+// of relying on a blank fixture or overwriting an existing customer decision.
+$versionQuery = $pdo->prepare(
+    'SELECT COALESCE(MAX(version_no), 0) FROM repair_quotes WHERE ticket_device_id=?',
+);
+$versionQuery->execute([$fixture['device']]);
+$firstVersion = (int) $versionQuery->fetchColumn() + 1;
+$pdo->prepare(
+    "INSERT INTO repair_quotes
+    (ticket_device_id, version_no, quote_status, labor_amount, parts_amount,
+     other_amount, total_amount, prepared_by_user_id)
+    VALUES (?, ?, 'DRAFT', 325.35, 0, 0, 325.35, ?)",
+)->execute([$fixture['device'], $firstVersion, $manager['user_id']]);
+$firstQuoteId = (int) $pdo->lastInsertId();
+$draftView = publicRepair($pdo, $newCode);
+checkPublic($draftView['devices'][0]['estimate'] === null, 'Draft estimate leaked');
+
+$pdo->prepare(
+    "UPDATE repair_quotes SET quote_status='AWAITING_CUSTOMER',
+     sent_at=UTC_TIMESTAMP(), expires_at=DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 DAY)
+     WHERE quote_id=?",
+)->execute([$firstQuoteId]);
+$sharedView = publicRepair($pdo, $newCode);
+checkPublic($sharedView['devices'][0]['estimate']['total'] === '325.35', 'Shared total absent');
+checkPublic($sharedView['devices'][0]['estimate']['revision'] === $firstVersion, 'Wrong shared version');
+checkPublic(!$sharedView['devices'][0]['estimate']['expired'], 'Future estimate treated as expired');
+checkPublic(str_contains(publicNextStep($sharedView['devices'][0]), 'decision'), 'No response instruction');
+
+$pdo->prepare(
+    'UPDATE repair_quotes SET expires_at=DATE_SUB(UTC_TIMESTAMP(), INTERVAL 1 DAY) WHERE quote_id=?',
+)->execute([$firstQuoteId]);
+$expiredView = publicRepair($pdo, $newCode);
+checkPublic($expiredView['devices'][0]['estimate']['expired'], 'Expired response not identified');
+checkPublic(str_contains(publicNextStep($expiredView['devices'][0]), 'updated estimate'),
+    'Expired quote action misleading');
+
+$pdo->prepare("UPDATE repair_quotes SET quote_status='DECLINED' WHERE quote_id=?")
+    ->execute([$firstQuoteId]);
+$declinedView = publicRepair($pdo, $newCode);
+checkPublic(str_contains(publicNextStep($declinedView['devices'][0]), 'declined'),
+    'Declined estimate lacks next action');
+
+$pdo->prepare(
+    "INSERT INTO repair_quotes
+    (ticket_device_id, version_no, quote_status, labor_amount, parts_amount,
+     other_amount, total_amount, prepared_by_user_id)
+    VALUES (?, ?, 'DRAFT', 99, 0, 0, 99, ?)",
+)->execute([$fixture['device'], $firstVersion + 1, $manager['user_id']]);
+$secondQuoteId = (int) $pdo->lastInsertId();
+$newDraftView = publicRepair($pdo, $newCode);
+checkPublic($newDraftView['devices'][0]['estimate'] === null,
+    'Latest private draft should hide the obsolete estimate');
+checkPublic(!str_contains(json_encode($newDraftView, JSON_THROW_ON_ERROR), '325.35'),
+    'Superseded estimate amount leaked');
+checkPublic(!str_contains(json_encode($newDraftView, JSON_THROW_ON_ERROR), '99.00'),
+    'Latest draft price leaked');
+
+$pdo->prepare(
+    "UPDATE repair_quotes SET quote_status='AWAITING_CUSTOMER',
+     sent_at=UTC_TIMESTAMP(), expires_at=DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 DAY)
+     WHERE quote_id=?",
+)->execute([$secondQuoteId]);
+$latestView = publicRepair($pdo, $newCode);
+checkPublic($latestView['devices'][0]['estimate']['total'] === '99.00',
+    'Newest shared estimate missing');
+checkPublic(!str_contains(json_encode($latestView, JSON_THROW_ON_ERROR), '325.35'),
+    'Old shared estimate leaked when revised');
+checkPublic(publicRepair($pdo, str_repeat('0', 64)) === null,
+    'Unknown tracking secret obtained estimate');
+checkPublic(publicRepair($pdo, $code) === null,
+    'Revoked tracking secret obtained estimate');
+checkPublic(!isset($latestView['devices'][0]['estimate']['prepared_by_user_id']) &&
+    !isset($latestView['devices'][0]['estimate']['quote_id']),
+    'Staff estimate metadata leaked');
+checkPublic(publicNextStep(['custody_state' => 'WITH_CUSTOMER']) !== '',
+    'Returned device lacks next action');
+
+$partsWaiting = [
+    'custody_state' => 'AT_LOCATION',
+    'repair_status' => 'AWAITING_PARTS',
+    'estimate' => null,
+];
+checkPublic(publicStageLabel($partsWaiting) === 'Waiting for parts',
+    'Parts wait was presented as a generic assessment stage');
+checkPublic(str_contains(publicNextStep($partsWaiting), 'required parts'),
+    'Parts wait lacks a parts-specific customer action');
+
+$customerDecisionWaiting = [
+    'custody_state' => 'AT_LOCATION',
+    'repair_status' => 'AWAITING_CUSTOMER_APPROVAL',
+    'estimate' => null,
+];
+checkPublic(publicStageLabel($customerDecisionWaiting) === 'Waiting for customer decision',
+    'Customer approval wait was not clearly labelled');
+checkPublic(str_contains(publicNextStep($customerDecisionWaiting), 'Contact the branch'),
+    'Customer approval wait lacks a branch contact action');
+
+// Add a second, fictional device to exercise the grouped customer portal view.
+$sequenceQuery = $pdo->prepare(
+    'SELECT COALESCE(MAX(child_sequence), 0) + 1 FROM ticket_devices WHERE ticket_id = ?',
+);
+$sequenceQuery->execute([$ticketId]);
+$secondSequence = (int) $sequenceQuery->fetchColumn();
+$secondItemCode = 'PORTAL-' . $ticketId . '-' . $secondSequence;
+$longPublicMessage = str_repeat(
+    'This fictional customer-visible update is intentionally long so the portal can be checked for readable wrapping on narrow screens. ',
+    7,
+) . "\nThe device remains at the service branch while staff arrange the required part.";
+
+$insertSecondDevice = $pdo->prepare(
+    "INSERT INTO ticket_devices (
+        ticket_id, child_sequence, item_code, device_type_snapshot, make_snapshot,
+        model_snapshot, alternative_identifiers, reported_symptoms, condition_notes,
+        accessory_checklist_completed, repair_status, public_summary, custody_state
+    ) VALUES (?, ?, ?, 'Laptop', 'RepairTrack Test', 'Second portal device',
+        'SYNTHETIC-PORTAL-DEVICE', 'Illustrative reported symptom',
+        'Synthetic condition notes', 1, 'AWAITING_PARTS', ?, 'AT_LOCATION')",
+);
+$insertSecondDevice->execute([$ticketId, $secondSequence, $secondItemCode, $longPublicMessage]);
+$secondDeviceId = (int) $pdo->lastInsertId();
+$pdo->prepare(
+    "INSERT INTO ticket_status_events (
+        ticket_device_id, from_status, to_status, actor_type, actor_user_id,
+        public_summary, is_customer_visible, created_at
+    ) VALUES (?, 'RECEIVED', 'AWAITING_PARTS', 'USER', ?, ?, 1, UTC_TIMESTAMP())",
+)->execute([$secondDeviceId, $tech['user_id'], $longPublicMessage]);
+
+$historySequence = $secondSequence + 1;
+$historyItemCode = 'PORTAL-HISTORY-' . $ticketId . '-' . $historySequence;
+$insertHistoryDevice = $pdo->prepare(
+    "INSERT INTO ticket_devices (
+        ticket_id, child_sequence, item_code, device_type_snapshot, make_snapshot,
+        model_snapshot, alternative_identifiers, reported_symptoms, condition_notes,
+        accessory_checklist_completed, repair_status, public_summary, custody_state
+    ) VALUES (?, ?, ?, 'Laptop', 'RepairTrack Test', 'Archived portal device',
+        'SYNTHETIC-HISTORY-DEVICE', 'Synthetic completed repair fixture',
+        'Synthetic condition notes', 1, 'CANCELLED',
+        'Synthetic archived device for responsive history testing.', 'AT_LOCATION')",
+);
+$insertHistoryDevice->execute([$ticketId, $historySequence, $historyItemCode]);
+
+$multiDeviceView = publicRepair($pdo, $newCode);
+checkPublic(
+    count($multiDeviceView['devices']) === $initialDeviceCount + 2,
+    'Customer portal did not return both additional devices',
+);
+checkPublic(
+    $multiDeviceView['devices'][$initialDeviceCount]['item_code'] === $secondItemCode,
+    'Additional device is not grouped under its issued ticket',
+);
+$longDevice = null;
+foreach ($multiDeviceView['devices'] as $portalDevice) {
+    if ($portalDevice['item_code'] === $secondItemCode) {
+        $longDevice = $portalDevice;
+        break;
+    }
+}
+checkPublic(
+    is_array($longDevice) &&
+        str_contains((string) ($longDevice['public_summary'] ?? ''), 'intentionally long'),
+    'Long customer-visible device update is missing',
+);
+checkPublic(
+    ($multiDeviceView['events'][0]['item_code'] ?? '') === $secondItemCode,
+    'Newest customer-visible event is not associated with its device',
+);
+$historyView = consoleDevices($pdo, $manager, ['view' => 'history', 'q' => $historyItemCode]);
+checkPublic(
+    $historyView['page']['total'] === 1 &&
+        $historyView['page']['rows'][0]['item_code'] === $historyItemCode,
+    'Synthetic cancelled device is missing from scoped repair history',
+);
+
 file_put_contents(
     __DIR__ . '/public-fixture.json',
-    json_encode(['ticket' => $ticketId, 'code' => $newCode]),
+    json_encode([
+        'ticket' => $ticketId,
+        'code' => $newCode,
+        'second_item_code' => $secondItemCode,
+        'second_device_number' => $initialDeviceCount + 1,
+        'history_item_code' => $historyItemCode,
+        'device_count' => count($multiDeviceView['devices']),
+    ]),
 );
-echo "PASS: public privacy, access-code revocation, stale sharing, role/branch boundaries, customer updates, queue filtering and pagination.\n";
+echo "PASS: public privacy, access revocation, estimate boundaries, multi-device grouping, long updates, role/branch boundaries and pagination.\n";

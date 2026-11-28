@@ -259,24 +259,6 @@
   font-size: 0.72rem;
 }
 
-.construction-mark {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  min-width: 140px;
-  padding: 20px;
-  border: 1px dashed rgba(212, 175, 102, 0.42);
-  border-radius: 14px;
-  color: var(--gold-300);
-  font-size: 0.75rem;
-  text-align: center;
-  box-shadow: 0 0 28px rgba(212, 175, 102, 0.07);
-}
-
-.construction-mark i {
-  font-size: 1.6rem;
-}
-
 .construction-card h2,
 .dashboard-panel h2 {
   margin: 8px 0 0;
@@ -513,7 +495,27 @@
   }
 
   .dashboard-grid {
-    grid-template-columns: 1fr;
+    /* A single 1fr track has an automatic min-content width and can overflow. */
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard-grid > .dashboard-card {
+    min-width: 0;
+    padding: 18px;
+    overflow-wrap: anywhere;
+  }
+  .dashboard-grid .secondary-btn {
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+  }
+  /* Negative offsets on decorative ::after circles inflate scrollWidth on
+     narrow screens even when the card visually clips its contents. */
+  .metric-card::after {
+    right: 0;
+    bottom: 0;
+    width: 64px;
+    height: 64px;
+    opacity: 0.45;
   }
 
   .analytics-grid {
@@ -751,18 +753,19 @@
   margin: 0;
 }
 
-/* Labels remain visible when an optional icon font fails to load. */
+/* The compact admin rail uses icon-only links on phone screens.
+   Every destination retains its full accessible name and hover title. */
 @media (max-width: 720px) {
   .nav-item {
+    min-height: 44px;
     flex-direction: column;
-    gap: 5px;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
     padding: 10px 2px;
   }
   .nav-item > span:last-child {
-    display: block;
-    font-size: 0.65rem;
-    text-align: center;
-    overflow-wrap: anywhere;
+    display: none;
   }
   .dashboard-content {
     padding: 16px 12px;
@@ -775,4 +778,159 @@
     height: 36px;
     font-size: 1rem;
   }
+}
+
+/* Keep admin controls readable at tablet widths without forcing a desktop
+   four-column KPI row into narrow content beside the full sidebar. */
+@media (min-width: 721px) and (max-width: 1024px) {
+  .dashboard-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .dashboard-user {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+  .analytics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The dashboard is operational: offer real navigation, not a construction badge. */
+.welcome-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: min(100%, 180px);
+}
+.welcome-primary,
+.welcome-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 9px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+.welcome-primary {
+  background: var(--gold-300);
+  color: var(--steel-900);
+}
+.welcome-primary:hover {
+  background: var(--soft-white);
+}
+.welcome-link {
+  color: var(--soft-white);
+  border: 1px solid rgba(223, 231, 234, 0.35);
+}
+.welcome-link:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+.welcome-primary:focus-visible,
+.welcome-link:focus-visible {
+  outline: 3px solid #7ad1ff;
+  outline-offset: 3px;
+}
+
+/* A failed data query must not retain a green successful status indicator. */
+.is-unavailable .status-dot {
+  background: #f1b265;
+  box-shadow: none;
+}
+.system-status.is-unavailable {
+  border-color: rgba(241, 178, 101, 0.55);
+  color: #f5c992;
+}
+.sidebar-footer.is-unavailable {
+  color: #f5c992;
+}
+@media (max-width: 520px) {
+  .welcome-actions {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .welcome-primary,
+  .welcome-link {
+    flex: 1 1 140px;
+  }
+}
+
+
+/* Shared staff form baseline: consistent control size and feedback. */
+.staff-page input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+.staff-page select,
+.staff-page .payments-action input:not([type='checkbox']) {
+  min-height: 44px;
+  line-height: 1.4;
+}
+
+.staff-page textarea {
+  min-height: 5.5rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.staff-page :focus-visible {
+  outline: 3px solid var(--gold-300);
+  outline-offset: 3px;
+}
+
+.staff-page :is(input, select, textarea)[aria-invalid='true'] {
+  border-color: #e7a09b;
+  box-shadow: 0 0 0 1px #e7a09b;
+}
+
+.staff-page :is(input, select, textarea):disabled,
+.staff-page button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.staff-page input[type='checkbox'],
+.staff-page input[type='radio'] {
+  accent-color: var(--gold-300);
+}
+
+.staff-page button,
+.staff-page .secondary-btn {
+  min-height: 44px;
+}
+
+/* The intake wizard is a standalone page rather than a .staff-page shell. */
+.intake-form input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+.intake-form select,
+.intake-form textarea,
+.intake-search input {
+  min-height: 44px;
+  line-height: 1.4;
+}
+
+.intake-form textarea {
+  min-height: 5.5rem;
+  line-height: 1.5;
+}
+
+.intake-form :is(input, select, textarea)[aria-invalid='true'] {
+  border-color: #e7a09b;
+  box-shadow: 0 0 0 1px #e7a09b;
+}
+
+.intake-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.intake-form .form-help,
+.intake-search-panel .form-help {
+  font-size: 0.78rem;
+  line-height: 1.5;
 }

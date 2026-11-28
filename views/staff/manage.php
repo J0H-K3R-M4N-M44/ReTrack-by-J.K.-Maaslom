@@ -2,9 +2,15 @@
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title><?= $errors
     ? 'Error: '
-    : '' ?>Staff management | RepairTrack</title><link rel="stylesheet" href="../css/base.css"><link rel="stylesheet" href="../css/dashboard.css"><link rel="stylesheet" href="../css/staff.css"></head>
-<body class="dashboard-body"><main class="staff-page">
-<header class="staff-heading"><div><div class="eyebrow">Administration · People and access</div><h1>Staff management</h1><p>Add people, choose their role and assign the branches they work in.</p></div><a class="secondary-btn" href="dashboard.php">Back to dashboard</a></header>
+    : '' ?>Staff management | RepairTrack</title><link rel="stylesheet" href="../css/base.css"><link rel="stylesheet" href="../css/dashboard.css"><link rel="stylesheet" href="../css/staff.css"><link rel="stylesheet" href="../css/workspace.css"><link rel="stylesheet" href="../css/workspace-design.css"><script src="../js/workspace-design.js" defer></script></head>
+<body class="dashboard-body rt-layout">
+<?php
+$workspaceUser = $admin;
+$currentSection = 'staff';
+require __DIR__ . '/../workspace/navigation.php';
+?>
+<main id="rt-main" class="staff-page rt-content" tabindex="-1">
+<header class="staff-heading rt-page-head"><div><div class="eyebrow">Administration · People and access</div><h1>Staff management</h1><p>Add people, choose their role and assign the branches they work in.</p></div><a class="secondary-btn" href="dashboard.php">Back to dashboard</a></header>
 <?php if ($notice): ?><p class="staff-notice" role="status"><?= h($notice) ?></p><?php endif; ?>
 <?php if (
     $invitation
@@ -19,6 +25,7 @@
 ): ?><li><a href="#<?= h($key) ?>"><?= h(
     $error,
 ) ?></a></li><?php endforeach; ?></ul></div><?php endif; ?>
+<p><a href="locations.php">Manage assigned-branch storage locations</a></p>
 <section class="dashboard-card staff-editor">
 <?php if ($review): ?>
     <h2><?= $action === 'deactivate'

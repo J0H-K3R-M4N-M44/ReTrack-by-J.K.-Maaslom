@@ -42,17 +42,81 @@ async function checkWidth(page) {
 async function checkRole(role, destination) {
   const page = await login(role, 1440);
   if (role === 'admin') {
-    await page.getByRole('link', { name: 'Staff workspace', exact: true }).click();
+    // Admin now starts in the shared overview; navigate directly to the requested workspace.
+    await page.getByRole('link', { name: destination, exact: true }).click();
+    await page.locator('#work-list').waitFor();
   }
   const screenshots = process.env.RUNNER_TEMP + '/workspace-screens';
   mkdirSync(screenshots, { recursive: true });
-  for (const width of [1440, 360]) {
-    await page.setViewportSize({ width, height: 900 });
+  for (const width of [1440, 360, 320]) {
+    const height = width === 320 ? 568 : 900;
+    await page.setViewportSize({ width, height });
     await checkWidth(page);
-    const nav = page.locator(width === 1440 ? '.rt-side' : '#rt-menu nav');
-    if (width === 360) await page.locator('#rt-more').click();
+    let nav;
+    if (width <= 767) {
+      const dock = page.locator('.rt-dock');
+      const dockLayout = await dock.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        const links = [...element.querySelectorAll('a')].map(link => {
+          const box = link.getBoundingClientRect();
+          const label = link.querySelector('span');
+          return {
+            height: box.height,
+            left: box.left,
+            right: box.right,
+            labelFits: !label || label.scrollWidth <= label.clientWidth + 1,
+          };
+        });
+        return {
+          position: getComputedStyle(element).position,
+          bottomGap: innerHeight - rect.bottom,
+          linkCount: links.length,
+          links,
+        };
+      });
+      assert.equal(dockLayout.position, 'fixed', 'Mobile shortcuts are not fixed');
+      assert(Math.abs(dockLayout.bottomGap) <= 1, 'Mobile dock is not flush with the viewport bottom');
+      assert.equal(dockLayout.linkCount, 4, 'Mobile dock must keep three shortcuts and More');
+      assert(dockLayout.links.every(link =>
+        link.height >= 44 && link.left >= -1 && link.right <= width + 1 && link.labelFits),
+        'Mobile dock target is clipped, too small, or its label overflows');
+
+      const clearance = await page.evaluate(() => {
+        window.scrollTo(0, document.documentElement.scrollHeight);
+        const main = document.querySelector('#rt-main');
+        const dock = document.querySelector('.rt-dock');
+        const lastContent = main?.lastElementChild;
+        return {
+          contentBottom: lastContent?.getBoundingClientRect().bottom ?? 0,
+          dockTop: dock.getBoundingClientRect().top,
+        };
+      });
+      assert(clearance.contentBottom <= clearance.dockTop + 1,
+        'Last workspace content is obscured by the fixed mobile dock');
+
+      await page.locator('#rt-more').click();
+      assert.equal(await page.locator('#rt-menu').evaluate(menu => menu.open), true,
+        'More did not open the workspace menu');
+      assert.equal(await page.locator('#rt-search').evaluate(element => document.activeElement === element),
+        true, 'More did not move focus into page search');
+      const menuClearance = await page.evaluate(() => ({
+        menuBottom: document.querySelector('.rt-menu-body').getBoundingClientRect().bottom,
+        dockTop: document.querySelector('.rt-dock').getBoundingClientRect().top,
+      }));
+      assert(menuClearance.menuBottom <= menuClearance.dockTop + 1,
+        'Workspace menu extends behind the fixed dock on a short screen');
+      await page.screenshot({ path: screenshots + '/' + role + '-dock-menu-' + width + '.png', fullPage: false });
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('#rt-menu').evaluate(menu => menu.open), false);
+      assert.equal(await page.locator('#rt-more').evaluate(element => document.activeElement === element),
+        true, 'Escape did not restore focus to the More trigger');
+      await page.locator('#rt-more').click();
+      nav = page.locator('#rt-menu nav');
+    } else {
+      nav = page.locator('.rt-side');
+    }
     const cashLink = page.locator('#rt-menu nav a[href$="view=cash"]');
-    assert.equal(await cashLink.count(), role === 'admin' ? 1 : 0);
+    assert.equal(await cashLink.count(), ['admin', 'manager', 'cashier'].includes(role) ? 1 : 0);
     await nav.getByRole('link', { name: destination, exact: true }).click();
     await page.locator('#work-list').waitFor();
     await checkWidth(page);
@@ -485,6 +549,17 @@ try {
   const tech = await login('technician',360);
   async function stage(status) {
     await tech.goto(deviceUrl);
+    const repairFieldSizes = await tech.locator(
+      '#repair-status, #repair-note, #public-message'
+    ).evaluateAll(elements => elements
+      .filter(element => element.getClientRects().length > 0)
+      .map(element => ({
+        name: element.id,
+        height: element.getBoundingClientRect().height,
+      })));
+    assert(repairFieldSizes.length === 3 &&
+      repairFieldSizes.every(item => item.height >= 44),
+      'Technician repair form control below 44px: ' + JSON.stringify(repairFieldSizes));
     await tech.locator('select[name=status]').selectOption(status);
     await press(tech,'Review progress');
     await press(tech,'Confirm change');
@@ -512,7 +587,13 @@ try {
   await manager.goto(deviceUrl);
   await manager.getByRole('link', { name: 'Open billing and handover' }).click();
   await manager.locator('[name=confirm]').check();
+  const reviewScreens = process.env.RUNNER_TEMP + '/workspace-screens';
+  mkdirSync(reviewScreens, { recursive: true });
   await press(manager, 'Review bill issuance');
+  await manager.screenshot({
+    path: reviewScreens + '/manager-bill-issuance-review-1440.png',
+    fullPage: false,
+  });
   await press(manager, 'Issue final bill');
   await manager.getByRole('heading', { name: 'Record counter cash' }).waitFor();
 
@@ -530,24 +611,98 @@ try {
   await cashier.locator('#rt-menu nav').getByRole('link', { name: 'Cash desk' }).click();
   await cashier.locator('#queue-search').fill(fixture.ticket);
   await press(cashier, 'Search');
+  await cashier.getByRole('heading', { name: 'Cash desk bill lookup' }).waitFor();
+  const cashierList = cashier.locator('#work-list .workspace-table');
+  assert.equal(await cashierList.count(), 1, 'Cashier search should show its bill table');
+  const screenshotDirectory = process.env.RUNNER_TEMP + '/workspace-screens';
+  mkdirSync(screenshotDirectory, { recursive: true });
+  for (const width of [360, 320]) {
+    await cashier.setViewportSize({ width, height: 900 });
+    await checkWidth(cashier);
+    const cashLayout = await cashierList.evaluate(table => {
+      const rows = [...table.tBodies[0].rows];
+      const headers = [...table.tHead.rows[0].cells].map(cell => cell.textContent.trim());
+      const labelsMatch = rows.length > 0 && rows.every(row => {
+        const labels = [...row.cells].map(cell => cell.dataset.label || '');
+        return headers.length === labels.length &&
+          headers.every((header, index) => header === labels[index]);
+      });
+      return {
+        rowDisplay: getComputedStyle(rows[0]).display,
+        minWidth: getComputedStyle(table).minWidth,
+        role: table.getAttribute('role'),
+        headerRoles: [...table.tHead.rows[0].cells].every(cell => cell.getAttribute('role') === 'columnheader'),
+        rowRoles: rows.every(row => row.getAttribute('role') === 'row'),
+        cellRoles: rows.every(row => [...row.cells].every(cell => cell.getAttribute('role') === 'cell')),
+        labelsMatch,
+        wrapperFits: table.parentElement.scrollWidth <= table.parentElement.clientWidth + 1,
+      };
+    });
+    assert.equal(cashLayout.role, 'table');
+    assert(cashLayout.headerRoles && cashLayout.rowRoles && cashLayout.cellRoles && cashLayout.labelsMatch,
+      'Cash desk mobile cards lost table roles or matching field labels');
+    assert(cashLayout.wrapperFits, 'Cashier bill cards require horizontal scrolling');
+    assert.equal(cashLayout.rowDisplay, 'grid', 'Cashier bill row did not become a stacked card');
+    assert.equal(cashLayout.minWidth, '0px', 'Cashier bill table kept a desktop minimum width');
+    if (width === 360) {
+      const cashRow = cashierList.locator('tbody tr').first();
+      await cashRow.evaluate(row => {
+        window.scrollBy(0, row.getBoundingClientRect().top - 56);
+      });
+      await cashier.screenshot({
+        path: screenshotDirectory + '/cashier-cash-list-360-top.png',
+        fullPage: false,
+      });
+      const bottomClearance = await cashRow.evaluate(row => {
+        const dock = document.querySelector('.rt-dock');
+        window.scrollBy(0, row.getBoundingClientRect().bottom -
+          (dock.getBoundingClientRect().top - 12));
+        return {
+          rowBottom: row.getBoundingClientRect().bottom,
+          dockTop: dock.getBoundingClientRect().top,
+        };
+      });
+      assert(bottomClearance.rowBottom <= bottomClearance.dockTop - 8,
+        'Cashier bill card cannot be scrolled fully above the fixed dock');
+      await cashier.screenshot({
+        path: screenshotDirectory + '/cashier-cash-list-360-bottom.png',
+        fullPage: false,
+      });
+    }
+  }
+  await cashier.setViewportSize({ width: 360, height: 900 });
   await cashier.getByRole('link', { name: 'Open cash record' }).click();
   await cashier.getByRole('heading', { name: 'Record counter cash' }).waitFor();
   await cashier.waitForLoadState('load');
   await checkWidth(cashier);
   assert.equal(await cashier.locator('#cash-amount').inputValue(), '2750.00');
+  assert(
+    (await cashier.locator('#cash-amount').evaluate(element =>
+      element.getBoundingClientRect().height)) >= 44,
+    'Cash amount field is below the 44px staff form baseline.'
+  );
   await cashier.locator('[name=confirm]').check();
   await press(cashier, 'Review payment');
+  await cashier.screenshot({
+    path: screenshotDirectory + '/cashier-payment-review-360.png',
+    fullPage: false,
+  });
   await press(cashier, 'Confirm cash received');
   await cashier.locator('#recipient').fill('Pickup Test');
   await cashier.locator('[name=condition_confirmed]').check();
   await press(cashier, 'Review handover');
+  await cashier.screenshot({
+    path: screenshotDirectory + '/cashier-handover-review-360.png',
+    fullPage: false,
+  });
   await press(cashier, 'Confirm handover and close ticket');
   await cashier.getByRole('heading', { name: 'Ticket closed' }).waitFor();
   await checkWidth(cashier);
   console.log('PASS: manager billing at 1440px, cashier search, payment and pickup at 360px.');
   for (const [role, destination] of Object.entries({
-    admin: 'Repair queue', intake_agent: 'Saved drafts', technician: 'Status board',
-    courier: 'History', viewer: 'Status board',
+    admin: 'Repair queue', manager: 'Repair queue', intake_agent: 'Saved drafts',
+    technician: 'Status board', courier: 'History', cashier: 'Cash desk',
+    viewer: 'Status board',
   })) {
     await checkRole(role, destination);
     console.log('PASS: desktop and mobile navigation for ' + role);
