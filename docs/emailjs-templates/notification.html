@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RepairTrack notification</title>
+</head>
+<body style="margin:0;padding:24px;background:#f3f5f8;font-family:Arial,Helvetica,sans-serif;color:#172033;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
+    <tr><td style="padding:24px 28px;background:#0b1f3f;color:#ffffff;font-size:20px;font-weight:bold;">RepairTrack</td></tr>
+    <tr><td style="padding:30px 28px;">
+      <p style="margin:0 0 18px;">Hello {{to_name}},</p>
+
+      {{#show_customer_update}}
+      <h1 style="margin:0 0 16px;font-size:23px;color:#0b1f3f;">Your repair has an update</h1>
+      <p style="line-height:1.6;">Hello {{customer_name}}, here is the latest customer-visible update for your device.</p>
+      <table role="presentation" cellpadding="8" cellspacing="0" width="100%" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+        <tr><td style="color:#64748b;width:35%;">Ticket code</td><td><strong>{{ticket_code}}</strong></td></tr>
+        <tr><td style="color:#64748b;">Device</td><td>{{device_label}}</td></tr>
+        <tr><td style="color:#64748b;">Current status</td><td><strong>{{status}}</strong></td></tr>
+        <tr><td style="color:#64748b;">Branch</td><td>{{branch_name}}</td></tr>
+      </table>
+      <h2 style="font-size:17px;margin:24px 0 8px;color:#0b1f3f;">Update from the repair team</h2>
+      <p style="line-height:1.6;white-space:pre-line;">{{message}}</p>
+      <p style="line-height:1.6;">For assistance, contact {{branch_name}} at {{branch_phone}}.</p>
+      <p style="margin-top:26px;">Thank you for choosing RepairTrack.</p>
+      {{/show_customer_update}}
+
+      {{#show_customer_payment}}
+      <h1 style="margin:0 0 16px;font-size:23px;color:#0b1f3f;">Payment information</h1>
+      <p style="line-height:1.6;">Hello {{customer_name}}, this is an informational notice about the payment recorded for your repair.</p>
+      <table role="presentation" cellpadding="8" cellspacing="0" width="100%" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+        <tr><td style="color:#64748b;width:42%;">Ticket code</td><td><strong>{{ticket_code}}</strong></td></tr>
+        <tr><td style="color:#64748b;">Amount recorded</td><td><strong>{{payment_amount}}</strong></td></tr>
+        <tr><td style="color:#64748b;">Remaining balance</td><td><strong>{{remaining_balance}}</strong></td></tr>
+        <tr><td style="color:#64748b;">Branch</td><td>{{branch_name}}</td></tr>
+      </table>
+      <p style="line-height:1.6;margin-top:22px;">Please keep this message for your reference. For payment questions, contact the branch directly. This email is not a tax invoice or proof of payment.</p>
+      <p style="margin-top:26px;">— RepairTrack</p>
+      {{/show_customer_payment}}
+
+      {{#show_staff_alert}}
+      <h1 style="margin:0 0 12px;font-size:23px;color:#0b1f3f;">{{title}}</h1>
+      <p style="display:inline-block;margin:0 0 18px;padding:6px 10px;background:#fff3e6;color:#8a4b08;border-radius:5px;font-size:12px;font-weight:bold;">{{event_type}}</p>
+      <p style="line-height:1.6;white-space:pre-line;">{{message}}</p>
+      <table role="presentation" cellpadding="8" cellspacing="0" width="100%" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+        <tr><td style="color:#64748b;width:35%;">Ticket code</td><td>{{ticket_code}}</td></tr>
+        <tr><td style="color:#64748b;">Branch</td><td>{{branch_name}}</td></tr>
+      </table>
+      <p style="margin:26px 0;"><a href="{{target_url}}" style="display:inline-block;padding:12px 18px;background:#f28c28;color:#172033;text-decoration:none;font-weight:bold;border-radius:7px;">Open RepairTrack</a></p>
+      <p style="font-size:13px;color:#64748b;line-height:1.5;">This notice is intended for the assigned staff recipient. It does not replace checking the in-app staff inbox. Do not forward customer or operational information outside the authorized team.</p>
+      <p style="margin-top:26px;">— RepairTrack System</p>
+      {{/show_staff_alert}}
+    </td></tr>
+    <tr><td style="padding:16px 28px;background:#f8fafc;color:#64748b;font-size:12px;line-height:1.5;">This is an automated RepairTrack message. Replies are not monitored. Never email passwords, portal PINs, or card and bank details.</td></tr>
+  </table>
+</body>
+</html>
