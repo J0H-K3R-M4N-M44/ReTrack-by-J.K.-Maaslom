@@ -71,7 +71,7 @@ Staff alert fields:
 - `show_staff_alert` (boolean), `event_type`, `title`, `message`
 - `ticket_code`, `branch_name`, `target_url`
 
-The server sets exactly one `show_...` flag to `true` for each notification. The HTML uses EmailJS conditional sections (`{{#flag}}...{{/flag}}`) so unrelated sections are omitted. A missing or false flag does not render its section. Do not use triple-brace variables for untrusted message content; double-brace fields are HTML-escaped by EmailJS.
+Immediately before sending, PHP derives exactly one `show_...` flag from the outbox's existing logical template key. The flags are not dependent on stored payload fields, so notifications already queued by an earlier build remain compatible. The HTML uses EmailJS conditional sections (`{{#flag}}...{{/flag}}`) so unrelated sections are omitted. A missing or false flag does not render its section. Do not use triple-brace variables for untrusted message content; double-brace fields are HTML-escaped by EmailJS.
 
 Customer updates contain only the customer-visible status summary. Internal notes, serial numbers, photos, private tracking PINs, staff names, and storage locations are not sent. Customer payment mail is informational, not a tax invoice, payment gateway receipt, or COD confirmation. Staff messages omit customer contact details, PINs, private technician notes, and evidence files.
 
