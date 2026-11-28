@@ -1,7 +1,7 @@
 name: Staff activity isolation
 on:
   push:
-    branches: [Tracking-And-Activity-UX, Intake-Evidence-Checks, Intake-Customer-Search, Device-Handovers, Loss-Status-Schema-Hotfix, Inventory-Evidence-Attachments, Inventory-Loss-Valuation, Verified-Parts-Cost-Register, Periodic-Stocktaking-Signoff, main, MVP-Stabilization]
+    branches: [Tracking-And-Activity-UX, Intake-Evidence-Checks, Intake-Customer-Search, Device-Handovers, Loss-Status-Schema-Hotfix, Inventory-Evidence-Attachments, Inventory-Loss-Valuation, Verified-Parts-Cost-Register, Periodic-Stocktaking-Signoff, main, MVP-Stabilization, MVP-UX-Polish-2026-11-25, MVP-Role-Overviews-2026-11-26]
     paths:
       - '.github/workflows/staff-activity.yml'
       - 'tests/*.php'

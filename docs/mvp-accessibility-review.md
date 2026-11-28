@@ -47,3 +47,18 @@ These checks are **not** a full site-wide audit. Still required:
 **Release implication:** Do not mark accessibility, UAT or production readiness as fully approved on this test alone. Defects affecting keyboard access, sensitive information, cash, or pickup are release blockers.
 
 [Recovery rehearsal](mvp-recovery-rehearsal.md) · [Full regression report](mvp-test-report.md).
+
+
+## Customer and staff queue usability — 25 November 2026
+
+This focused follow-up addresses issues found in the preview screenshot review:
+
+- Public tracking now labels **Waiting for parts** and **Waiting for customer decision** as distinct states. The next-step text explains that parts are being arranged or that the customer should contact the branch about the estimate. It does not present either wait as ordinary assessment or invent an ETA.
+- Branch phone details, when configured, are a direct phone link. When no branch phone is configured, the page says so and points the customer back to the service receipt or branch rather than showing an empty contact area.
+- The open repair queue is ordered by the **oldest last update first** and displays a Philippine-time last-update timestamp beside the repair-start time. Repair history remains newest-first. This is an attention aid, not an SLA, overdue calculation or automatic priority score.
+- On phone widths, staff queue rows become stacked record cards with visible field labels. The underlying table headers remain available to assistive technology; the mobile layout no longer requires horizontal table scrolling. The compact customer header also keeps its navigation links on one horizontally scrollable row. Explicit table, row, cell and column-header roles are retained when the CSS layout changes; a real screen-reader walk-through is still required.
+- Technician options now explain active workload, remaining slots and when a technician is at capacity. A technician already assigned to the device remains selectable for a no-op reassignment; other full technicians stay disabled. The server-side capacity check remains authoritative. The oversized combined unread number was removed from the workspace header; category-specific unread counts remain in the Staff activity filter where they can guide the next action.
+
+Automated coverage was added to **tests/public-tracking.php**, **tests/staff-workspace.php** and **tests/public-browser.mjs**. The browser suite captures **mvp-queue-mobile.png** for inspection. These are focused automated checks, not a human usability sign-off, screen-reader certification or full contrast audit.
+
+Still not implemented in this pass: customer self-approval, chat, SMS/email notifications, live tracking, repair ETA/SLA, COD, or procurement. The portal remains read-only for customer decisions, and staff must continue to record the customer's response.

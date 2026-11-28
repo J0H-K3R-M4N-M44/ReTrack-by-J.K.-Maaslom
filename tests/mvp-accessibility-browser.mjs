@@ -49,6 +49,19 @@ try {
     const overflow = await page.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth);
     assert(overflow <= 1, 'Public tracking overflow at ' + width + ': ' + overflow);
+    if (width <= 600) {
+      const mobileNav = await page.locator('.public-header nav').evaluate(nav => ({
+        flexWrap: getComputedStyle(nav).flexWrap,
+        linksStayOnOneLine: [...nav.querySelectorAll('a')].every(link =>
+          getComputedStyle(link).whiteSpace === 'nowrap'),
+        navFitsViewport: nav.getBoundingClientRect().right <= innerWidth,
+        allLinksFitWithoutScrolling: nav.scrollWidth <= nav.clientWidth + 1,
+      }));
+      assert.equal(mobileNav.flexWrap, 'nowrap', 'Customer navigation should stay on one compact row');
+      assert(mobileNav.linksStayOnOneLine && mobileNav.navFitsViewport &&
+        mobileNav.allLinksFitWithoutScrolling,
+        'Customer navigation links should remain fully visible without horizontal clipping');
+    }
     const targets = await page.locator(
       '.public-header a, .public-card details summary, .public-button'
     ).evaluateAll(elements => elements.map(element => ({

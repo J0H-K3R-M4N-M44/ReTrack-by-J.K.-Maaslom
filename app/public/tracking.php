@@ -107,6 +107,25 @@ function publicEstimateLabel(array $estimate): string
     };
 }
 
+// Customer labels preserve the difference between active work and waiting states.
+function publicStageLabel(array $device): string
+{
+    if ($device['custody_state'] === 'WITH_CUSTOMER') {
+        return 'Returned to customer';
+    }
+    if ($device['repair_status'] === 'CANCELLED') {
+        return 'Cancelled';
+    }
+    if ($device['custody_state'] === 'IN_TRANSIT') {
+        return 'In transit';
+    }
+    return match ($device['repair_status']) {
+        'AWAITING_CUSTOMER_APPROVAL' => 'Waiting for customer decision',
+        'AWAITING_PARTS' => 'Waiting for parts',
+        default => dashboardStatusLabel($device['repair_status']),
+    };
+}
+
 function publicNextStep(array $device): string
 {
     if ($device['custody_state'] === 'WITH_CUSTOMER') {
@@ -118,22 +137,36 @@ function publicNextStep(array $device): string
     if ($device['custody_state'] === 'IN_TRANSIT') {
         return 'The device is in transit. Contact the branch to confirm the next handoff.';
     }
+
     $estimate = $device['estimate'] ?? null;
+
+    if ($device['repair_status'] === 'AWAITING_CUSTOMER_APPROVAL') {
+        if ($estimate && $estimate['status'] === 'AWAITING_CUSTOMER') {
+            return $estimate['expired']
+                ? 'The estimate response period ended. Contact the branch to request an updated estimate.'
+                : 'The repair is paused for your decision. Review the shared estimate and contact the branch with your response. Staff must record it before repair can continue.';
+        }
+        return 'The repair is paused while the branch confirms the estimate and response process. Contact the branch before work continues.';
+    }
+
+    if ($device['repair_status'] === 'AWAITING_PARTS') {
+        return 'The repair is waiting for required parts. Contact the branch for an updated arrival estimate; this page does not show supplier or delivery tracking.';
+    }
+
     if ($estimate && $estimate['status'] === 'AWAITING_CUSTOMER') {
         return $estimate['expired']
             ? 'The estimate response period ended. Contact the branch to request an updated estimate.'
-            : 'Review the estimate and contact the branch with your decision. Staff must record your response.';
+            : 'Review the shared estimate and contact the branch with your decision. Staff must record your response before repair can continue.';
     }
     if ($estimate && $estimate['status'] === 'DECLINED') {
         return 'The estimate was declined. Contact the branch to agree on next steps; this does not cancel the repair.';
     }
+
     return match ($device['repair_status']) {
         'RECEIVED' => 'The branch has received the device. Staff will begin the assessment.',
         'DIAGNOSING' => $estimate && $estimate['status'] === 'APPROVED'
             ? 'The estimate was recorded as approved. Staff can arrange the repair.'
             : 'Diagnosis is underway. Ask the branch if you need a progress update.',
-        'AWAITING_CUSTOMER_APPROVAL' => 'Ask the branch to confirm the current estimate and how to respond.',
-        'AWAITING_PARTS' => 'Parts are being arranged. Ask the branch for updated timing.',
         'IN_PROGRESS' => 'Repair work is in progress. Check back for the next staff update.',
         'TESTING' => 'The device is being tested. The branch will confirm when it is ready.',
         'READY_FOR_PICKUP' => 'Contact the branch to confirm pickup and any balance before collection. Staff must complete checkout.',

@@ -92,81 +92,36 @@ function renderDashboardPager(array $page, string $key, string $tab): void
     <link rel="stylesheet" href="../css/dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="../css/workspace.css">
+<link rel="stylesheet" href="../css/workspace-design.css">
+<script src="../js/workspace-design.js" defer></script>
 </head>
-<body class="dashboard-body page-fade">
-    <div class="dashboard-shell">
-        <aside class="dashboard-sidebar" aria-label="Admin navigation">
-            <div>
-                <div class="dashboard-brand">
-                    <span class="brand-mark"><i class="fa-solid fa-microchip" aria-hidden="true"></i></span>
-                    <span>RepairTrack <strong>Admin</strong></span>
-                </div>
-
-                <nav class="dashboard-nav">
-                    <a class="nav-item" href="staff_home.php">Staff workspace</a>
-                    <a class="nav-item" href="staff_home.php?view=cash">Cash desk</a>
-                    <a class="nav-item" href="staff.php"><span class="nav-icon" aria-hidden="true">＋</span><span>Staff management</span></a>
-                    <a class="nav-item" href="inventory.php">Branch inventory</a>
-                    <a class="nav-item<?= $tab === 'overview'
-                        ? ' is-active'
-                        : '' ?>" href="?tab=overview"<?= $tab === 'overview'
-    ? ' aria-current="page"'
-    : '' ?>>
-                        <i class="nav-icon fa-solid fa-chart-line" aria-hidden="true"></i>
-                        <span>Operations overview</span>
-                    </a>
-                    <a class="nav-item<?= $tab === 'workbench'
-                        ? ' is-active'
-                        : '' ?>" href="?tab=workbench"<?= $tab === 'workbench'
-    ? ' aria-current="page"'
-    : '' ?>>
-                        <i class="nav-icon fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>
-                        <span>Repair workbench</span>
-                    </a>
-                    <a class="nav-item<?= $tab === 'customers'
-                        ? ' is-active'
-                        : '' ?>" href="?tab=customers"<?= $tab === 'customers'
-    ? ' aria-current="page"'
-    : '' ?>>
-                        <i class="nav-icon fa-solid fa-users" aria-hidden="true"></i>
-                        <span>Customer roster</span>
-                    </a>
-                    <a class="nav-item" href="activity.php"><i class="nav-icon fa-solid fa-bell" aria-hidden="true"></i><span>Staff activity</span></a>
-                    <a class="nav-item" href="reports.php">
-                        <i class="nav-icon fa-solid fa-file-invoice" aria-hidden="true"></i>
-                        <span>Reports and records</span>
-                    </a>
-                </nav>
-            </div>
-
-            <div class="sidebar-footer<?= $metricsAvailable ? '' : ' is-unavailable' ?>">
-                <span class="status-dot" aria-hidden="true"></span>
-                <span><?= $metricsAvailable
+<body class="dashboard-body rt-layout">
+    <?php
+$workspaceUser = $admin;
+$currentSection = match ($tab) {
+    'workbench' => 'workbench',
+    'customers' => 'customers',
+    default => 'overview',
+};
+require __DIR__ . '/../views/workspace/navigation.php';
+?>
+<main class="dashboard-main rt-content" id="rt-main" tabindex="-1">
+    <header class="staff-heading rt-page-head">
+        <div>
+            <p class="eyebrow">RepairTrack · Administrator</p>
+            <h1><?= match ($tab) {
+                'workbench' => 'Repair workbench',
+                'customers' => 'Customer roster',
+                default => 'Operations overview',
+            } ?></h1>
+            <p>Review branch activity and continue your team's repair operations.</p>
+            <span class="system-status<?= $metricsAvailable ? '' : ' is-unavailable' ?>" role="status">
+                <span class="status-dot" aria-hidden="true"></span><?= $metricsAvailable
                     ? 'Dashboard data loaded'
-                    : 'Dashboard data unavailable' ?></span>
-            </div>
-        </aside>
-
-        <main class="dashboard-main">
-            <header class="dashboard-topbar">
-                <div>
-                    <div class="eyebrow">Computer repair operations</div>
-                    <h1>Admin dashboard</h1>
-                </div>
-                <div class="dashboard-user">
-                    <span class="system-status<?= $metricsAvailable ? '' : ' is-unavailable' ?>" role="status"><span class="status-dot" aria-hidden="true"></span><?= $metricsAvailable
-                        ? 'Dashboard data loaded'
-                        : 'Dashboard data unavailable' ?></span>
-                    <span class="welcome-seal" aria-hidden="true"><i class="fa-solid fa-user-shield"></i></span>
-                    <span>
-                        <strong><?php echo $admin_username; ?></strong>
-                        <small>Administrator</small>
-                    </span>
-                    <form action="logout.php" method="post"><input type="hidden" name="csrf_token" value="<?= h(
-                        csrfToken(),
-                    ) ?>"><button class="logout-btn" type="submit">Log out</button></form>
-                </div>
-            </header>
+                    : 'Dashboard data unavailable' ?>
+            </span>
+        </div>
+    </header>
 
             <div class="dashboard-content">
                 <?php if (in_array($tab, ['workbench', 'customers'], true)): ?>
@@ -434,7 +389,6 @@ function renderDashboardPager(array $page, string $key, string $tab): void
 
             </div>
         </main>
-    </div>
 
     <script src="../js/trans.js"></script>
     <script src="../js/workspace.js"></script>

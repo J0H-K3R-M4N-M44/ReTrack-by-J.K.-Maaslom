@@ -50,6 +50,7 @@ $query->execute([$ticketId]);
 $code = replaceTrackingCode($pdo, $manager['user_id'], $ticketId, $query->fetchColumn());
 $repair = publicRepair($pdo, $code);
 checkPublic($repair !== null, 'Private code opens issued repair');
+$initialDeviceCount = count($repair['devices']);
 checkPublic(
     publicRepair($pdo, $repair['ticket_code']) === null,
     'Receipt numbers do not grant access',
@@ -189,8 +190,111 @@ checkPublic(!isset($latestView['devices'][0]['estimate']['prepared_by_user_id'])
 checkPublic(publicNextStep(['custody_state' => 'WITH_CUSTOMER']) !== '',
     'Returned device lacks next action');
 
+$partsWaiting = [
+    'custody_state' => 'AT_LOCATION',
+    'repair_status' => 'AWAITING_PARTS',
+    'estimate' => null,
+];
+checkPublic(publicStageLabel($partsWaiting) === 'Waiting for parts',
+    'Parts wait was presented as a generic assessment stage');
+checkPublic(str_contains(publicNextStep($partsWaiting), 'required parts'),
+    'Parts wait lacks a parts-specific customer action');
+
+$customerDecisionWaiting = [
+    'custody_state' => 'AT_LOCATION',
+    'repair_status' => 'AWAITING_CUSTOMER_APPROVAL',
+    'estimate' => null,
+];
+checkPublic(publicStageLabel($customerDecisionWaiting) === 'Waiting for customer decision',
+    'Customer approval wait was not clearly labelled');
+checkPublic(str_contains(publicNextStep($customerDecisionWaiting), 'Contact the branch'),
+    'Customer approval wait lacks a branch contact action');
+
+// Add a second, fictional device to exercise the grouped customer portal view.
+$sequenceQuery = $pdo->prepare(
+    'SELECT COALESCE(MAX(child_sequence), 0) + 1 FROM ticket_devices WHERE ticket_id = ?',
+);
+$sequenceQuery->execute([$ticketId]);
+$secondSequence = (int) $sequenceQuery->fetchColumn();
+$secondItemCode = 'PORTAL-' . $ticketId . '-' . $secondSequence;
+$longPublicMessage = str_repeat(
+    'This fictional customer-visible update is intentionally long so the portal can be checked for readable wrapping on narrow screens. ',
+    7,
+) . "\nThe device remains at the service branch while staff arrange the required part.";
+
+$insertSecondDevice = $pdo->prepare(
+    "INSERT INTO ticket_devices (
+        ticket_id, child_sequence, item_code, device_type_snapshot, make_snapshot,
+        model_snapshot, alternative_identifiers, reported_symptoms, condition_notes,
+        accessory_checklist_completed, repair_status, public_summary, custody_state
+    ) VALUES (?, ?, ?, 'Laptop', 'RepairTrack Test', 'Second portal device',
+        'SYNTHETIC-PORTAL-DEVICE', 'Illustrative reported symptom',
+        'Synthetic condition notes', 1, 'AWAITING_PARTS', ?, 'AT_LOCATION')",
+);
+$insertSecondDevice->execute([$ticketId, $secondSequence, $secondItemCode, $longPublicMessage]);
+$secondDeviceId = (int) $pdo->lastInsertId();
+$pdo->prepare(
+    "INSERT INTO ticket_status_events (
+        ticket_device_id, from_status, to_status, actor_type, actor_user_id,
+        public_summary, is_customer_visible, created_at
+    ) VALUES (?, 'RECEIVED', 'AWAITING_PARTS', 'USER', ?, ?, 1, UTC_TIMESTAMP())",
+)->execute([$secondDeviceId, $tech['user_id'], $longPublicMessage]);
+
+$historySequence = $secondSequence + 1;
+$historyItemCode = 'PORTAL-HISTORY-' . $ticketId . '-' . $historySequence;
+$insertHistoryDevice = $pdo->prepare(
+    "INSERT INTO ticket_devices (
+        ticket_id, child_sequence, item_code, device_type_snapshot, make_snapshot,
+        model_snapshot, alternative_identifiers, reported_symptoms, condition_notes,
+        accessory_checklist_completed, repair_status, public_summary, custody_state
+    ) VALUES (?, ?, ?, 'Laptop', 'RepairTrack Test', 'Archived portal device',
+        'SYNTHETIC-HISTORY-DEVICE', 'Synthetic completed repair fixture',
+        'Synthetic condition notes', 1, 'CANCELLED',
+        'Synthetic archived device for responsive history testing.', 'AT_LOCATION')",
+);
+$insertHistoryDevice->execute([$ticketId, $historySequence, $historyItemCode]);
+
+$multiDeviceView = publicRepair($pdo, $newCode);
+checkPublic(
+    count($multiDeviceView['devices']) === $initialDeviceCount + 2,
+    'Customer portal did not return both additional devices',
+);
+checkPublic(
+    $multiDeviceView['devices'][$initialDeviceCount]['item_code'] === $secondItemCode,
+    'Additional device is not grouped under its issued ticket',
+);
+$longDevice = null;
+foreach ($multiDeviceView['devices'] as $portalDevice) {
+    if ($portalDevice['item_code'] === $secondItemCode) {
+        $longDevice = $portalDevice;
+        break;
+    }
+}
+checkPublic(
+    is_array($longDevice) &&
+        str_contains((string) ($longDevice['public_summary'] ?? ''), 'intentionally long'),
+    'Long customer-visible device update is missing',
+);
+checkPublic(
+    ($multiDeviceView['events'][0]['item_code'] ?? '') === $secondItemCode,
+    'Newest customer-visible event is not associated with its device',
+);
+$historyView = consoleDevices($pdo, $manager, ['view' => 'history', 'q' => $historyItemCode]);
+checkPublic(
+    $historyView['page']['total'] === 1 &&
+        $historyView['page']['rows'][0]['item_code'] === $historyItemCode,
+    'Synthetic cancelled device is missing from scoped repair history',
+);
+
 file_put_contents(
     __DIR__ . '/public-fixture.json',
-    json_encode(['ticket' => $ticketId, 'code' => $newCode]),
+    json_encode([
+        'ticket' => $ticketId,
+        'code' => $newCode,
+        'second_item_code' => $secondItemCode,
+        'second_device_number' => $initialDeviceCount + 1,
+        'history_item_code' => $historyItemCode,
+        'device_count' => count($multiDeviceView['devices']),
+    ]),
 );
-echo "PASS: public privacy, access-code revocation, stale sharing, role/branch boundaries, customer updates, queue filtering and pagination.\n";
+echo "PASS: public privacy, access revocation, estimate boundaries, multi-device grouping, long updates, role/branch boundaries and pagination.\n";
