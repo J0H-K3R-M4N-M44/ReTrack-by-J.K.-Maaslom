@@ -8,6 +8,26 @@ function cashCanOpen(array $user): bool
     return in_array($user['role'] ?? '', ['ADMIN', 'MANAGER', 'CASHIER'], true);
 }
 
+// MySQL can deadlock when a transaction writes per-recipient notifications
+// while another request holds that recipient's user row. Retry only the whole
+// idempotent cash operation; never retry an individual statement in-place.
+function cashRetryDeadlock(callable $operation): mixed
+{
+    for ($attempt = 0; ; $attempt++) {
+        try {
+            return $operation();
+        } catch (PDOException $error) {
+            $driverCode = (int) ($error->errorInfo[1] ?? 0);
+            $sqlState = (string) $error->getCode();
+            $retryable = in_array($driverCode, [1205, 1213], true) || $sqlState === '40001';
+            if (!$retryable || $attempt >= 2) {
+                throw $error;
+            }
+            usleep(random_int(25000, 75000) * ($attempt + 1));
+        }
+    }
+}
+
 function cashAmountCents(string $value): int
 {
     if (!preg_match('/^([0-9]{1,10})(?:\.([0-9]{1,2}))?$/D', trim($value), $parts)) {
@@ -248,6 +268,18 @@ function cashIssueFinalBill(
     string $expectedVersion,
     ?array $cancellation = null,
 ): int {
+    return cashRetryDeadlock(
+        static fn(): int => cashIssueFinalBillAttempt($pdo, $actorId, $ticketId, $expectedVersion, $cancellation),
+    );
+}
+
+function cashIssueFinalBillAttempt(
+    PDO $pdo,
+    int $actorId,
+    int $ticketId,
+    string $expectedVersion,
+    ?array $cancellation = null,
+): int {
     $pdo->beginTransaction();
     try {
         $actorQuery = $pdo->prepare(
@@ -462,6 +494,19 @@ function cashRecordPayment(
     string $amountText,
     string $requestKey,
 ): void {
+    cashRetryDeadlock(
+        static fn(): mixed => cashRecordPaymentAttempt($pdo, $actorId, $billId, $expectedVersion, $amountText, $requestKey),
+    );
+}
+
+function cashRecordPaymentAttempt(
+    PDO $pdo,
+    int $actorId,
+    int $billId,
+    string $expectedVersion,
+    string $amountText,
+    string $requestKey,
+): void {
     $amountCents = cashAmountCents($amountText);
     if ($amountCents <= 0 || !preg_match('/^[a-f0-9]{64}$/D', $requestKey)) {
         throw new DomainException('Enter a valid amount and reopen the payment form.');
@@ -631,6 +676,22 @@ function cashHandoverBlockers(array $bill, array $ticket): array
 }
 
 function cashCompleteHandover(
+    PDO $pdo,
+    int $actorId,
+    int $billId,
+    string $expectedVersion,
+    string $recipient,
+    string $relationship,
+    string $conditionConfirmed,
+): void {
+    cashRetryDeadlock(
+        static fn(): mixed => cashCompleteHandoverAttempt(
+            $pdo, $actorId, $billId, $expectedVersion, $recipient, $relationship, $conditionConfirmed,
+        ),
+    );
+}
+
+function cashCompleteHandoverAttempt(
     PDO $pdo,
     int $actorId,
     int $billId,
