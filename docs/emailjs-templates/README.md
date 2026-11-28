@@ -34,7 +34,7 @@ The PHP sender continues to identify the logical message type in the outbox, the
 | Customer payment | `show_customer_payment` | `customer_name`, `ticket_code`, `payment_amount`, `remaining_balance`, `branch_name` |
 | Staff alert | `show_staff_alert` | `event_type`, `title`, `message`, `ticket_code`, `branch_name`, `target_url` |
 
-EmailJS conditional sections show only the active mode. All three modes also receive `to_email`, `to_name`, and `subject`.
+PHP derives and adds the active mode flag from each outbox row's logical template key immediately before sending. All three modes also receive `to_email`, `to_name`, and `subject`. Older queued rows do not need to be rewritten.
 
 ## Security and test data
 
